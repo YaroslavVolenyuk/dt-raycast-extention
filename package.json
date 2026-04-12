@@ -2,8 +2,8 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "dynatrace",
   "title": "Dynatrace",
-  "description": "",
-  "icon": "extension-icon.png",
+  "description": "Dynatrace Grail log search and monitoring",
+  "icon": "dynatrace-icon.svg",
   "author": "yaroslav_volenyuk",
   "owner": "one-developer-corporation",
   "platforms": [
@@ -11,15 +11,76 @@
     "Windows"
   ],
   "categories": [
-    "Productivity"
+    "Productivity",
+    "Developer Tools"
   ],
   "license": "MIT",
+  "preferences": [
+    {
+      "name": "dynatraceEndpoint",
+      "title": "Dynatrace Tenant URL",
+      "description": "Your Dynatrace tenant base URL, e.g. https://xxxxx.dev.dynatracelabs.com",
+      "type": "textfield",
+      "required": true,
+      "placeholder": "https://xxxxx.dev.dynatracelabs.com"
+    },
+    {
+      "name": "dynatraceToken",
+      "title": "Dynatrace API Token",
+      "description": "Your Dynatrace OAuth token (dt0s16.xxx...)",
+      "type": "password",
+      "required": true,
+      "placeholder": "dt0s16.XXXXXXXX.XXXXXXXXXX"
+    },
+    {
+      "name": "useMockData",
+      "title": "Use Mock Data",
+      "description": "Use fake local data instead of real Dynatrace API (for development)",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "label": "Enable mock mode"
+    }
+  ],
   "commands": [
     {
       "name": "dt",
-      "title": "dt",
-      "description": "",
-      "mode": "view"
+      "title": "Search Logs",
+      "description": "Query Dynatrace Grail",
+      "mode": "view",
+      "arguments": [
+        {
+          "name": "timeframeValue",
+          "placeholder": "24",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "timeframeUnit",
+          "placeholder": "Hours",
+          "type": "dropdown",
+          "required": false,
+          "data": [
+            { "title": "Hours", "value": "h" },
+            { "title": "Minutes", "value": "m" },
+            { "title": "Days", "value": "d" }
+          ]
+        },
+        {
+          "name": "query",
+          "placeholder": "log level",
+          "type": "dropdown",
+          "required": true,
+          "data": [
+            { "title": "All Logs", "value": "all" },
+            { "title": "Error", "value": "error" },
+            { "title": "Warning", "value": "warning" },
+            { "title": "Info", "value": "info" },
+            { "title": "Debug", "value": "debug" },
+            { "title": "Fatal", "value": "fatal" }
+          ]
+        }
+      ]
     }
   ],
   "dependencies": {
