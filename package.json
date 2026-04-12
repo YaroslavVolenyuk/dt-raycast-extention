@@ -3,7 +3,7 @@
   "name": "dynatrace",
   "title": "Dynatrace",
   "description": "Dynatrace Grail log search and monitoring",
-  "icon": "dynatrace-icon.svg",
+  "icon": "dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
   "owner": "one-developer-corporation",
   "platforms": [
