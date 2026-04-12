@@ -114,7 +114,9 @@ export function useDynatraceQuery<T = unknown>() {
 
       if (!response.ok) {
         // Non-2xx: try to extract a useful message
-        const preview = rawText.startsWith("<") ? `Server returned HTML (status ${response.status}). Check your endpoint URL.` : `HTTP ${response.status}: ${rawText.slice(0, 300)}`;
+        const preview = rawText.startsWith("<")
+          ? `Server returned HTML (status ${response.status}). Check your endpoint URL.`
+          : `HTTP ${response.status}: ${rawText.slice(0, 300)}`;
         throw new Error(preview);
       }
 
@@ -122,8 +124,8 @@ export function useDynatraceQuery<T = unknown>() {
       if (rawText.trimStart().startsWith("<")) {
         throw new Error(
           "Server returned an HTML page instead of JSON.\n" +
-          "This usually means the endpoint URL is wrong or the token has expired.\n" +
-          "Please check your preferences (endpoint & token)."
+            "This usually means the endpoint URL is wrong or the token has expired.\n" +
+            "Please check your preferences (endpoint & token).",
         );
       }
 

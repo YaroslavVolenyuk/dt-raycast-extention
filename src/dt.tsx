@@ -7,9 +7,9 @@ import { LogRecord } from "./types/log";
 import { useEffect } from "react";
 
 interface CommandArguments {
-  timeframeValue: string;          // e.g. "2", "30" — numeric part
+  timeframeValue: string; // e.g. "2", "30" — numeric part
   timeframeUnit: "h" | "m" | "d"; // from dropdown, defaults to "h" (Hours)
-  query: LogLevel;                 // "error" | "warning" | "info"
+  query: LogLevel; // "error" | "warning" | "info"
 }
 
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
@@ -99,7 +99,12 @@ export default function Command(props: { arguments: CommandArguments }) {
           title={log["service.name"] ?? "Unknown Service"}
           subtitle={log.content}
           accessories={[
-            { tag: { value: log.loglevel, color: log.loglevel === "ERROR" || log.loglevel === "FATAL" ? "#e85555" : undefined } },
+            {
+              tag: {
+                value: log.loglevel,
+                color: log.loglevel === "ERROR" || log.loglevel === "FATAL" ? "#e85555" : undefined,
+              },
+            },
             { text: formatRelativeTime(log.timestamp) },
           ]}
           actions={
