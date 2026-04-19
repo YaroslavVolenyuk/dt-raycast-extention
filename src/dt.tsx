@@ -1,15 +1,19 @@
-import { List, ActionPanel, Action, Icon } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, LocalStorage } from "@raycast/api";
 import LogDetailView from "./log-detail-view";
 import { useDynatraceQuery } from "./useDynatraceQuery";
 import { parseTimeframe } from "./utils/parseTimeframe";
 import { buildDqlQuery, LogLevel } from "./utils/buildDqlQuery";
 import { LogRecord } from "./types/log";
-import { useEffect } from "react";
+import { useEffect, useState, useMemo } from "react";
+
+// ── Persistence keys ───────────────────────────────────────────────────────
+const KEY_TIMEFRAME = "dt_last_timeframe";
+const KEY_APP_FILTER = "dt_last_app_filter";
 
 interface CommandArguments {
   timeframeValue: string; // e.g. "2", "30" — numeric part
   timeframeUnit: "h" | "m" | "d"; // from dropdown, defaults to "h" (Hours)
-  query: LogLevel; // "error" | "warning" | "info"
+  query: LogLevel; // "error" | "warning" | "info" | ...
 }
 
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
@@ -36,35 +40,103 @@ function formatRelativeTime(timestamp: string): string {
 
 export default function Command(props: { arguments: CommandArguments }) {
   const { timeframeValue, timeframeUnit, query: logLevel } = props.arguments;
+  const effectiveLogLevel: LogLevel = logLevel ?? "error";
 
-  // Combine into a single string for parseTimeframe, e.g. "2h", "30m", "7d"
-  // If the user left the value empty, fall back to "24h"
-  const timeframe = timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : "24h";
+  // ── Story 4: persistent filter state ──────────────────────────────────────
+  // storedTimeframe is loaded from LocalStorage and used when command arg is empty
+  const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
+  // Story 3: app/service filter
+  const [selectedService, setSelectedService] = useState<string>("all");
+  // Gate: don't fire query until LocalStorage is loaded
+  const [filtersLoaded, setFiltersLoaded] = useState(false);
+
+  // Effective timeframe: command arg wins → stored value → default "24h"
+  const timeframe = timeframeValue
+    ? `${timeframeValue}${timeframeUnit ?? "h"}`
+    : (storedTimeframe ?? "24h");
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
+  // Load persisted filters once on mount
   useEffect(() => {
+    Promise.all([
+      LocalStorage.getItem<string>(KEY_TIMEFRAME),
+      LocalStorage.getItem<string>(KEY_APP_FILTER),
+    ]).then(([tf, svc]) => {
+      if (!timeframeValue && tf) setStoredTimeframe(tf);
+      if (svc) setSelectedService(svc);
+      setFiltersLoaded(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally once
+
+  // Execute query after persisted filters are loaded; re-run if args change
+  useEffect(() => {
+    if (!filtersLoaded) return;
     const timeRange = parseTimeframe(timeframe);
-    const dql = buildDqlQuery({ logLevel: logLevel ?? "error" });
+    const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
     execute(dql, timeRange);
-  }, [timeframe, logLevel]);
+    // Persist effective timeframe so next launch can restore it
+    LocalStorage.setItem(KEY_TIMEFRAME, timeframe);
+  }, [timeframe, effectiveLogLevel, filtersLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Update service selection and persist immediately
+  const handleServiceChange = (value: string) => {
+    setSelectedService(value);
+    LocalStorage.setItem(KEY_APP_FILTER, value);
+  };
 
   const logs = data?.records ?? [];
 
-  // Empty state
-  if (!isLoading && !error && logs.length === 0 && data !== null) {
+  // ── Story 3: collect unique service / app names from current results ───────
+  const serviceOptions = useMemo(() => {
+    const seen = new Set<string>();
+    for (const log of logs) {
+      const s = (log["service.name"] ?? log["dt.app.name"]) as string | undefined;
+      if (s) seen.add(s);
+    }
+    return Array.from(seen).sort();
+  }, [logs]);
+
+  // Apply service/app filter on top of the API results (client-side)
+  const filteredLogs = useMemo(() => {
+    if (selectedService === "all") return logs;
+    return logs.filter((log) => {
+      const s = (log["service.name"] ?? log["dt.app.name"]) as string | undefined;
+      return s === selectedService;
+    });
+  }, [logs, selectedService]);
+
+  // Show dropdown only when there are ≥2 unique services (Story 3)
+  const serviceDropdown =
+    serviceOptions.length >= 2 ? (
+      <List.Dropdown
+        tooltip="Filter by App / Service"
+        value={selectedService}
+        onChange={handleServiceChange}
+      >
+        <List.Dropdown.Item title="All Apps" value="all" />
+        <List.Dropdown.Section title="Services">
+          {serviceOptions.map((s) => (
+            <List.Dropdown.Item key={s} title={s} value={s} />
+          ))}
+        </List.Dropdown.Section>
+      </List.Dropdown>
+    ) : undefined;
+
+  // ── Empty state ────────────────────────────────────────────────────────────
+  if (!isLoading && !error && filteredLogs.length === 0 && data !== null) {
     return (
-      <List isLoading={false} searchBarPlaceholder="Search logs...">
+      <List isLoading={false} searchBarPlaceholder="Search logs..." searchBarAccessory={serviceDropdown}>
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No logs found"
-          description={`No ${logLevel.toUpperCase()} logs for the last ${timeframe || "24h"}.`}
+          description={`No ${effectiveLogLevel.toUpperCase()} logs for the last ${timeframe}.`}
         />
       </List>
     );
   }
 
-  // Error state
+  // ── Error state ────────────────────────────────────────────────────────────
   if (error && !isLoading) {
     return (
       <List isLoading={false}>
@@ -79,7 +151,7 @@ export default function Command(props: { arguments: CommandArguments }) {
                 icon={Icon.ArrowClockwise}
                 onAction={() => {
                   const timeRange = parseTimeframe(timeframe);
-                  const dql = buildDqlQuery({ logLevel: logLevel ?? "error" });
+                  const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
                   execute(dql, timeRange);
                 }}
               />
@@ -90,13 +162,18 @@ export default function Command(props: { arguments: CommandArguments }) {
     );
   }
 
+  // ── Main list ──────────────────────────────────────────────────────────────
   return (
-    <List isLoading={isLoading} searchBarPlaceholder="Search logs by content or service...">
-      {logs.map((log, index) => (
+    <List
+      isLoading={isLoading}
+      searchBarPlaceholder="Search logs by content or service..."
+      searchBarAccessory={serviceDropdown}
+    >
+      {filteredLogs.map((log, index) => (
         <List.Item
           key={index}
           icon={getLogIcon(log.loglevel)}
-          title={log["service.name"] ?? "Unknown Service"}
+          title={(log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string}
           subtitle={log.content}
           accessories={[
             {
