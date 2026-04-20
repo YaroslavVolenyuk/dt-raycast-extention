@@ -56,7 +56,7 @@ describe("formatLogContent", () => {
 
   it("should handle empty content", () => {
     expect(formatLogContent("")).toBe("");
-    expect(formatLogContent(null as any)).toBe(null);
+    expect(formatLogContent(null)).toBe(null);
   });
 });
 

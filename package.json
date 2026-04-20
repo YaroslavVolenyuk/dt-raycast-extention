@@ -32,6 +32,37 @@
       "required": false,
       "default": false,
       "label": "Enable mock mode"
+    },
+    {
+      "name": "jiraUrl",
+      "title": "Jira URL",
+      "description": "Your Jira Cloud instance URL (e.g., https://yourcompany.atlassian.net)",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "https://yourcompany.atlassian.net"
+    },
+    {
+      "name": "jiraEmail",
+      "title": "Jira Email",
+      "description": "Email address for Jira API authentication",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "your-email@company.com"
+    },
+    {
+      "name": "jiraApiToken",
+      "title": "Jira API Token",
+      "description": "API token for Jira authentication (from Jira account settings)",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "jiraProjectKey",
+      "title": "Jira Project Key",
+      "description": "Default project key for creating issues (e.g., OPS, DEVOPS)",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "OPS"
     }
   ],
   "commands": [
@@ -119,6 +150,14 @@
       "mode": "menu-bar",
       "icon": "assets/dynatrace-icon.png",
       "interval": "5m"
+    },
+    {
+      "name": "dt-traces",
+      "title": "Search Traces",
+      "subtitle": "Dynatrace",
+      "description": "Search distributed traces with filtering by service, status and duration",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
     }
   ],
   "dependencies": {

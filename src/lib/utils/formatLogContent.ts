@@ -5,7 +5,7 @@
  * - If content is a stack trace, formats it in a code block
  * - Otherwise returns content as-is
  */
-export function formatLogContent(content: string): string {
+export function formatLogContent(content: string | null): string | null {
   if (!content) return content;
 
   // Try parsing as JSON

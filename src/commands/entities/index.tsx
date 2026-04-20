@@ -1,15 +1,8 @@
-import {
-  List,
-  ActionPanel,
-  Action,
-  Icon,
-  Color,
-} from "@raycast/api";
+import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Entity, buildEntityQuery } from "../../lib/types/entity";
-import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
-import TenantSwitcher from "../../components/TenantSwitcher";
+import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import type { TenantConfig } from "../../lib/auth";
 
@@ -32,7 +25,7 @@ export default function EntitiesCommand() {
   const [tenantChecked, setTenantChecked] = useState(false);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
 
-  const { data, isLoading, error, execute } = useDynatraceQuery<Entity>();
+  const { data, isLoading, execute } = useDynatraceQuery<Entity>();
 
   // Load active tenant once on mount
   useEffect(() => {
@@ -58,13 +51,6 @@ export default function EntitiesCommand() {
     const dql = buildEntityQuery(entityType, debouncedQuery);
     execute(dql, undefined, tenant);
   }, [entityType, debouncedQuery, filtersLoaded, tenant, execute]);
-
-  const handleTenantChange = async (id: string) => {
-    await setActiveTenant(id);
-    const all = await import("../../lib/tenants").then((m) => m.listTenants());
-    const next = all.find((t) => t.id === id) ?? null;
-    setTenant(next);
-  };
 
   const entities = data?.records ?? [];
 
@@ -92,11 +78,7 @@ export default function EntitiesCommand() {
       isLoading={isLoading}
       searchBarPlaceholder="Search entities..."
       searchBarAccessory={
-        <List.Dropdown
-          tooltip="Filter by Type"
-          value={entityType}
-          onChange={setEntityType}
-        >
+        <List.Dropdown tooltip="Filter by Type" value={entityType} onChange={setEntityType}>
           <List.Dropdown.Item title="All Types" value="all" />
           <List.Dropdown.Item title="Services" value="service" />
           <List.Dropdown.Item title="Hosts" value="host" />

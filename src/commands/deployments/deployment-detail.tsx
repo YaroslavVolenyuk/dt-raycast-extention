@@ -1,4 +1,4 @@
-import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
+import { Detail, ActionPanel, Action } from "@raycast/api";
 import { Deployment } from "../../lib/types/deployment";
 import type { TenantConfig } from "../../lib/auth";
 

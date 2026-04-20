@@ -1,11 +1,5 @@
-import {
-  List,
-  ActionPanel,
-  Action,
-  Icon,
-  Color,
-} from "@raycast/api";
-import { useEffect, useState, useMemo } from "react";
+import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
+import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
 import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
@@ -68,9 +62,7 @@ export default function DeploymentsCommand() {
     return (
       <List
         isLoading={false}
-        searchBarAccessory={
-          tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined
-        }
+        searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
       >
         <List.EmptyView icon={Icon.Upload} title="No recent deployments" description="Check back later" />
       </List>
@@ -80,9 +72,7 @@ export default function DeploymentsCommand() {
   return (
     <List
       isLoading={isLoading}
-      searchBarAccessory={
-        tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined
-      }
+      searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
     >
       {deployments.map((deployment) => (
         <List.Item
@@ -106,7 +96,10 @@ export default function DeploymentsCommand() {
           ]}
           actions={
             <ActionPanel>
-              <Action.Push title="Show Details" target={<DeploymentDetailView deployment={deployment} tenant={tenant!} />} />
+              <Action.Push
+                title="Show Details"
+                target={<DeploymentDetailView deployment={deployment} tenant={tenant!} />}
+              />
               <Action.CopyToClipboard content={deployment["event.id"]} title="Copy Deployment ID" />
             </ActionPanel>
           }

@@ -1,6 +1,7 @@
 import { LogRecord } from "../types/log";
 import { Problem } from "../types/problem";
 import { Deployment } from "../types/deployment";
+import { Span } from "../types/span";
 
 function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -39,7 +40,8 @@ export const MOCK_LOGS: LogRecord[] = [
   {
     timestamp: ago(15 * m),
     loglevel: "ERROR",
-    content: "Unhandled promise rejection in Lambda function processOrders: TypeError: Cannot read properties of undefined",
+    content:
+      "Unhandled promise rejection in Lambda function processOrders: TypeError: Cannot read properties of undefined",
     "log.source": "aws-lambda://process-orders",
     "service.name": "order-processor-lambda",
     "dt.entity.host": "HOST-lambda001",
@@ -299,5 +301,80 @@ export const MOCK_DEPLOYMENTS: Deployment[] = [
     affected_entity_name: "analytics-service",
     "deployment.version": "0.5.2",
     "deployment.release_stage": "production",
+  },
+];
+
+export const MOCK_SPANS: Span[] = [
+  {
+    trace_id: "trace-001-abc123def456",
+    span_id: "span-payment-process",
+    "span.name": "POST /api/payment/process",
+    "service.name": "payment-service",
+    "span.duration.us": 245000, // 245ms
+    status_code: "ERROR",
+    timestamp: ago(2 * m),
+  },
+  {
+    trace_id: "trace-002-xyz789uvw012",
+    span_id: "span-db-query",
+    "span.name": "SELECT * FROM orders",
+    "service.name": "order-service",
+    "span.duration.us": 87000, // 87ms
+    status_code: "OK",
+    timestamp: ago(5 * m),
+  },
+  {
+    trace_id: "trace-001-abc123def456",
+    span_id: "span-db-checkout",
+    "span.name": "db.execute{checkout_transaction}",
+    "service.name": "checkout-service",
+    "span.duration.us": 1250000, // 1.25s
+    status_code: "ERROR",
+    timestamp: ago(3 * m),
+  },
+  {
+    trace_id: "trace-003-qwe456rty789",
+    span_id: "span-api-call",
+    "span.name": "GET /api/v2/products",
+    "service.name": "api-gateway",
+    "span.duration.us": 120000, // 120ms
+    status_code: "OK",
+    timestamp: ago(8 * m),
+  },
+  {
+    trace_id: "trace-004-asd789fgh012",
+    span_id: "span-cache-lookup",
+    "span.name": "redis.get{user_profile}",
+    "service.name": "cache-service",
+    "span.duration.us": 5200, // 5.2ms
+    status_code: "OK",
+    timestamp: ago(12 * m),
+  },
+  {
+    trace_id: "trace-005-jkl012mno345",
+    span_id: "span-auth-verify",
+    "span.name": "token.verify{jwt}",
+    "service.name": "auth-service",
+    "span.duration.us": 32000, // 32ms
+    status_code: "OK",
+    timestamp: ago(1 * m),
+  },
+  {
+    trace_id: "trace-006-pqr345stu678",
+    span_id: "span-kafka-publish",
+    "span.name": "kafka.publish{order-events}",
+    "service.name": "order-processor",
+    "span.duration.us": 650000, // 650ms
+    status_code: "ERROR",
+    timestamp: ago(25 * m),
+  },
+  {
+    trace_id: "trace-007-vwx678yza901",
+    span_id: "span-graphql-resolve",
+    "span.name": "GraphQL.resolveField{user}",
+    "service.name": "graphql-api",
+    "span.duration.us": 156000, // 156ms
+    status_code: "OK",
+    timestamp: ago(18 * m),
   },
 ];

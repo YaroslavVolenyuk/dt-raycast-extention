@@ -1,11 +1,4 @@
-import {
-  List,
-  Action,
-  ActionPanel,
-  Icon,
-  Color,
-  useNavigation,
-} from "@raycast/api";
+import { List, Action, ActionPanel, Icon, Color } from "@raycast/api";
 
 interface Command {
   name: string;
@@ -17,8 +10,6 @@ interface Command {
 }
 
 export default function DtHub() {
-  const { push } = useNavigation();
-
   const commands: Command[] = [
     {
       name: "search-logs",
@@ -96,14 +87,8 @@ export default function DtHub() {
           subtitle={cmd.description}
           actions={
             <ActionPanel>
-              <Action.OpenInBrowser
-                title={`Open ${cmd.title}`}
-                url={`raycast://extensions/dynatrace/dt-${cmd.name}`}
-              />
-              <Action.CopyToClipboard
-                title="Copy Command Name"
-                content={`dt-${cmd.name}`}
-              />
+              <Action.OpenInBrowser title={`Open ${cmd.title}`} url={`raycast://extensions/dynatrace/dt-${cmd.name}`} />
+              <Action.CopyToClipboard title="Copy Command Name" content={`dt-${cmd.name}`} />
             </ActionPanel>
           }
         />

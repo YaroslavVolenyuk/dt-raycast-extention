@@ -31,17 +31,25 @@ export default function TenantForm({ existing, onSave }: Props) {
   }) {
     // Basic validation
     let valid = true;
-    if (!values.name.trim()) { setNameError("Name is required"); valid = false; }
-    else setNameError(undefined);
+    if (!values.name.trim()) {
+      setNameError("Name is required");
+      valid = false;
+    } else setNameError(undefined);
 
-    if (!values.tenantEndpoint.trim()) { setEndpointError("Endpoint is required"); valid = false; }
-    else setEndpointError(undefined);
+    if (!values.tenantEndpoint.trim()) {
+      setEndpointError("Endpoint is required");
+      valid = false;
+    } else setEndpointError(undefined);
 
-    if (!values.clientId.trim()) { setClientIdError("Client ID is required"); valid = false; }
-    else setClientIdError(undefined);
+    if (!values.clientId.trim()) {
+      setClientIdError("Client ID is required");
+      valid = false;
+    } else setClientIdError(undefined);
 
-    if (!values.clientSecret.trim()) { setClientSecretError("Client Secret is required"); valid = false; }
-    else setClientSecretError(undefined);
+    if (!values.clientSecret.trim()) {
+      setClientSecretError("Client Secret is required");
+      valid = false;
+    } else setClientSecretError(undefined);
 
     if (!valid) return;
 

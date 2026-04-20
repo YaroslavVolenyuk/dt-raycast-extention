@@ -1,10 +1,27 @@
 // log-detail-view.tsx
-import { Detail, ActionPanel, Action, getPreferenceValues, Color, useNavigation, Icon } from "@raycast/api";
+import {
+  Detail,
+  ActionPanel,
+  Action,
+  getPreferenceValues,
+  Color,
+  useNavigation,
+  Icon,
+  AI,
+  environment,
+  showToast,
+  Toast,
+} from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
 import { formatLogContent } from "../../lib/utils/formatLogContent";
+import { createJiraIssue, buildJiraIssueUrl } from "../../lib/integrations/jira";
 
 interface ExtensionPrefs {
   dynatraceEndpoint: string;
+  jiraUrl?: string;
+  jiraEmail?: string;
+  jiraApiToken?: string;
+  jiraProjectKey?: string;
 }
 
 /** Returns the string value if non-empty, or undefined to signal "hide this field". */
@@ -31,12 +48,9 @@ function buildLogsUrl(baseUrl: string, timestamp: string): string {
 function buildDqlFilter(log: LogRecord): string {
   const ts = new Date(log.timestamp).getTime();
   const from = new Date(ts - 5_000).toISOString();
-  const to   = new Date(ts + 5_000).toISOString();
+  const to = new Date(ts + 5_000).toISOString();
 
-  const conditions: string[] = [
-    `timestamp >= "${from}"`,
-    `timestamp <= "${to}"`,
-  ];
+  const conditions: string[] = [`timestamp >= "${from}"`, `timestamp <= "${to}"`];
 
   const logSource = log["log.source"] ? String(log["log.source"]) : undefined;
   if (logSource) conditions.push(`log.source == "${logSource}"`);
@@ -114,12 +128,32 @@ function levelColor(level: string | undefined, status: string | undefined): Colo
   if (st === "ERROR" || st === "FAILED" || st === "FAILURE") return Color.Red;
   switch (level?.toUpperCase()) {
     case "WARN":
-    case "WARNING":  return Color.Yellow;
+    case "WARNING":
+      return Color.Yellow;
     case "ERROR":
     case "FATAL":
-    case "CRITICAL": return Color.Red;
-    default:         return Color.SecondaryText; // INFO, DEBUG — neutral gray
+    case "CRITICAL":
+      return Color.Red;
+    default:
+      return Color.SecondaryText; // INFO, DEBUG — neutral gray
   }
+}
+
+/**
+ * Simple detail view to display AI analysis result
+ */
+function AIAnalysisDetail({ content }: { content: string }) {
+  return (
+    <Detail
+      markdown={content}
+      navigationTitle="AI Analysis"
+      actions={
+        <ActionPanel>
+          <Action.CopyToClipboard title="Copy Analysis" content={content} />
+        </ActionPanel>
+      }
+    />
+  );
 }
 
 export default function LogDetailView({ log }: { log: LogRecord }) {
@@ -127,6 +161,7 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
   const prefs = getPreferenceValues<ExtensionPrefs>();
   const baseUrl = prefs.dynatraceEndpoint?.replace(/\/$/, "") ?? "";
   const logsUrl = buildLogsUrl(baseUrl, log.timestamp);
+  const hasJiraConfig = !!(prefs.jiraUrl && prefs.jiraEmail && prefs.jiraApiToken && prefs.jiraProjectKey);
 
   // ── Field values (undefined → hide) ───────────────────────────────────────
 
@@ -175,7 +210,15 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
   // DQL filter — used in markdown preview and Copy action
   const dqlFilter = buildDqlFilter(log);
 
-  const hasServiceInfo = !!(serviceName || appName || appVersion || processName || processTech || logSource || operatorVersion);
+  const hasServiceInfo = !!(
+    serviceName ||
+    appName ||
+    appVersion ||
+    processName ||
+    processTech ||
+    logSource ||
+    operatorVersion
+  );
   const hasInfraInfo = !!(hostName || hostGroup || awsRegion || awsAz || awsAccount || awsArn);
   const hasK8sInfo = !!(k8sCluster || k8sNamespace || k8sNode);
   const hasPipelineInfo = !!(pipelineSource || pipelines);
@@ -190,16 +233,19 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
   if (eventType) badgeParts.push(`\`${eventType}\``);
   if (log.timestamp) {
     const d = new Date(log.timestamp);
-    const dateStr = d.toISOString().replace("T", "  ·  ").replace(/\.\d+Z$/, " UTC");
+    const dateStr = d
+      .toISOString()
+      .replace("T", "  ·  ")
+      .replace(/\.\d+Z$/, " UTC");
     badgeParts.push(dateStr);
   }
   const statusHeader = badgeParts.join("  ·  ");
 
   // Long IDs section — values that get truncated in the narrow metadata sidebar
   const longIds: string[] = [];
-  if (awsArn)  longIds.push(`**AWS ARN**\n\`${awsArn}\``);
+  if (awsArn) longIds.push(`**AWS ARN**\n\`${awsArn}\``);
   const podUid = val(log["k8s.pod.uid"]);
-  if (podUid)  longIds.push(`**K8s Pod UID**\n\`${podUid}\``);
+  if (podUid) longIds.push(`**K8s Pod UID**\n\`${podUid}\``);
 
   // Format log content: pretty-print JSON, format stack traces, or display as-is
   const formattedContent = log.content ? formatLogContent(log.content) : "No content available";
@@ -229,11 +275,7 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
               shortcut={{ modifiers: ["cmd"], key: "o" }}
             />
           ) : (
-            <Action.OpenInBrowser
-              title="Open in Dynatrace"
-              url={logsUrl}
-              shortcut={{ modifiers: ["cmd"], key: "o" }}
-            />
+            <Action.OpenInBrowser title="Open in Dynatrace" url={logsUrl} shortcut={{ modifiers: ["cmd"], key: "o" }} />
           )}
           {/* Secondary: Logs link available alongside trace */}
           {traceUrl && (
@@ -271,7 +313,7 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
             )}
             {serviceName && (
               <Action
-                title="Find Logs for This Service ±5 min"
+                title="Find Logs for This Service ±5 Min"
                 icon={Icon.MagnifyingGlass}
                 onAction={() => {
                   // Would navigate to search logs with service filter and time window
@@ -288,6 +330,78 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
               />
             )}
           </ActionPanel.Section>
+
+          {/* AI Analysis section — only if Raycast AI is available */}
+          {environment.canAccess(AI) && log.content && (
+            <ActionPanel.Section title="AI Analysis">
+              <Action
+                title="Explain This Error"
+                icon={Icon.Lightbulb}
+                onAction={async () => {
+                  const toast = await showToast({
+                    style: Toast.Style.Animated,
+                    title: "Analyzing error with AI...",
+                  });
+
+                  try {
+                    const explanation = await AI.ask(
+                      `Please analyze and explain the following error or log entry. Provide possible causes and suggested fixes:\n\n${log.content}`,
+                      { creativity: "low" },
+                    );
+
+                    toast.hide();
+                    push(<AIAnalysisDetail content={explanation} />);
+                  } catch (error) {
+                    toast.style = Toast.Style.Failure;
+                    toast.title = "AI Analysis Failed";
+                    toast.message = error instanceof Error ? error.message : "Unknown error";
+                  }
+                }}
+              />
+            </ActionPanel.Section>
+          )}
+
+          {/* Jira Integration section */}
+          {hasJiraConfig && log.content && (
+            <ActionPanel.Section title="Jira">
+              <Action
+                title="Create Jira Bug"
+                icon={Icon.Bug}
+                onAction={async () => {
+                  const toast = await showToast({
+                    style: Toast.Style.Animated,
+                    title: "Creating Jira bug...",
+                  });
+
+                  try {
+                    const firstLine = log.content.split("\n")[0].slice(0, 80);
+                    const issueResponse = await createJiraIssue(prefs.jiraUrl!, prefs.jiraEmail!, prefs.jiraApiToken!, {
+                      projectKey: prefs.jiraProjectKey!,
+                      summary: `[Dynatrace] ${firstLine}${log.content.length > 80 ? "..." : ""}`,
+                      description: `**Service**: ${log["service.name"] || "Unknown"}\n**Log Level**: ${log.loglevel || "N/A"}\n**Timestamp**: ${log.timestamp}\n\n**Error**:\n\`\`\`\n${log.content}\n\`\`\`\n\n[Open in Dynatrace](${logsUrl})`,
+                      issueType: "Bug",
+                      priority: log.loglevel === "FATAL" ? "Highest" : "High",
+                    });
+
+                    toast.style = Toast.Style.Success;
+                    toast.title = "Bug created";
+                    toast.message = `${issueResponse.key}`;
+
+                    const issueUrl = buildJiraIssueUrl(prefs.jiraUrl!, issueResponse.key);
+                    await showToast({
+                      style: Toast.Style.Success,
+                      title: `Issue ${issueResponse.key} created`,
+                      message: issueUrl,
+                    });
+                  } catch (error) {
+                    toast.style = Toast.Style.Failure;
+                    toast.title = "Failed to create bug";
+                    toast.message = error instanceof Error ? error.message : "Unknown error";
+                  }
+                }}
+              />
+            </ActionPanel.Section>
+          )}
         </ActionPanel>
       }
       metadata={
@@ -296,19 +410,11 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
           {/* Status colored by log level: WARN=yellow, ERROR/FATAL=red, INFO=gray */}
           {status && (
             <Detail.Metadata.TagList title="Status">
-              <Detail.Metadata.TagList.Item
-                text={status}
-                color={levelColor(loglevel, status)}
-              />
+              <Detail.Metadata.TagList.Item text={status} color={levelColor(loglevel, status)} />
             </Detail.Metadata.TagList>
           )}
           {eventType && <Detail.Metadata.Label title="Event Type" text={eventType} />}
-          {log.timestamp && (
-            <Detail.Metadata.Label
-              title="Timestamp"
-              text={new Date(log.timestamp).toLocaleString()}
-            />
-          )}
+          {log.timestamp && <Detail.Metadata.Label title="Timestamp" text={new Date(log.timestamp).toLocaleString()} />}
 
           {/* ── Section: Service / Process ───────────────────────────────── */}
           {hasServiceInfo && <Detail.Metadata.Separator />}
@@ -361,9 +467,7 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
           {hasTelemetry && <Detail.Metadata.Separator />}
           {traceId && <Detail.Metadata.Label title="Trace ID" text={traceId} />}
           {spanId && <Detail.Metadata.Label title="Span ID" text={spanId} />}
-          {traceUrl && (
-            <Detail.Metadata.Link title="Distributed Trace" target={traceUrl} text="Open in Explorer" />
-          )}
+          {traceUrl && <Detail.Metadata.Link title="Distributed Trace" target={traceUrl} text="Open in Explorer" />}
         </Detail.Metadata>
       }
     />

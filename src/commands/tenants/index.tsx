@@ -1,17 +1,7 @@
 // src/commands/tenants/index.tsx
 // Manage Tenants command — list, add, edit and delete Dynatrace tenant configs.
 
-import {
-  List,
-  ActionPanel,
-  Action,
-  Icon,
-  Alert,
-  confirmAlert,
-  showToast,
-  Toast,
-  useNavigation,
-} from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Alert, confirmAlert, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { listTenants, deleteTenant, setActiveTenant, getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
@@ -60,11 +50,7 @@ export default function Command() {
       navigationTitle="Manage Tenants"
       actions={
         <ActionPanel>
-          <Action
-            title="Add Tenant"
-            icon={Icon.Plus}
-            onAction={() => push(<TenantForm onSave={reload} />)}
-          />
+          <Action title="Add Tenant" icon={Icon.Plus} onAction={() => push(<TenantForm onSave={reload} />)} />
         </ActionPanel>
       }
     >
@@ -75,11 +61,7 @@ export default function Command() {
           description="Press ↵ to add your first Dynatrace tenant."
           actions={
             <ActionPanel>
-              <Action
-                title="Add Tenant"
-                icon={Icon.Plus}
-                onAction={() => push(<TenantForm onSave={reload} />)}
-              />
+              <Action title="Add Tenant" icon={Icon.Plus} onAction={() => push(<TenantForm onSave={reload} />)} />
             </ActionPanel>
           }
         />
@@ -110,11 +92,7 @@ export default function Command() {
                   onAction={() => handleDelete(tenant)}
                 />
                 <ActionPanel.Section>
-                  <Action
-                    title="Add Tenant"
-                    icon={Icon.Plus}
-                    onAction={() => push(<TenantForm onSave={reload} />)}
-                  />
+                  <Action title="Add Tenant" icon={Icon.Plus} onAction={() => push(<TenantForm onSave={reload} />)} />
                 </ActionPanel.Section>
               </ActionPanel>
             }

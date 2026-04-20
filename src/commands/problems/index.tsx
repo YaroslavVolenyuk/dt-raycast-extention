@@ -1,13 +1,4 @@
-import {
-  List,
-  ActionPanel,
-  Action,
-  Icon,
-  Color,
-  LocalStorage,
-  showToast,
-  Toast,
-} from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Problem, buildProblemsQuery } from "../../lib/types/problem";
@@ -121,9 +112,7 @@ export default function ProblemsCommand() {
     return (
       <List
         isLoading={false}
-        searchBarAccessory={
-          tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined
-        }
+        searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
       >
         <List.EmptyView icon={Icon.Sparkles} title="All systems operational 🎉" description="No open problems" />
       </List>
@@ -132,7 +121,10 @@ export default function ProblemsCommand() {
 
   if (error && !isLoading && sortedProblems.length === 0) {
     return (
-      <List isLoading={false} searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}>
+      <List
+        isLoading={false}
+        searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
+      >
         <List.EmptyView
           icon={Icon.Warning}
           title="Query Failed"

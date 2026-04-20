@@ -95,9 +95,7 @@ export function useDynatraceQuery<T = unknown>() {
           accessToken = await getAccessToken(tenant);
         } catch (authErr) {
           if (authErr instanceof OAuthError) {
-            throw new Error(
-              `OAuth error: check client_id / client_secret in Manage Tenants (${authErr.statusCode})`,
-            );
+            throw new Error(`OAuth error: check client_id / client_secret in Manage Tenants (${authErr.statusCode})`);
           }
           throw authErr;
         }
@@ -146,9 +144,7 @@ export function useDynatraceQuery<T = unknown>() {
           parsedResponse = grailResponseSchema.parse(JSON.parse(rawText));
         } catch (zodErr) {
           if (zodErr instanceof ZodError) {
-            throw new Error(
-              `Unexpected Grail response format: ${zodErr.issues.map((e) => e.message).join("; ")}`,
-            );
+            throw new Error(`Unexpected Grail response format: ${zodErr.issues.map((e) => e.message).join("; ")}`);
           }
           throw zodErr;
         }

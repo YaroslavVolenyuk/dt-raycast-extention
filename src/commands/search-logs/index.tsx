@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, Icon, LocalStorage, Color, showToast, Toast } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, LocalStorage, Color } from "@raycast/api";
 import LogDetailView from "./log-detail";
 import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
@@ -19,15 +19,6 @@ interface CommandArguments {
   timeframeUnit: "h" | "m" | "d";
   query: LogLevel;
 }
-
-// Timeframe presets
-const TIMEFRAME_PRESETS = [
-  { label: "15m", value: "15m" },
-  { label: "1h", value: "1h" },
-  { label: "4h", value: "4h" },
-  { label: "24h", value: "24h" },
-  { label: "7d", value: "7d" },
-];
 
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
   ERROR: Icon.XMarkCircle,
@@ -70,9 +61,7 @@ export default function Command(props: { arguments: CommandArguments }) {
   const [debouncedContent, setDebouncedContent] = useState<string>("");
 
   // Effective values
-  const timeframe = timeframeValue
-    ? `${timeframeValue}${timeframeUnit ?? "h"}`
-    : (storedTimeframe ?? "24h");
+  const timeframe = timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : (storedTimeframe ?? "24h");
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
@@ -82,7 +71,7 @@ export default function Command(props: { arguments: CommandArguments }) {
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       getActiveTenant(),
-    ]).then(([tf, level, activeTenant]) => {
+    ]).then(([tf, , activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       setTenant(activeTenant);
       setTenantChecked(true);
@@ -124,11 +113,14 @@ export default function Command(props: { arguments: CommandArguments }) {
   useEffect(() => {
     if (data?.records) {
       // If oldest record from last batch exists in new data, we're loading more
-      const isLoadMore = allRecords.length > 0 &&
-        data.records.some(r => r.timestamp === allRecords[allRecords.length - 1]?.timestamp);
+      const isLoadMore =
+        allRecords.length > 0 && data.records.some((r) => r.timestamp === allRecords[allRecords.length - 1]?.timestamp);
 
       if (isLoadMore) {
-        setAllRecords(prev => [...prev, ...data.records.filter(r => !prev.some(p => p.timestamp === r.timestamp))]);
+        setAllRecords((prev) => [
+          ...prev,
+          ...data.records.filter((r) => !prev.some((p) => p.timestamp === r.timestamp)),
+        ]);
         setIsLoadingMore(false);
       } else {
         setAllRecords(data.records);
@@ -188,11 +180,7 @@ export default function Command(props: { arguments: CommandArguments }) {
   // Render service dropdown if enough services
   const serviceDropdown =
     serviceOptions.length >= 2 ? (
-      <List.Dropdown
-        tooltip="Filter by Service"
-        value={selectedService}
-        onChange={handleServiceChange}
-      >
+      <List.Dropdown tooltip="Filter by Service" value={selectedService} onChange={handleServiceChange}>
         <List.Dropdown.Item title="All Services" value="all" />
         <List.Dropdown.Section title="Services">
           {serviceOptions.map((s) => (
@@ -291,11 +279,7 @@ export default function Command(props: { arguments: CommandArguments }) {
           icon={isLoadingMore ? Icon.Clock : Icon.Plus}
           actions={
             <ActionPanel>
-              <Action
-                title={isLoadingMore ? "Loading..." : "Load More"}
-                icon={Icon.Plus}
-                onAction={handleLoadMore}
-              />
+              <Action title={isLoadingMore ? "Loading…" : "Load More"} icon={Icon.Plus} onAction={handleLoadMore} />
             </ActionPanel>
           }
         />
