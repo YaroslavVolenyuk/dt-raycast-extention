@@ -1,0 +1,74 @@
+// src/lib/utils/buildDqlQuery.ts
+// Builds a DQL (Dynatrace Query Language) string for log fetching.
+
+export type LogLevel = "error" | "warning" | "info" | "debug" | "fatal" | "all";
+
+const LOG_LEVEL_MAP: Record<LogLevel, string | null> = {
+  error: "ERROR",
+  warning: "WARN",
+  info: "INFO",
+  debug: "DEBUG",
+  fatal: "FATAL",
+  all: null, // no filter — fetch everything
+};
+
+interface BuildDqlOptions {
+  logLevel: LogLevel;
+  limit?: number;
+  /** Server-side filter by service.name */
+  serviceName?: string;
+  /** Server-side full-text search in log content */
+  contentFilter?: string;
+  /** Cursor-based pagination: return records with timestamp < before (ISO string) */
+  before?: string;
+  /** Optional free-text DQL filter appended as-is */
+  extraFilter?: string;
+}
+
+/**
+ * Returns a DQL query string for Dynatrace Grail log search.
+ *
+ * Example output:
+ *   fetch logs
+ *   | filter loglevel == "ERROR"
+ *   | filter service.name == "my-service"
+ *   | filter matchesPhrase(content, "exception")
+ *   | sort timestamp desc
+ *   | limit 50
+ */
+export function buildDqlQuery({
+  logLevel,
+  limit = 50,
+  serviceName,
+  contentFilter,
+  before,
+  extraFilter,
+}: BuildDqlOptions): string {
+  const parts: string[] = ["fetch logs"];
+
+  const level = LOG_LEVEL_MAP[logLevel];
+  if (level !== null) {
+    parts.push(`filter loglevel == "${level}"`);
+  }
+
+  if (serviceName) {
+    parts.push(`filter service.name == "${serviceName}"`);
+  }
+
+  if (contentFilter) {
+    parts.push(`filter matchesPhrase(content, "${contentFilter}")`);
+  }
+
+  if (before) {
+    parts.push(`filter timestamp < datetime("${before}")`);
+  }
+
+  if (extraFilter) {
+    parts.push(extraFilter.trim());
+  }
+
+  parts.push("sort timestamp desc");
+  parts.push(`limit ${limit}`);
+
+  return parts.join(" | ");
+}

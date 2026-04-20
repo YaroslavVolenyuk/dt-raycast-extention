@@ -1,9 +1,11 @@
-// hooks/useDynatraceQuery.ts
+// src/useDynatraceQuery.ts
 
 import { useCallback, useState } from "react";
 import { getPreferenceValues, openExtensionPreferences, showToast, Toast } from "@raycast/api";
 import { MOCK_LOGS } from "../fakeDB/dql";
 import { LogRecord } from "./types/log";
+import { grailResponseSchema } from "./types/grail";
+import { ZodError } from "zod";
 
 interface ExtensionPrefs {
   dynatraceEndpoint: string;
@@ -29,7 +31,7 @@ interface QueryPayload {
   timezone?: string;
 }
 
-// Дефолтный payload — точная копия того что работает в Postman
+// Default payload — matches working Postman example
 const DEFAULT_PAYLOAD: Omit<QueryPayload, "query"> = {
   defaultSamplingRatio: 1,
   defaultScanLimitGbytes: 100,
@@ -129,10 +131,21 @@ export function useDynatraceQuery<T = unknown>() {
         );
       }
 
-      const json = JSON.parse(rawText) as { result?: { records?: T[] } };
-      // Postman показал что records лежат в result.records
-      setData({ records: json?.result?.records ?? [] });
-      return json?.result?.records ?? [];
+      // Validate response shape with Zod — throws a readable error for unexpected JSON
+      let parsedResponse;
+      try {
+        parsedResponse = grailResponseSchema.parse(JSON.parse(rawText));
+      } catch (zodErr) {
+        if (zodErr instanceof ZodError) {
+          throw new Error(`Unexpected Grail response format: ${zodErr.issues.map((e) => e.message).join("; ")}`);
+        }
+        throw zodErr;
+      }
+
+      // Postman confirmed that records are nested under result.records
+      const records = (parsedResponse.result?.records ?? []) as T[];
+      setData({ records });
+      return records;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);

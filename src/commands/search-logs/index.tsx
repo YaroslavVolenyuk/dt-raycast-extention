@@ -1,10 +1,14 @@
 import { List, ActionPanel, Action, Icon, LocalStorage, Color } from "@raycast/api";
-import LogDetailView from "./log-detail-view";
-import { useDynatraceQuery } from "./useDynatraceQuery";
-import { parseTimeframe } from "./utils/parseTimeframe";
-import { buildDqlQuery, LogLevel } from "./utils/buildDqlQuery";
-import { LogRecord } from "./types/log";
+import LogDetailView from "./log-detail";
+import { useDynatraceQuery } from "../../lib/query";
+import { parseTimeframe } from "../../lib/utils/parseTimeframe";
+import { buildDqlQuery, LogLevel } from "../../lib/utils/buildDqlQuery";
+import { LogRecord } from "../../lib/types/log";
+import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
+import TenantSwitcher from "../../components/TenantSwitcher";
+import EmptyTenantState from "../../components/EmptyTenantState";
 import { useEffect, useState, useMemo } from "react";
+import type { TenantConfig } from "../../lib/auth";
 
 // ── Persistence keys ───────────────────────────────────────────────────────
 const KEY_TIMEFRAME = "dt_last_timeframe";
@@ -42,13 +46,15 @@ export default function Command(props: { arguments: CommandArguments }) {
   const { timeframeValue, timeframeUnit, query: logLevel } = props.arguments;
   const effectiveLogLevel: LogLevel = logLevel ?? "error";
 
-  // ── Story 4: persistent filter state ──────────────────────────────────────
-  // storedTimeframe is loaded from LocalStorage and used when command arg is empty
+  // Persistent filter state — stored timeframe loaded from LocalStorage on mount
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
-  // Story 3: app/service filter
+  // Service/app filter
   const [selectedService, setSelectedService] = useState<string>("all");
-  // Gate: don't fire query until LocalStorage is loaded
+  // Gate: don't fire query until LocalStorage + tenant are loaded
   const [filtersLoaded, setFiltersLoaded] = useState(false);
+  // Active tenant
+  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const [tenantChecked, setTenantChecked] = useState(false);
 
   // Effective timeframe: command arg wins → stored value → default "24h"
   const timeframe = timeframeValue
@@ -57,27 +63,30 @@ export default function Command(props: { arguments: CommandArguments }) {
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
-  // Load persisted filters once on mount
+  // Load persisted filters and active tenant once on mount
   useEffect(() => {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_APP_FILTER),
-    ]).then(([tf, svc]) => {
+      getActiveTenant(),
+    ]).then(([tf, svc, activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       if (svc) setSelectedService(svc);
+      setTenant(activeTenant);
+      setTenantChecked(true);
       setFiltersLoaded(true);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally once
 
-  // Execute query after persisted filters are loaded; re-run if args change
+  // Execute query after persisted filters are loaded; re-run if args or tenant change
   useEffect(() => {
-    if (!filtersLoaded) return;
+    if (!filtersLoaded || !tenant) return;
     const timeRange = parseTimeframe(timeframe);
     const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
-    execute(dql, timeRange);
+    execute(dql, timeRange, tenant);
     // Persist effective timeframe so next launch can restore it
     LocalStorage.setItem(KEY_TIMEFRAME, timeframe);
-  }, [timeframe, effectiveLogLevel, filtersLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timeframe, effectiveLogLevel, filtersLoaded, tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update service selection and persist immediately
   const handleServiceChange = (value: string) => {
@@ -85,9 +94,18 @@ export default function Command(props: { arguments: CommandArguments }) {
     LocalStorage.setItem(KEY_APP_FILTER, value);
   };
 
+  // Handle tenant switch from TenantSwitcher dropdown
+  const handleTenantChange = async (id: string) => {
+    await setActiveTenant(id);
+    const all = await import("../../lib/tenants").then((m) => m.listTenants());
+    const next = all.find((t) => t.id === id) ?? null;
+    setTenant(next);
+    // Rerun query will fire from useEffect dependency on tenant
+  };
+
   const logs = data?.records ?? [];
 
-  // ── Story 3: collect unique service / app names from current results ───────
+  // Collect unique service / app names from current results for dropdown
   const serviceOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const log of logs) {
@@ -106,7 +124,16 @@ export default function Command(props: { arguments: CommandArguments }) {
     });
   }, [logs, selectedService]);
 
-  // Show dropdown only when there are ≥2 unique services (Story 3)
+  // Show empty tenant state if no tenant is configured
+  if (tenantChecked && !tenant) {
+    return (
+      <List isLoading={false}>
+        <EmptyTenantState />
+      </List>
+    );
+  }
+
+  // Show service dropdown when there are ≥2 unique services
   const serviceDropdown =
     serviceOptions.length >= 2 ? (
       <List.Dropdown
@@ -121,7 +148,11 @@ export default function Command(props: { arguments: CommandArguments }) {
           ))}
         </List.Dropdown.Section>
       </List.Dropdown>
-    ) : undefined;
+    ) : (
+      tenant ? (
+        <TenantSwitcher value={tenant.id} onChange={handleTenantChange} />
+      ) : undefined
+    );
 
   // ── Empty state ────────────────────────────────────────────────────────────
   if (!isLoading && !error && filteredLogs.length === 0 && data !== null) {
@@ -150,9 +181,10 @@ export default function Command(props: { arguments: CommandArguments }) {
                 title="Retry"
                 icon={Icon.ArrowClockwise}
                 onAction={() => {
+                  if (!tenant) return;
                   const timeRange = parseTimeframe(timeframe);
                   const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
-                  execute(dql, timeRange);
+                  execute(dql, timeRange, tenant);
                 }}
               />
             </ActionPanel>

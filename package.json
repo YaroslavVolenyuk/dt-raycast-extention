@@ -2,36 +2,28 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "dynatrace",
   "title": "Dynatrace",
-  "description": "Dynatrace Grail log search and monitoring",
-  "icon": "dynatrace-icon.png",
+  "description": "Monitor your Dynatrace environment directly from Raycast — search logs, track problems, inspect deployments and entities.",
+  "icon": "assets/dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
   "owner": "one-developer-corporation",
   "platforms": [
-    "macOS",
-    "Windows"
+    "macOS"
   ],
   "categories": [
-    "Productivity",
-    "Developer Tools"
+    "Developer Tools",
+    "Productivity"
+  ],
+  "keywords": [
+    "dynatrace",
+    "observability",
+    "logs",
+    "monitoring",
+    "apm",
+    "dql",
+    "grail"
   ],
   "license": "MIT",
   "preferences": [
-    {
-      "name": "dynatraceEndpoint",
-      "title": "Dynatrace Tenant URL",
-      "description": "Your Dynatrace tenant base URL, e.g. https://xxxxx.dev.dynatracelabs.com",
-      "type": "textfield",
-      "required": true,
-      "placeholder": "https://xxxxx.dev.dynatracelabs.com"
-    },
-    {
-      "name": "dynatraceToken",
-      "title": "Dynatrace API Token",
-      "description": "Your Dynatrace OAuth token (dt0s16.xxx...)",
-      "type": "password",
-      "required": true,
-      "placeholder": "dt0s16.XXXXXXXX.XXXXXXXXXX"
-    },
     {
       "name": "useMockData",
       "title": "Use Mock Data",
@@ -44,55 +36,105 @@
   ],
   "commands": [
     {
-      "name": "dt",
+      "name": "dt-search-logs",
       "title": "Search Logs",
-      "description": "Query Dynatrace Grail",
+      "subtitle": "Dynatrace",
+      "description": "Search Dynatrace Grail logs with DQL filters",
       "mode": "view",
+      "icon": "assets/dynatrace-icon.png",
       "arguments": [
         {
           "name": "timeframeValue",
-          "placeholder": "24",
+          "placeholder": "1",
           "type": "text",
           "required": false
         },
         {
           "name": "timeframeUnit",
-          "placeholder": "Hours",
-          "type": "dropdown",
-          "required": false,
-          "data": [
-            { "title": "Hours", "value": "h" },
-            { "title": "Minutes", "value": "m" },
-            { "title": "Days", "value": "d" }
-          ]
+          "placeholder": "h",
+          "type": "text",
+          "required": false
         },
         {
           "name": "query",
-          "placeholder": "log level",
-          "type": "dropdown",
-          "required": true,
-          "data": [
-            { "title": "All Logs", "value": "all" },
-            { "title": "Error", "value": "error" },
-            { "title": "Warning", "value": "warning" },
-            { "title": "Info", "value": "info" },
-            { "title": "Debug", "value": "debug" },
-            { "title": "Fatal", "value": "fatal" }
-          ]
+          "placeholder": "ERROR",
+          "type": "text",
+          "required": false
         }
       ]
+    },
+    {
+      "name": "dt-problems",
+      "title": "Active Problems",
+      "subtitle": "Dynatrace",
+      "description": "View active Davis AI problems",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-deployments",
+      "title": "Recent Deployments",
+      "subtitle": "Dynatrace",
+      "description": "View recent deployment events",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-entities",
+      "title": "Find Entity",
+      "subtitle": "Dynatrace",
+      "description": "Search services, hosts and process groups",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-dql-runner",
+      "title": "Run DQL Query",
+      "subtitle": "Dynatrace",
+      "description": "Execute a custom DQL query",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-saved-queries",
+      "title": "Saved DQL Queries",
+      "subtitle": "Dynatrace",
+      "description": "Manage and run saved DQL queries",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-tenants",
+      "title": "Manage Tenants",
+      "subtitle": "Dynatrace",
+      "description": "Add, edit and switch between Dynatrace tenants",
+      "mode": "view",
+      "icon": "assets/dynatrace-icon.png"
+    },
+    {
+      "name": "dt-menubar-problems",
+      "title": "Problems in Menu Bar",
+      "subtitle": "Dynatrace",
+      "description": "Show open problem count in macOS menu bar",
+      "mode": "menu-bar",
+      "icon": "assets/dynatrace-icon.png",
+      "interval": "5m"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.104.1",
-    "@raycast/utils": "^1.17.0"
+    "@raycast/utils": "^1.17.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.0.4",
+    "@types/jest": "^30.0.0",
     "@types/node": "22.13.10",
     "@types/react": "19.0.10",
     "eslint": "^9.22.0",
+    "jest": "^30.3.0",
     "prettier": "^3.5.3",
+    "ts-jest": "^29.4.9",
     "typescript": "^5.8.2"
   },
   "scripts": {
@@ -100,6 +142,7 @@
     "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
+    "test": "jest",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }
