@@ -54,12 +54,29 @@ Open Raycast, type **Search Logs**, **Active Problems**, or any other Dynatrace 
 
 ## Screenshots
 
-<!-- Add screenshots to the metadata/ directory and reference them here -->
-- Search Logs
-- Active Problems
-- Log Detail View
-- Run DQL Query
-- Manage Tenants
+### Search Logs
+![Search Logs](metadata/search-logs.png)
+Query Dynatrace Grail logs with DQL filters, service-level drill-down, and timeframe presets.
+
+### Active Problems
+![Active Problems](metadata/problems.png)
+View open Davis AI problems with severity color-coding, affected entities, and deep-links to Dynatrace.
+
+### Log Detail View
+![Log Detail View](metadata/log-detail.png)
+Inspect log records with pretty-printed JSON, stack trace formatting, and related logs actions.
+
+### Run DQL Query
+![Run DQL Query](metadata/dql-runner.png)
+Execute arbitrary DQL queries, view results in dynamic tables, and save frequently used queries.
+
+### Manage Tenants
+![Manage Tenants](metadata/tenants.png)
+Add and switch between multiple Dynatrace environments with OAuth 2.0 authentication.
+
+### Recent Deployments
+![Recent Deployments](metadata/deployments.png)
+Browse deployment events and correlate with incidents and errors in your environment.
 
 ## Contributing
 

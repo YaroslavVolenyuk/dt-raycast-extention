@@ -6,6 +6,7 @@
   "icon": "assets/dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
   "owner": "one-developer-corporation",
+  "version": "1.0.0",
   "platforms": [
     "macOS"
   ],
