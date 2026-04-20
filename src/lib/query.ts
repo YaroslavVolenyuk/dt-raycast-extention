@@ -1,7 +1,7 @@
 // src/lib/query.ts
 // Dynatrace Grail query hook — executes DQL queries against the Grail API.
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { MOCK_LOGS } from "./api/mock";
 import { LogRecord } from "./types/log";
@@ -51,9 +51,15 @@ export function useDynatraceQuery<T = unknown>() {
   const [data, setData] = useState<{ records: T[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const execute = useCallback(
     async (query: string, timeframe?: { start: string; end: string }, tenant?: TenantConfig) => {
+      // Abort previous request to prevent race conditions
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+      const signal = abortRef.current.signal;
+
       setIsLoading(true);
       setError(null);
 
@@ -113,6 +119,7 @@ export function useDynatraceQuery<T = unknown>() {
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify(payload),
+          signal,
         });
 
         const rawText = await response.text();
@@ -151,6 +158,10 @@ export function useDynatraceQuery<T = unknown>() {
         setData({ records });
         return records;
       } catch (err) {
+        // Silently ignore AbortError — request was cancelled intentionally
+        if (err instanceof Error && err.name === "AbortError") {
+          return null;
+        }
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
         await showToast({ style: Toast.Style.Failure, title: "Dynatrace Query Failed", message });

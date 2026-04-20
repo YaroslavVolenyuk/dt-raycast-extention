@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, Icon, LocalStorage, Color } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, LocalStorage, Color, showToast, Toast } from "@raycast/api";
 import LogDetailView from "./log-detail";
 import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
@@ -7,18 +7,27 @@ import { LogRecord } from "../../lib/types/log";
 import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import type { TenantConfig } from "../../lib/auth";
 
 // ── Persistence keys ───────────────────────────────────────────────────────
 const KEY_TIMEFRAME = "dt_last_timeframe";
-const KEY_APP_FILTER = "dt_last_app_filter";
+const KEY_LOG_LEVEL = "dt_last_log_level";
 
 interface CommandArguments {
-  timeframeValue: string; // e.g. "2", "30" — numeric part
-  timeframeUnit: "h" | "m" | "d"; // from dropdown, defaults to "h" (Hours)
-  query: LogLevel; // "error" | "warning" | "info" | ...
+  timeframeValue: string;
+  timeframeUnit: "h" | "m" | "d";
+  query: LogLevel;
 }
+
+// Timeframe presets
+const TIMEFRAME_PRESETS = [
+  { label: "15m", value: "15m" },
+  { label: "1h", value: "1h" },
+  { label: "4h", value: "4h" },
+  { label: "24h", value: "24h" },
+  { label: "7d", value: "7d" },
+];
 
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
   ERROR: Icon.XMarkCircle,
@@ -43,20 +52,24 @@ function formatRelativeTime(timestamp: string): string {
 }
 
 export default function Command(props: { arguments: CommandArguments }) {
-  const { timeframeValue, timeframeUnit, query: logLevel } = props.arguments;
-  const effectiveLogLevel: LogLevel = logLevel ?? "error";
+  const { timeframeValue, timeframeUnit } = props.arguments;
 
-  // Persistent filter state — stored timeframe loaded from LocalStorage on mount
+  // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
-  // Service/app filter
   const [selectedService, setSelectedService] = useState<string>("all");
-  // Gate: don't fire query until LocalStorage + tenant are loaded
+  const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
-  // Active tenant
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
 
-  // Effective timeframe: command arg wins → stored value → default "24h"
+  // Pagination state
+  const [allRecords, setAllRecords] = useState<LogRecord[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Debounce timer for content search
+  const [debouncedContent, setDebouncedContent] = useState<string>("");
+
+  // Effective values
   const timeframe = timeframeValue
     ? `${timeframeValue}${timeframeUnit ?? "h"}`
     : (storedTimeframe ?? "24h");
@@ -67,64 +80,103 @@ export default function Command(props: { arguments: CommandArguments }) {
   useEffect(() => {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
-      LocalStorage.getItem<string>(KEY_APP_FILTER),
+      LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       getActiveTenant(),
-    ]).then(([tf, svc, activeTenant]) => {
+    ]).then(([tf, level, activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
-      if (svc) setSelectedService(svc);
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally once
+  }, []);
 
-  // Execute query after persisted filters are loaded; re-run if args or tenant change
+  // Debounce content search (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContent(contentSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [contentSearch]);
+
+  // Execute query after filters are loaded; re-run if args, tenant, or debounced content changes
   useEffect(() => {
     if (!filtersLoaded || !tenant) return;
-    const timeRange = parseTimeframe(timeframe);
-    const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
-    execute(dql, timeRange, tenant);
-    // Persist effective timeframe so next launch can restore it
-    LocalStorage.setItem(KEY_TIMEFRAME, timeframe);
-  }, [timeframe, effectiveLogLevel, filtersLoaded, tenant]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update service selection and persist immediately
+    const timeRange = parseTimeframe(timeframe);
+    const logLevel = props.arguments.query ?? "error";
+    const dql = buildDqlQuery({
+      logLevel,
+      serviceName: selectedService !== "all" ? selectedService : undefined,
+      contentFilter: debouncedContent || undefined,
+    });
+
+    execute(dql, timeRange, tenant);
+
+    // Persist effective timeframe and log level
+    LocalStorage.setItem(KEY_TIMEFRAME, timeframe);
+    LocalStorage.setItem(KEY_LOG_LEVEL, logLevel);
+
+    // Reset pagination when query changes
+    setAllRecords([]);
+  }, [timeframe, selectedService, debouncedContent, filtersLoaded, tenant, props.arguments.query]);
+
+  // Update data when new results come in (append for "load more", replace on new query)
+  useEffect(() => {
+    if (data?.records) {
+      // If oldest record from last batch exists in new data, we're loading more
+      const isLoadMore = allRecords.length > 0 &&
+        data.records.some(r => r.timestamp === allRecords[allRecords.length - 1]?.timestamp);
+
+      if (isLoadMore) {
+        setAllRecords(prev => [...prev, ...data.records.filter(r => !prev.some(p => p.timestamp === r.timestamp))]);
+        setIsLoadingMore(false);
+      } else {
+        setAllRecords(data.records);
+      }
+    }
+  }, [data]);
+
   const handleServiceChange = (value: string) => {
     setSelectedService(value);
-    LocalStorage.setItem(KEY_APP_FILTER, value);
+    setAllRecords([]); // Reset pagination on filter change
   };
 
-  // Handle tenant switch from TenantSwitcher dropdown
   const handleTenantChange = async (id: string) => {
     await setActiveTenant(id);
     const all = await import("../../lib/tenants").then((m) => m.listTenants());
     const next = all.find((t) => t.id === id) ?? null;
     setTenant(next);
-    // Rerun query will fire from useEffect dependency on tenant
   };
 
-  const logs = data?.records ?? [];
+  const handleLoadMore = useCallback(async () => {
+    if (allRecords.length === 0 || !tenant) return;
+    setIsLoadingMore(true);
 
-  // Collect unique service / app names from current results for dropdown
+    const oldestRecord = allRecords[allRecords.length - 1];
+    const timeRange = parseTimeframe(timeframe);
+    const logLevel = props.arguments.query ?? "error";
+
+    // Build query with "before" cursor for pagination
+    const dql = buildDqlQuery({
+      logLevel,
+      serviceName: selectedService !== "all" ? selectedService : undefined,
+      contentFilter: debouncedContent || undefined,
+      before: oldestRecord.timestamp,
+    });
+
+    execute(dql, timeRange, tenant);
+  }, [allRecords, tenant, timeframe, selectedService, debouncedContent, props.arguments.query, execute]);
+
+  // Collect unique service names from current results
   const serviceOptions = useMemo(() => {
     const seen = new Set<string>();
-    for (const log of logs) {
+    for (const log of allRecords) {
       const s = (log["service.name"] ?? log["dt.app.name"]) as string | undefined;
       if (s) seen.add(s);
     }
     return Array.from(seen).sort();
-  }, [logs]);
+  }, [allRecords]);
 
-  // Apply service/app filter on top of the API results (client-side)
-  const filteredLogs = useMemo(() => {
-    if (selectedService === "all") return logs;
-    return logs.filter((log) => {
-      const s = (log["service.name"] ?? log["dt.app.name"]) as string | undefined;
-      return s === selectedService;
-    });
-  }, [logs, selectedService]);
-
-  // Show empty tenant state if no tenant is configured
   if (tenantChecked && !tenant) {
     return (
       <List isLoading={false}>
@@ -133,44 +185,45 @@ export default function Command(props: { arguments: CommandArguments }) {
     );
   }
 
-  // Show service dropdown when there are ≥2 unique services
+  // Render service dropdown if enough services
   const serviceDropdown =
     serviceOptions.length >= 2 ? (
       <List.Dropdown
-        tooltip="Filter by App / Service"
+        tooltip="Filter by Service"
         value={selectedService}
         onChange={handleServiceChange}
       >
-        <List.Dropdown.Item title="All Apps" value="all" />
+        <List.Dropdown.Item title="All Services" value="all" />
         <List.Dropdown.Section title="Services">
           {serviceOptions.map((s) => (
             <List.Dropdown.Item key={s} title={s} value={s} />
           ))}
         </List.Dropdown.Section>
       </List.Dropdown>
-    ) : (
-      tenant ? (
-        <TenantSwitcher value={tenant.id} onChange={handleTenantChange} />
-      ) : undefined
-    );
+    ) : tenant ? (
+      <TenantSwitcher value={tenant.id} onChange={handleTenantChange} />
+    ) : undefined;
 
-  // ── Empty state ────────────────────────────────────────────────────────────
-  if (!isLoading && !error && filteredLogs.length === 0 && data !== null) {
+  if (!isLoading && !error && allRecords.length === 0 && !isLoadingMore) {
     return (
-      <List isLoading={false} searchBarPlaceholder="Search logs..." searchBarAccessory={serviceDropdown}>
+      <List
+        isLoading={false}
+        searchBarPlaceholder="Search in log content (with 300ms debounce)..."
+        searchBarAccessory={serviceDropdown}
+        onSearchTextChange={setContentSearch}
+      >
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No logs found"
-          description={`No ${effectiveLogLevel.toUpperCase()} logs for the last ${timeframe}.`}
+          description={`Adjust filters or timeframe to find logs.`}
         />
       </List>
     );
   }
 
-  // ── Error state ────────────────────────────────────────────────────────────
-  if (error && !isLoading) {
+  if (error && !isLoading && allRecords.length === 0) {
     return (
-      <List isLoading={false}>
+      <List isLoading={false} searchBarAccessory={serviceDropdown}>
         <List.EmptyView
           icon={Icon.Warning}
           title="Query Failed"
@@ -183,7 +236,12 @@ export default function Command(props: { arguments: CommandArguments }) {
                 onAction={() => {
                   if (!tenant) return;
                   const timeRange = parseTimeframe(timeframe);
-                  const dql = buildDqlQuery({ logLevel: effectiveLogLevel });
+                  const logLevel = props.arguments.query ?? "error";
+                  const dql = buildDqlQuery({
+                    logLevel,
+                    serviceName: selectedService !== "all" ? selectedService : undefined,
+                    contentFilter: debouncedContent || undefined,
+                  });
                   execute(dql, timeRange, tenant);
                 }}
               />
@@ -194,14 +252,14 @@ export default function Command(props: { arguments: CommandArguments }) {
     );
   }
 
-  // ── Main list ──────────────────────────────────────────────────────────────
   return (
     <List
-      isLoading={isLoading}
-      searchBarPlaceholder="Search logs by content or service..."
+      isLoading={isLoading && allRecords.length === 0}
+      searchBarPlaceholder="Search in log content (with 300ms debounce)..."
       searchBarAccessory={serviceDropdown}
+      onSearchTextChange={setContentSearch}
     >
-      {filteredLogs.map((log, index) => (
+      {allRecords.map((log, index) => (
         <List.Item
           key={index}
           icon={getLogIcon(log.loglevel)}
@@ -225,6 +283,23 @@ export default function Command(props: { arguments: CommandArguments }) {
           }
         />
       ))}
+
+      {/* Load more button */}
+      {allRecords.length > 0 && !error && (
+        <List.Item
+          title={isLoadingMore ? "Loading more logs..." : "Load 50 more logs"}
+          icon={isLoadingMore ? Icon.Clock : Icon.Plus}
+          actions={
+            <ActionPanel>
+              <Action
+                title={isLoadingMore ? "Loading..." : "Load More"}
+                icon={Icon.Plus}
+                onAction={handleLoadMore}
+              />
+            </ActionPanel>
+          }
+        />
+      )}
     </List>
   );
 }

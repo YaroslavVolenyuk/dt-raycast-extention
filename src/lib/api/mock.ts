@@ -1,4 +1,6 @@
 import { LogRecord } from "../types/log";
+import { Problem } from "../types/problem";
+import { Deployment } from "../types/deployment";
 
 function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -186,5 +188,116 @@ export const MOCK_LOGS: LogRecord[] = [
     "service.name": "analytics-service",
     "dt.entity.host": "HOST-analytics01",
     status: "OK",
+  },
+];
+
+export const MOCK_PROBLEMS: Problem[] = [
+  {
+    "event.id": "PROB-001",
+    "event.name": "Payment service response time degradation",
+    "event.status": "OPEN",
+    "event.severity": "PERFORMANCE",
+    "event.start": ago(45 * m),
+    "event.end": null,
+    affected_entity_ids: ["SERVICE-payment-service", "HOST-abc123"],
+    maintenance_window: false,
+    root_cause_entity_id: "SERVICE-payment-service",
+  },
+  {
+    "event.id": "PROB-002",
+    "event.name": "Database connection pool exhaustion on db-primary",
+    "event.status": "OPEN",
+    "event.severity": "AVAILABILITY",
+    "event.start": ago(20 * m),
+    "event.end": null,
+    affected_entity_ids: ["HOST-db-primary", "SERVICE-order-service", "SERVICE-user-service"],
+    maintenance_window: false,
+    root_cause_entity_id: "HOST-db-primary",
+  },
+  {
+    "event.id": "PROB-003",
+    "event.name": "Order processor Lambda high error rate",
+    "event.status": "OPEN",
+    "event.severity": "ERROR",
+    "event.start": ago(30 * m),
+    "event.end": null,
+    affected_entity_ids: ["SERVICE-order-processor-lambda"],
+    maintenance_window: false,
+    root_cause_entity_id: "SERVICE-order-processor-lambda",
+  },
+  {
+    "event.id": "PROB-004",
+    "event.name": "Inventory service JVM memory pressure",
+    "event.status": "OPEN",
+    "event.severity": "RESOURCE_CONTENTION",
+    "event.start": ago(1 * h + 15 * m),
+    "event.end": null,
+    affected_entity_ids: ["SERVICE-inventory-service", "HOST-inv02"],
+    maintenance_window: false,
+    root_cause_entity_id: "HOST-inv02",
+  },
+  {
+    "event.id": "PROB-005",
+    "event.name": "Custom alert: API error rate threshold exceeded",
+    "event.status": "OPEN",
+    "event.severity": "CUSTOM_ALERT",
+    "event.start": ago(10 * m),
+    "event.end": null,
+    affected_entity_ids: ["SERVICE-graphql-api"],
+    maintenance_window: false,
+    root_cause_entity_id: null,
+  },
+];
+
+export const MOCK_DEPLOYMENTS: Deployment[] = [
+  {
+    "event.id": "DEP-001",
+    "event.name": "payment-service v2.4.3 release",
+    "event.type": "CUSTOM_DEPLOYMENT",
+    "event.start": ago(15 * m),
+    "event.provider": "kubernetes",
+    affected_entity_name: "payment-service",
+    "deployment.version": "2.4.3",
+    "deployment.release_stage": "production",
+  },
+  {
+    "event.id": "DEP-002",
+    "event.name": "order-service canary rollout (10%)",
+    "event.type": "DAVIS_DEPLOYMENT",
+    "event.start": ago(45 * m),
+    "event.provider": "kubernetes",
+    affected_entity_name: "order-service",
+    "deployment.version": "3.1.0",
+    "deployment.release_stage": "canary",
+  },
+  {
+    "event.id": "DEP-003",
+    "event.name": "api-gateway hotfix deployment",
+    "event.type": "CUSTOM_DEPLOYMENT",
+    "event.start": ago(2 * h),
+    "event.provider": "docker",
+    affected_entity_name: "api-gateway",
+    "deployment.version": "2.8.1",
+    "deployment.release_stage": "production",
+  },
+  {
+    "event.id": "DEP-004",
+    "event.name": "user-service blue/green swap",
+    "event.type": "CUSTOM_DEPLOYMENT",
+    "event.start": ago(4 * h),
+    "event.provider": "kubernetes",
+    affected_entity_name: "user-service",
+    "deployment.version": "1.9.5",
+    "deployment.release_stage": "production",
+  },
+  {
+    "event.id": "DEP-005",
+    "event.name": "analytics-pipeline rebuild",
+    "event.type": "DAVIS_DEPLOYMENT",
+    "event.start": ago(6 * h),
+    "event.provider": "batch-job",
+    affected_entity_name: "analytics-service",
+    "deployment.version": "0.5.2",
+    "deployment.release_stage": "production",
   },
 ];

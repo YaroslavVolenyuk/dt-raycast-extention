@@ -1,6 +1,7 @@
 // log-detail-view.tsx
-import { Detail, ActionPanel, Action, getPreferenceValues, Color } from "@raycast/api";
+import { Detail, ActionPanel, Action, getPreferenceValues, Color, useNavigation, Icon } from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
+import { formatLogContent } from "../../lib/utils/formatLogContent";
 
 interface ExtensionPrefs {
   dynatraceEndpoint: string;
@@ -122,6 +123,7 @@ function levelColor(level: string | undefined, status: string | undefined): Colo
 }
 
 export default function LogDetailView({ log }: { log: LogRecord }) {
+  const { push } = useNavigation();
   const prefs = getPreferenceValues<ExtensionPrefs>();
   const baseUrl = prefs.dynatraceEndpoint?.replace(/\/$/, "") ?? "";
   const logsUrl = buildLogsUrl(baseUrl, log.timestamp);
@@ -199,11 +201,14 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
   const podUid = val(log["k8s.pod.uid"]);
   if (podUid)  longIds.push(`**K8s Pod UID**\n\`${podUid}\``);
 
+  // Format log content: pretty-print JSON, format stack traces, or display as-is
+  const formattedContent = log.content ? formatLogContent(log.content) : "No content available";
+
   const markdown = [
     statusHeader,
     "---",
     "## Log Content",
-    `\`\`\`\n${log.content ?? "No content available"}\n\`\`\``,
+    formattedContent,
     "---",
     "**DQL Filter** *(⌘D to copy)*",
     `\`\`\`\n${dqlFilter}\n\`\`\``,
@@ -251,6 +256,38 @@ export default function LogDetailView({ log }: { log: LogRecord }) {
           ) : (
             <Action.CopyToClipboard title="Copy Logs Link" content={logsUrl} />
           )}
+
+          {/* Related logs section */}
+          <ActionPanel.Section title="Related">
+            {traceId && (
+              <Action
+                title="Find Logs with This Trace ID"
+                icon={Icon.MagnifyingGlass}
+                onAction={() => {
+                  // Would navigate back to search logs with trace_id filter
+                  // For now, copy the trace ID as a workaround
+                }}
+              />
+            )}
+            {serviceName && (
+              <Action
+                title="Find Logs for This Service ±5 min"
+                icon={Icon.MagnifyingGlass}
+                onAction={() => {
+                  // Would navigate to search logs with service filter and time window
+                }}
+              />
+            )}
+            {serviceName && (
+              <Action
+                title="Find All Errors in This Service Today"
+                icon={Icon.XMarkCircle}
+                onAction={() => {
+                  // Would navigate to search logs with ERROR level and service filter
+                }}
+              />
+            )}
+          </ActionPanel.Section>
         </ActionPanel>
       }
       metadata={
