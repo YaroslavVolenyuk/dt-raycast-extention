@@ -5,6 +5,7 @@ import { Problem, buildProblemsQuery } from "../../lib/types/problem";
 import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
+import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import ProblemDetailView from "./problem-detail";
 
@@ -63,9 +64,9 @@ export default function ProblemsCommand() {
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Problem>();
 
-  // Load active tenant once on mount
+  // Load active tenant once on mount (or mock tenant if in mock mode)
   useEffect(() => {
-    getActiveTenant().then((activeTenant) => {
+    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -100,7 +101,7 @@ export default function ProblemsCommand() {
     });
   }, [problems]);
 
-  if (tenantChecked && !tenant) {
+  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />

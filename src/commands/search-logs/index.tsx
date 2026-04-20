@@ -7,6 +7,7 @@ import { LogRecord } from "../../lib/types/log";
 import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
+import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import type { TenantConfig } from "../../lib/auth";
 
@@ -70,7 +71,7 @@ export default function Command(props: { arguments: CommandArguments }) {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
-      getActiveTenant(),
+      getActiveTenantOrMock(() => getActiveTenant()),
     ]).then(([tf, , activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       setTenant(activeTenant);
@@ -169,7 +170,8 @@ export default function Command(props: { arguments: CommandArguments }) {
     return Array.from(seen).sort();
   }, [allRecords]);
 
-  if (tenantChecked && !tenant) {
+  // Show empty tenant state only in real mode without tenant
+  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />

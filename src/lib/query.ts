@@ -2,16 +2,20 @@
 // Dynatrace Grail query hook — executes DQL queries against the Grail API.
 
 import { useCallback, useState, useRef } from "react";
-import { getPreferenceValues, showToast, Toast } from "@raycast/api";
-import { MOCK_LOGS } from "./api/mock";
+import { showToast, Toast } from "@raycast/api";
+import { MOCK_LOGS, MOCK_PROBLEMS, MOCK_DEPLOYMENTS, MOCK_SPANS, MOCK_ENTITIES, MOCK_SAVED_QUERIES, ago } from "./api/mock";
 import { LogRecord } from "./types/log";
+import { Problem } from "./types/problem";
+import { Deployment } from "./types/deployment";
+import { Span } from "./types/span";
+import { Entity } from "./types/entity";
+import { SavedQuery } from "./types/savedQuery";
 import { grailResponseSchema } from "./types/grail";
 import { getAccessToken, OAuthError, TenantConfig } from "./auth";
+import { isMockMode, devLog, simulateNetworkDelay } from "./devMode";
 import { ZodError } from "zod";
 
-interface ExtensionPrefs {
-  useMockData: boolean;
-}
+// Extension preferences interface removed — use getPreferenceValues directly
 
 interface QueryPayload {
   query: string;
@@ -63,19 +67,44 @@ export function useDynatraceQuery<T = unknown>() {
       setIsLoading(true);
       setError(null);
 
-      const prefs = getPreferenceValues<ExtensionPrefs>();
+      // ── Mock mode (Development) ───────────────────────────────────────────────
+      if (isMockMode()) {
+        devLog("Executing query in mock mode", { query, timeframe });
 
-      // ── Mock mode ────────────────────────────────────────────────────────────
-      if (prefs.useMockData) {
-        await showToast({ style: Toast.Style.Success, title: "Mock Mode Active", message: "Using local fake data" });
-        // Extract log level from DQL query string (e.g. 'filter loglevel == "ERROR"')
-        const levelMatch = query.match(/loglevel\s*==\s*"([^"]+)"/i);
-        const filterLevel = levelMatch ? levelMatch[1].toUpperCase() : null;
-        const records = filterLevel ? MOCK_LOGS.filter((r: LogRecord) => r.loglevel === filterLevel) : MOCK_LOGS;
-        await new Promise((res) => setTimeout(res, 300)); // simulate latency
-        setData({ records: records as T[] });
+        // Simulate network latency
+        await simulateNetworkDelay(100, 400);
+
+        // Select appropriate mock data based on query content
+        let mockData: unknown[] = [];
+
+        if (query.includes("dt.davis.problems")) {
+          mockData = MOCK_PROBLEMS as unknown[];
+          devLog("Returning MOCK_PROBLEMS");
+        } else if (query.includes("events") && (query.includes("DEPLOYMENT") || query.includes("deployment"))) {
+          mockData = MOCK_DEPLOYMENTS as unknown[];
+          devLog("Returning MOCK_DEPLOYMENTS");
+        } else if (query.includes("spans")) {
+          mockData = MOCK_SPANS as unknown[];
+          devLog("Returning MOCK_SPANS");
+        } else if (query.includes("entity")) {
+          mockData = MOCK_ENTITIES as unknown[];
+          devLog("Returning MOCK_ENTITIES");
+        } else if (query.includes("dt.entity")) {
+          mockData = MOCK_ENTITIES as unknown[];
+          devLog("Returning MOCK_ENTITIES");
+        } else {
+          // Default to logs with optional filtering
+          const levelMatch = query.match(/loglevel\s*==\s*"([^"]+)"/i);
+          const filterLevel = levelMatch ? levelMatch[1].toUpperCase() : null;
+          mockData = filterLevel
+            ? MOCK_LOGS.filter((r: LogRecord) => r.loglevel === filterLevel)
+            : MOCK_LOGS;
+          devLog("Returning MOCK_LOGS", { filtered: !!filterLevel, level: filterLevel });
+        }
+
+        setData({ records: mockData as T[] });
         setIsLoading(false);
-        return records;
+        return mockData;
       }
 
       // ── Real API ─────────────────────────────────────────────────────────────

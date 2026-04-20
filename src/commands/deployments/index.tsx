@@ -5,6 +5,7 @@ import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
 import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
+import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import DeploymentDetailView from "./deployment-detail";
 
@@ -24,9 +25,9 @@ export default function DeploymentsCommand() {
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Deployment>();
 
-  // Load active tenant once on mount
+  // Load active tenant once on mount (or mock tenant if in mock mode)
   useEffect(() => {
-    getActiveTenant().then((activeTenant) => {
+    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -50,7 +51,7 @@ export default function DeploymentsCommand() {
 
   const deployments = data?.records ?? [];
 
-  if (tenantChecked && !tenant) {
+  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />

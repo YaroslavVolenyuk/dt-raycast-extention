@@ -4,6 +4,7 @@ import { useDynatraceQuery } from "../../lib/query";
 import { Entity, buildEntityQuery } from "../../lib/types/entity";
 import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
+import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 
 const TYPE_ICONS: Record<string, Icon> = {
@@ -29,7 +30,7 @@ export default function EntitiesCommand() {
 
   // Load active tenant once on mount
   useEffect(() => {
-    getActiveTenant().then((activeTenant) => {
+    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -65,7 +66,7 @@ export default function EntitiesCommand() {
     return groups;
   }, [entities]);
 
-  if (tenantChecked && !tenant) {
+  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />

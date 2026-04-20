@@ -1,13 +1,22 @@
+// src/lib/api/mock.ts
+// Mock data for development and testing without OAuth setup.
+// When useMockData preference is enabled, all API calls return these datasets.
+// Each mock dataset is realistic and covers various edge cases and severity levels.
+
 import { LogRecord } from "../types/log";
 import { Problem } from "../types/problem";
 import { Deployment } from "../types/deployment";
 import { Span } from "../types/span";
+import type { Entity } from "../types/entity";
+import type { SavedQuery } from "../types/savedQuery";
 
-function ago(ms: number): string {
+export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
 }
+
 const m = 60_000;
 const h = 3_600_000;
+const d = 24 * h;
 
 export const MOCK_LOGS: LogRecord[] = [
   {
@@ -376,5 +385,123 @@ export const MOCK_SPANS: Span[] = [
     "span.duration.us": 156000, // 156ms
     status_code: "OK",
     timestamp: ago(18 * m),
+  },
+];
+
+// Mock Entities (Services, Hosts, Process Groups)
+export const MOCK_ENTITIES: Entity[] = [
+  {
+    "entity.id": "SERVICE-payment-service",
+    "entity.name": "payment-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-order-service",
+    "entity.name": "order-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-user-service",
+    "entity.name": "user-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-api-gateway",
+    "entity.name": "api-gateway",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-auth-service",
+    "entity.name": "auth-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-cache-service",
+    "entity.name": "cache-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-billing-service",
+    "entity.name": "billing-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "SERVICE-inventory-service",
+    "entity.name": "inventory-service",
+    "entity.type": "SERVICE",
+  },
+  {
+    "entity.id": "HOST-abc123",
+    "entity.name": "prod-api-01.internal.company.com",
+    "entity.type": "HOST",
+  },
+  {
+    "entity.id": "HOST-def456",
+    "entity.name": "prod-db-primary.internal.company.com",
+    "entity.type": "HOST",
+  },
+  {
+    "entity.id": "HOST-ghi789",
+    "entity.name": "prod-cache-01.internal.company.com",
+    "entity.type": "HOST",
+  },
+  {
+    "entity.id": "PG-payment-java",
+    "entity.name": "payment-service-java-processes",
+    "entity.type": "PROCESS_GROUP",
+  },
+  {
+    "entity.id": "PG-order-nodejs",
+    "entity.name": "order-service-nodejs-processes",
+    "entity.type": "PROCESS_GROUP",
+  },
+  {
+    "entity.id": "PG-user-python",
+    "entity.name": "user-service-python-processes",
+    "entity.type": "PROCESS_GROUP",
+  },
+];
+
+// Mock Saved Queries
+export const MOCK_SAVED_QUERIES: SavedQuery[] = [
+  {
+    id: "query-001",
+    name: "Error logs last 24h",
+    dql: 'fetch logs | filter loglevel == "ERROR" | sort timestamp desc | limit 100',
+    timeframe: "24h",
+    createdAt: ago(3 * d),
+    isFavorite: true,
+  },
+  {
+    id: "query-002",
+    name: "Payment service latency",
+    dql: 'fetch spans | filter service.name == "payment-service" | fields service.name, "span.duration.us", status_code | sort timestamp desc | limit 50',
+    timeframe: "1h",
+    createdAt: ago(5 * d),
+    isFavorite: true,
+  },
+  {
+    id: "query-003",
+    name: "Database connection issues",
+    dql: 'fetch logs | filter content contains "connection" and loglevel == "ERROR" | stats count() as error_count',
+    timeframe: "4h",
+    createdAt: ago(7 * d),
+    isFavorite: false,
+  },
+  {
+    id: "query-004",
+    name: "Deployment timeline",
+    dql: 'fetch events | filter event.type == "CUSTOM_DEPLOYMENT" or event.kind == "DAVIS_DEPLOYMENT" | sort event.start desc | limit 30',
+    timeframe: "7d",
+    createdAt: ago(2 * d),
+    isFavorite: false,
+  },
+  {
+    id: "query-005",
+    name: "OOM errors across services",
+    dql: 'fetch logs | filter content contains "Out of memory" or content contains "JVM heap space" | fields service.name, timestamp, content | sort timestamp desc',
+    timeframe: "7d",
+    createdAt: ago(10 * d),
+    isFavorite: true,
   },
 ];

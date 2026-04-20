@@ -1,6 +1,7 @@
 import { List, Icon, Color, useNavigation, ActionPanel, Action, showToast, Toast } from "@raycast/api";
 import { useState, useEffect } from "react";
 import EmptyTenantState from "../../components/EmptyTenantState";
+import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
 import { buildSpansQuery, formatDuration, Span } from "../../lib/types/span";
@@ -25,7 +26,7 @@ export default function SearchTraces() {
 
   // Load active tenant on mount
   useEffect(() => {
-    getActiveTenant().then((activeTenant) => {
+    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -67,7 +68,7 @@ export default function SearchTraces() {
 
   const spans = data?.records ?? [];
 
-  if (tenantChecked && !tenant) {
+  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />
