@@ -34,7 +34,7 @@ export async function createJiraIssue(
   apiToken: string,
   params: JiraIssueParams,
 ): Promise<JiraIssueResponse> {
-  const endpoint = `${jiraUrl.replace(/\/$/, "")}/rest/api/3/issues`;
+  const endpoint = `${jiraUrl.replace(/\/$/, "")}/rest/api/3/issue`;
 
   // Build request body in Jira REST API format
   const body = {

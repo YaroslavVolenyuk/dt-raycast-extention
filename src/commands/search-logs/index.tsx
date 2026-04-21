@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, Icon, LocalStorage, Color } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, LocalStorage, Color, Clipboard, showToast, Toast } from "@raycast/api";
 import LogDetailView from "./log-detail";
 import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
@@ -10,15 +10,31 @@ import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import type { TenantConfig } from "../../lib/auth";
+import { toJson, toCsv } from "../../lib/utils/exportData";
 
 // ── Persistence keys ───────────────────────────────────────────────────────
 const KEY_TIMEFRAME = "dt_last_timeframe";
 const KEY_LOG_LEVEL = "dt_last_log_level";
+const KEY_TIMEFRAME_PRESET = "dt_timeframe_preset";
+
+// Timeframe presets
+const TIMEFRAME_PRESETS = [
+  { label: "15m", value: "15m" },
+  { label: "1h", value: "1h" },
+  { label: "4h", value: "4h" },
+  { label: "24h", value: "24h" },
+  { label: "7d", value: "7d" },
+] as const;
 
 interface CommandArguments {
   timeframeValue: string;
   timeframeUnit: "h" | "m" | "d";
   query: LogLevel;
+}
+
+interface CommandProps {
+  arguments: CommandArguments;
+  _extraFilter?: string;
 }
 
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
@@ -43,11 +59,13 @@ function formatRelativeTime(timestamp: string): string {
   return `${Math.floor(diffH / 24)}d ago`;
 }
 
-export default function Command(props: { arguments: CommandArguments }) {
+export default function Command(props: CommandProps) {
   const { timeframeValue, timeframeUnit } = props.arguments;
+  const extraFilter = props._extraFilter;
 
   // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
+  const [timeframePreset, setTimeframePreset] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState<string>("all");
   const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -61,8 +79,12 @@ export default function Command(props: { arguments: CommandArguments }) {
   // Debounce timer for content search
   const [debouncedContent, setDebouncedContent] = useState<string>("");
 
-  // Effective values
-  const timeframe = timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : (storedTimeframe ?? "24h");
+  // Effective values: prefer timeframe preset, then CLI args, then stored, then default
+  const timeframe =
+    timeframePreset ||
+    (timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : null) ||
+    storedTimeframe ||
+    "24h";
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
@@ -71,9 +93,11 @@ export default function Command(props: { arguments: CommandArguments }) {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
+      LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
       getActiveTenantOrMock(() => getActiveTenant()),
-    ]).then(([tf, , activeTenant]) => {
+    ]).then(([tf, , preset, activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
+      if (preset) setTimeframePreset(preset);
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -98,6 +122,7 @@ export default function Command(props: { arguments: CommandArguments }) {
       logLevel,
       serviceName: selectedService !== "all" ? selectedService : undefined,
       contentFilter: debouncedContent || undefined,
+      extraFilter: extraFilter ? `filter ${extraFilter}` : undefined,
     });
 
     execute(dql, timeRange, tenant);
@@ -108,7 +133,7 @@ export default function Command(props: { arguments: CommandArguments }) {
 
     // Reset pagination when query changes
     setAllRecords([]);
-  }, [timeframe, selectedService, debouncedContent, filtersLoaded, tenant, props.arguments.query]);
+  }, [timeframe, selectedService, debouncedContent, filtersLoaded, tenant, props.arguments.query, extraFilter]);
 
   // Update data when new results come in (append for "load more", replace on new query)
   useEffect(() => {
@@ -141,6 +166,11 @@ export default function Command(props: { arguments: CommandArguments }) {
     setTenant(next);
   };
 
+  const handleTimeframePresetChange = async (preset: string) => {
+    setTimeframePreset(preset);
+    await LocalStorage.setItem(KEY_TIMEFRAME_PRESET, preset);
+  };
+
   const handleLoadMore = useCallback(async () => {
     if (allRecords.length === 0 || !tenant) return;
     setIsLoadingMore(true);
@@ -155,10 +185,54 @@ export default function Command(props: { arguments: CommandArguments }) {
       serviceName: selectedService !== "all" ? selectedService : undefined,
       contentFilter: debouncedContent || undefined,
       before: oldestRecord.timestamp,
+      extraFilter: extraFilter ? `filter ${extraFilter}` : undefined,
     });
 
     execute(dql, timeRange, tenant);
-  }, [allRecords, tenant, timeframe, selectedService, debouncedContent, props.arguments.query, execute]);
+  }, [allRecords, tenant, timeframe, selectedService, debouncedContent, props.arguments.query, execute, extraFilter]);
+
+  const handleExportJson = async () => {
+    try {
+      const json = toJson(allRecords);
+      await Clipboard.copy(json);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Exported",
+        message: `${allRecords.length} logs exported to clipboard as JSON`,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const csv = toCsv(
+        allRecords.map((r) => ({
+          timestamp: r.timestamp,
+          service: r["service.name"] ?? r["dt.app.name"] ?? "",
+          level: r.loglevel,
+          content: r.content,
+        })),
+      );
+      await Clipboard.copy(csv);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Exported",
+        message: `${allRecords.length} logs exported to clipboard as CSV`,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
 
   // Collect unique service names from current results
   const serviceOptions = useMemo(() => {
@@ -248,6 +322,34 @@ export default function Command(props: { arguments: CommandArguments }) {
       searchBarPlaceholder="Search in log content (with 300ms debounce)..."
       searchBarAccessory={serviceDropdown}
       onSearchTextChange={setContentSearch}
+      actions={
+        <ActionPanel>
+          <ActionPanel.Section title="Timeframe">
+            {TIMEFRAME_PRESETS.map((preset) => (
+              <Action
+                key={preset.value}
+                title={`Set to ${preset.label}`}
+                icon={timeframePreset === preset.value ? Icon.CheckCircle : Icon.Circle}
+                onAction={() => handleTimeframePresetChange(preset.value)}
+              />
+            ))}
+          </ActionPanel.Section>
+          {allRecords.length > 0 && (
+            <ActionPanel.Section title="Export">
+              <Action
+                title="Copy All as JSON"
+                icon={Icon.Clipboard}
+                onAction={handleExportJson}
+              />
+              <Action
+                title="Copy All as CSV"
+                icon={Icon.Clipboard}
+                onAction={handleExportCsv}
+              />
+            </ActionPanel.Section>
+          )}
+        </ActionPanel>
+      }
     >
       {allRecords.map((log, index) => (
         <List.Item

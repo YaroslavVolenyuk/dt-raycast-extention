@@ -2,7 +2,7 @@ import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
-import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
+import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
@@ -22,13 +22,18 @@ export default function DeploymentsCommand() {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Deployment>();
 
-  // Load active tenant once on mount (or mock tenant if in mock mode)
+  // Load active tenant and all tenants once on mount
   useEffect(() => {
-    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
+    Promise.all([
+      getActiveTenantOrMock(() => getActiveTenant()),
+      listTenants(),
+    ]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
+      setAllTenants(tenants);
       setTenantChecked(true);
       setFiltersLoaded(true);
     });
@@ -63,7 +68,22 @@ export default function DeploymentsCommand() {
     return (
       <List
         isLoading={false}
-        searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
+        actions={
+          allTenants.length > 0 ? (
+            <ActionPanel>
+              <ActionPanel.Section title="Switch Tenant">
+                {allTenants.map((t) => (
+                  <Action
+                    key={t.id}
+                    title={t.displayName}
+                    icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
+                    onAction={() => handleTenantChange(t.id)}
+                  />
+                ))}
+              </ActionPanel.Section>
+            </ActionPanel>
+          ) : undefined
+        }
       >
         <List.EmptyView icon={Icon.Upload} title="No recent deployments" description="Check back later" />
       </List>
@@ -73,7 +93,22 @@ export default function DeploymentsCommand() {
   return (
     <List
       isLoading={isLoading}
-      searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
+      actions={
+        allTenants.length > 0 ? (
+          <ActionPanel>
+            <ActionPanel.Section title="Switch Tenant">
+              {allTenants.map((t) => (
+                <Action
+                  key={t.id}
+                  title={t.displayName}
+                  icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
+                  onAction={() => handleTenantChange(t.id)}
+                />
+              ))}
+            </ActionPanel.Section>
+          </ActionPanel>
+        ) : undefined
+      }
     >
       {deployments.map((deployment) => (
         <List.Item

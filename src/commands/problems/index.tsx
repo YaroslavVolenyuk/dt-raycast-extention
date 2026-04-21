@@ -1,13 +1,14 @@
-import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Color, Clipboard, showToast, Toast } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Problem, buildProblemsQuery } from "../../lib/types/problem";
-import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
+import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import ProblemDetailView from "./problem-detail";
+import { toJson, toCsv } from "../../lib/utils/exportData";
 
 const SEVERITY_ICONS: Record<string, Icon> = {
   AVAILABILITY: Icon.XMarkCircle,
@@ -61,13 +62,18 @@ export default function ProblemsCommand() {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Problem>();
 
-  // Load active tenant once on mount (or mock tenant if in mock mode)
+  // Load active tenant and all tenants once on mount
   useEffect(() => {
-    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
+    Promise.all([
+      getActiveTenantOrMock(() => getActiveTenant()),
+      listTenants(),
+    ]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
+      setAllTenants(tenants);
       setTenantChecked(true);
       setFiltersLoaded(true);
     });
@@ -86,6 +92,52 @@ export default function ProblemsCommand() {
     const all = await import("../../lib/tenants").then((m) => m.listTenants());
     const next = all.find((t) => t.id === id) ?? null;
     setTenant(next);
+  };
+
+  const handleExportJson = async () => {
+    try {
+      const json = toJson(problems);
+      await Clipboard.copy(json);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Exported",
+        message: `${problems.length} problems exported to clipboard as JSON`,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const csv = toCsv(
+        problems.map((p) => ({
+          id: p["event.id"],
+          name: p["event.name"],
+          severity: p["event.severity"],
+          status: p["event.status"],
+          start: p["event.start"],
+          entities: p.affected_entity_ids?.join("; ") || "",
+          duration: formatDuration(p["event.start"], p["event.end"]),
+        })),
+      );
+      await Clipboard.copy(csv);
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Exported",
+        message: `${problems.length} problems exported to clipboard as CSV`,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   };
 
   const problems = data?.records ?? [];
@@ -160,6 +212,36 @@ export default function ProblemsCommand() {
           <List.Dropdown.Item title="Open Problems" value="OPEN" />
           <List.Dropdown.Item title="All Problems" value="ALL" />
         </List.Dropdown>
+      }
+      actions={
+        <ActionPanel>
+          {allTenants.length > 0 && (
+            <ActionPanel.Section title="Switch Tenant">
+              {allTenants.map((t) => (
+                <Action
+                  key={t.id}
+                  title={t.displayName}
+                  icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
+                  onAction={() => handleTenantChange(t.id)}
+                />
+              ))}
+            </ActionPanel.Section>
+          )}
+          {problems.length > 0 && (
+            <ActionPanel.Section title="Export">
+              <Action
+                title="Copy All as JSON"
+                icon={Icon.Clipboard}
+                onAction={handleExportJson}
+              />
+              <Action
+                title="Copy All as CSV"
+                icon={Icon.Clipboard}
+                onAction={handleExportCsv}
+              />
+            </ActionPanel.Section>
+          )}
+        </ActionPanel>
       }
     >
       {sortedProblems.map((problem) => (

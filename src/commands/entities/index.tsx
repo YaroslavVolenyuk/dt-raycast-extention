@@ -2,7 +2,7 @@ import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Entity, buildEntityQuery } from "../../lib/types/entity";
-import { getActiveTenant } from "../../lib/tenants";
+import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
@@ -25,13 +25,18 @@ export default function EntitiesCommand() {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
   const [filtersLoaded, setFiltersLoaded] = useState(false);
+  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
 
   const { data, isLoading, execute } = useDynatraceQuery<Entity>();
 
-  // Load active tenant once on mount
+  // Load active tenant and all tenants once on mount
   useEffect(() => {
-    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
+    Promise.all([
+      getActiveTenantOrMock(() => getActiveTenant()),
+      listTenants(),
+    ]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
+      setAllTenants(tenants);
       setTenantChecked(true);
       setFiltersLoaded(true);
     });
@@ -52,6 +57,13 @@ export default function EntitiesCommand() {
     const dql = buildEntityQuery(entityType, debouncedQuery);
     execute(dql, undefined, tenant);
   }, [entityType, debouncedQuery, filtersLoaded, tenant, execute]);
+
+  const handleTenantChange = async (id: string) => {
+    await setActiveTenant(id);
+    const all = await listTenants();
+    const next = all.find((t) => t.id === id) ?? null;
+    setTenant(next);
+  };
 
   const entities = data?.records ?? [];
 
@@ -87,6 +99,22 @@ export default function EntitiesCommand() {
         </List.Dropdown>
       }
       onSearchTextChange={setSearchQuery}
+      actions={
+        allTenants.length > 0 ? (
+          <ActionPanel>
+            <ActionPanel.Section title="Switch Tenant">
+              {allTenants.map((t) => (
+                <Action
+                  key={t.id}
+                  title={t.displayName}
+                  icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
+                  onAction={() => handleTenantChange(t.id)}
+                />
+              ))}
+            </ActionPanel.Section>
+          </ActionPanel>
+        ) : undefined
+      }
     >
       {Object.entries(groupedEntities).map(([type, items]) => (
         <List.Section key={type} title={`${type} (${items.length})`}>

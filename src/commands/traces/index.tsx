@@ -8,6 +8,7 @@ import { buildSpansQuery, formatDuration, Span } from "../../lib/types/span";
 import { TraceDetail } from "./trace-detail";
 import { FilterAccessory } from "./filter-accessory";
 import type { TenantConfig } from "../../lib/auth";
+import SearchLogsView from "../search-logs/index";
 
 type StatusFilter = "ALL" | "OK" | "ERROR";
 type DurationFilter = "any" | "100ms" | "500ms" | "1s" | "5s";
@@ -178,13 +179,18 @@ export default function SearchTraces() {
               <Action
                 title="Find Related Logs"
                 icon={Icon.Link}
-                onAction={() => {
-                  // TODO: Navigate to Search Logs with trace_id filter
-                  showToast({
-                    style: Toast.Style.Success,
-                    title: "Feature coming soon",
-                  });
-                }}
+                onAction={() =>
+                  push(
+                    <SearchLogsView
+                      arguments={{
+                        timeframeValue: "30",
+                        timeframeUnit: "m",
+                        query: "all",
+                      }}
+                      _extraFilter={`trace_id == "${span.trace_id}"`}
+                    />,
+                  )
+                }
               />
             </ActionPanel>
           }
