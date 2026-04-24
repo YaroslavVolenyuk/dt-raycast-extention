@@ -3,7 +3,7 @@
   "name": "dynatrace-connector",
   "title": "Dynatrace Connector",
   "description": "Monitor your Dynatrace environment directly from Raycast — search logs, track problems, inspect deployments and entities.",
-  "icon": "assets/dynatrace-icon.png",
+  "icon": "dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
   "owner": "one-developer-corporation",
   "version": "1.0.0",
@@ -64,16 +64,33 @@
       "type": "textfield",
       "required": false,
       "placeholder": "OPS"
+    },
+    {
+      "name": "enableAlerts",
+      "title": "Background Problem Alerts",
+      "description": "Enable periodic checks for new open problems",
+      "type": "checkbox",
+      "required": false,
+      "default": false,
+      "label": "Enable background alerts"
     }
   ],
   "commands": [
+    {
+      "name": "dt",
+      "title": "Dynatrace",
+      "subtitle": "Dynatrace",
+      "description": "All Dynatrace commands in one place — logs, problems, traces, deployments, entities and more",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
     {
       "name": "dt-search-logs",
       "title": "Search Logs",
       "subtitle": "Dynatrace",
       "description": "Search Dynatrace Grail logs with DQL filters",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png",
+      "icon": "dynatrace-icon.png",
       "arguments": [
         {
           "name": "timeframeValue",
@@ -101,7 +118,7 @@
       "subtitle": "Dynatrace",
       "description": "View active Davis AI problems",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-deployments",
@@ -109,7 +126,7 @@
       "subtitle": "Dynatrace",
       "description": "View recent deployment events",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-entities",
@@ -117,7 +134,7 @@
       "subtitle": "Dynatrace",
       "description": "Search services, hosts and process groups",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-dql-runner",
@@ -125,7 +142,7 @@
       "subtitle": "Dynatrace",
       "description": "Execute a custom DQL query",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-saved-queries",
@@ -133,7 +150,7 @@
       "subtitle": "Dynatrace",
       "description": "Manage and run saved DQL queries",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-tenants",
@@ -141,7 +158,7 @@
       "subtitle": "Dynatrace",
       "description": "Add, edit and switch between Dynatrace tenants",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
     },
     {
       "name": "dt-menubar-problems",
@@ -149,7 +166,7 @@
       "subtitle": "Dynatrace",
       "description": "Show open problem count in macOS menu bar",
       "mode": "menu-bar",
-      "icon": "assets/dynatrace-icon.png",
+      "icon": "dynatrace-icon.png",
       "interval": "5m"
     },
     {
@@ -158,7 +175,24 @@
       "subtitle": "Dynatrace",
       "description": "Search distributed traces with filtering by service, status and duration",
       "mode": "view",
-      "icon": "assets/dynatrace-icon.png"
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-alerts",
+      "title": "Background Problem Alerts",
+      "subtitle": "Dynatrace",
+      "description": "Monitor for new OPEN problems and send notifications",
+      "mode": "no-view",
+      "icon": "dynatrace-icon.png",
+      "interval": "5m"
+    },
+    {
+      "name": "dt-test-connection",
+      "title": "Test Connection",
+      "subtitle": "Dynatrace",
+      "description": "Test tenant connection and view configuration details",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
     }
   ],
   "dependencies": {
@@ -179,10 +213,10 @@
   },
   "scripts": {
     "build": "ray build",
-    "dev": "ray develop",
+    "dev": "NODE_NO_WARNINGS=1 ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
-    "test": "jest",
+    "test": "NODE_NO_WARNINGS=1 jest",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }

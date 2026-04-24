@@ -22,7 +22,7 @@ export function FilterAccessory({
 
   return (
     <List.Dropdown
-      tooltip="Filter by status and duration"
+      title="Filter by status and duration"
       value={`${statusFilter}:${durationFilter}`}
       onChange={(value) => {
         const [status, duration] = value.split(":");

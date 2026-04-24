@@ -1,11 +1,11 @@
-import { List, ActionPanel, Action, Icon, Color, Clipboard, showToast, Toast } from "@raycast/api";
-import { useEffect, useState, useMemo } from "react";
+import { List, ActionPanel, Action, Icon, useNavigation, Color, Clipboard, showToast, Toast } from "@raycast/api";
+import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Problem, buildProblemsQuery } from "../../lib/types/problem";
 import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
+import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import ProblemDetailView from "./problem-detail";
 import { toJson, toCsv } from "../../lib/utils/exportData";
@@ -58,6 +58,7 @@ function formatTimeAgo(timestamp: string): string {
 }
 
 export default function ProblemsCommand() {
+  const { push } = useNavigation();
   const [statusFilter, setStatusFilter] = useState<"OPEN" | "ALL">("OPEN");
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
@@ -68,10 +69,7 @@ export default function ProblemsCommand() {
 
   // Load active tenant and all tenants once on mount
   useEffect(() => {
-    Promise.all([
-      getActiveTenantOrMock(() => getActiveTenant()),
-      listTenants(),
-    ]).then(([activeTenant, tenants]) => {
+    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
       setAllTenants(tenants);
       setTenantChecked(true);
@@ -141,19 +139,9 @@ export default function ProblemsCommand() {
   };
 
   const problems = data?.records ?? [];
+  // Server-side sorting is handled by buildProblemsQuery (sort event.severity asc, event.start desc)
 
-  // Sort by severity and start time
-  const sortedProblems = useMemo(() => {
-    return [...problems].sort((a, b) => {
-      const severityOrder = { AVAILABILITY: 0, ERROR: 1, PERFORMANCE: 2, RESOURCE_CONTENTION: 3, CUSTOM_ALERT: 4 };
-      const aOrder = severityOrder[a["event.severity"]] ?? 99;
-      const bOrder = severityOrder[b["event.severity"]] ?? 99;
-      if (aOrder !== bOrder) return aOrder - bOrder;
-      return new Date(b["event.start"]).getTime() - new Date(a["event.start"]).getTime();
-    });
-  }, [problems]);
-
-  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
+  if (tenantChecked && !tenant) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />
@@ -161,7 +149,7 @@ export default function ProblemsCommand() {
     );
   }
 
-  if (!isLoading && !error && sortedProblems.length === 0) {
+  if (!isLoading && !error && problems.length === 0) {
     return (
       <List
         isLoading={false}
@@ -172,7 +160,7 @@ export default function ProblemsCommand() {
     );
   }
 
-  if (error && !isLoading && sortedProblems.length === 0) {
+  if (error && !isLoading && problems.length === 0) {
     return (
       <List
         isLoading={false}
@@ -205,7 +193,7 @@ export default function ProblemsCommand() {
       isLoading={isLoading}
       searchBarAccessory={
         <List.Dropdown
-          tooltip="Filter by Status"
+          title="Filter by Status"
           value={statusFilter}
           onChange={(value) => setStatusFilter(value as "OPEN" | "ALL")}
         >
@@ -220,7 +208,7 @@ export default function ProblemsCommand() {
               {allTenants.map((t) => (
                 <Action
                   key={t.id}
-                  title={t.displayName}
+                  title={t.name}
                   icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
                   onAction={() => handleTenantChange(t.id)}
                 />
@@ -229,22 +217,14 @@ export default function ProblemsCommand() {
           )}
           {problems.length > 0 && (
             <ActionPanel.Section title="Export">
-              <Action
-                title="Copy All as JSON"
-                icon={Icon.Clipboard}
-                onAction={handleExportJson}
-              />
-              <Action
-                title="Copy All as CSV"
-                icon={Icon.Clipboard}
-                onAction={handleExportCsv}
-              />
+              <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleExportJson} />
+              <Action title="Copy All as CSV" icon={Icon.Clipboard} onAction={handleExportCsv} />
             </ActionPanel.Section>
           )}
         </ActionPanel>
       }
     >
-      {sortedProblems.map((problem) => (
+      {problems.map((problem) => (
         <List.Item
           key={problem["event.id"]}
           icon={getIcon(problem["event.severity"])}

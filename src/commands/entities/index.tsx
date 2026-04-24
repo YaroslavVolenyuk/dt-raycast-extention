@@ -4,7 +4,7 @@ import { useDynatraceQuery } from "../../lib/query";
 import { Entity, buildEntityQuery } from "../../lib/types/entity";
 import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
+import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 
 const TYPE_ICONS: Record<string, Icon> = {
@@ -31,10 +31,7 @@ export default function EntitiesCommand() {
 
   // Load active tenant and all tenants once on mount
   useEffect(() => {
-    Promise.all([
-      getActiveTenantOrMock(() => getActiveTenant()),
-      listTenants(),
-    ]).then(([activeTenant, tenants]) => {
+    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
       setAllTenants(tenants);
       setTenantChecked(true);
@@ -78,7 +75,7 @@ export default function EntitiesCommand() {
     return groups;
   }, [entities]);
 
-  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
+  if (tenantChecked && !tenant) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />
@@ -91,7 +88,7 @@ export default function EntitiesCommand() {
       isLoading={isLoading}
       searchBarPlaceholder="Search entities..."
       searchBarAccessory={
-        <List.Dropdown tooltip="Filter by Type" value={entityType} onChange={setEntityType}>
+        <List.Dropdown title="Filter by Type" value={entityType} onChange={setEntityType}>
           <List.Dropdown.Item title="All Types" value="all" />
           <List.Dropdown.Item title="Services" value="service" />
           <List.Dropdown.Item title="Hosts" value="host" />
@@ -106,7 +103,7 @@ export default function EntitiesCommand() {
               {allTenants.map((t) => (
                 <Action
                   key={t.id}
-                  title={t.displayName}
+                  title={t.name}
                   icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
                   onAction={() => handleTenantChange(t.id)}
                 />

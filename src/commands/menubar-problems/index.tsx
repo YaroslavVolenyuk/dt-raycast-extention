@@ -1,14 +1,5 @@
 // P2-S3: Menu Bar Problems — show open problem count in macOS menu bar
-import {
-  MenuBarExtra,
-  Icon,
-  Color,
-  Action,
-  ActionPanel,
-  Toast,
-  open,
-  showToast,
-} from "@raycast/api";
+import { MenuBarExtra, Icon, Color, Action, ActionPanel, Toast, open, showToast } from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
 import type { Problem } from "../../lib/types/problem";
@@ -50,11 +41,7 @@ export default function MenuBarProblems() {
     };
   };
 
-  const { data, isLoading, revalidate } = useCachedPromise(
-    fetchOpenProblems,
-    [],
-    { keepPreviousData: true },
-  );
+  const { data, isLoading, revalidate } = useCachedPromise(fetchOpenProblems, [], { keepPreviousData: true });
 
   const count = data?.count ?? 0;
   const problems = data?.problems ?? [];
@@ -93,10 +80,7 @@ export default function MenuBarProblems() {
 
   if (!tenant && !isLoading && countNum === 0) {
     return (
-      <MenuBarExtra
-        icon={{ source: "assets/dynatrace-icon.png" }}
-        tooltip="No tenant configured"
-      >
+      <MenuBarExtra icon={{ source: "assets/dynatrace-icon.png" }} tooltip="No tenant configured">
         <MenuBarExtra.Item
           title="Configure Tenant"
           icon={Icon.Gear}
@@ -112,12 +96,26 @@ export default function MenuBarProblems() {
     );
   }
 
+  // Choose icon and tint based on problem count
+  const getMenuBarIcon = () => {
+    if (countNum > 0) {
+      // Problems exist - use warning icon with red tint
+      return {
+        source: Icon.Warning,
+        tintColor: Color.Red,
+      };
+    } else {
+      // No problems - use checkmark icon with gray tint
+      return {
+        source: Icon.Checkmark,
+        tintColor: Color.Gray,
+      };
+    }
+  };
+
   return (
     <MenuBarExtra
-      icon={{
-        source: "assets/dynatrace-icon.png",
-        tintColor: countNum > 0 ? Color.Red : Color.Green,
-      }}
+      icon={getMenuBarIcon()}
       title={countNum > 0 ? countDisplay : undefined}
       tooltip={`${countDisplay} open problems`}
       isLoading={isLoading}
@@ -158,11 +156,7 @@ export default function MenuBarProblems() {
         }}
       />
 
-      <MenuBarExtra.Item
-        title="Refresh"
-        icon={Icon.RotateClockwise}
-        onAction={() => revalidate()}
-      />
+      <MenuBarExtra.Item title="Refresh" icon={Icon.RotateClockwise} onAction={() => revalidate()} />
     </MenuBarExtra>
   );
 }

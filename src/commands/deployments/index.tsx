@@ -1,11 +1,11 @@
-import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, useNavigation, Color } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
 import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
+import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import DeploymentDetailView from "./deployment-detail";
 
@@ -28,10 +28,7 @@ export default function DeploymentsCommand() {
 
   // Load active tenant and all tenants once on mount
   useEffect(() => {
-    Promise.all([
-      getActiveTenantOrMock(() => getActiveTenant()),
-      listTenants(),
-    ]).then(([activeTenant, tenants]) => {
+    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
       setTenant(activeTenant);
       setAllTenants(tenants);
       setTenantChecked(true);
@@ -56,7 +53,7 @@ export default function DeploymentsCommand() {
 
   const deployments = data?.records ?? [];
 
-  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
+  if (tenantChecked && !tenant) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />
@@ -75,7 +72,7 @@ export default function DeploymentsCommand() {
                 {allTenants.map((t) => (
                   <Action
                     key={t.id}
-                    title={t.displayName}
+                    title={t.name}
                     icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
                     onAction={() => handleTenantChange(t.id)}
                   />
@@ -100,7 +97,7 @@ export default function DeploymentsCommand() {
               {allTenants.map((t) => (
                 <Action
                   key={t.id}
-                  title={t.displayName}
+                  title={t.name}
                   icon={tenant?.id === t.id ? Icon.CheckCircle : Icon.Circle}
                   onAction={() => handleTenantChange(t.id)}
                 />

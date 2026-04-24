@@ -297,6 +297,153 @@ Raycast Store recommends 6–8 screenshots. With two commands undocumented the S
 
 ---
 
+---
+
+## ⚡ Discrepancies with the Plan (code works, but diverges from spec)
+
+These are not bugs per se — the code runs — but they are deviations from what STORIES.md or EXPANSION_PLAN.md specified, and should be resolved before Store submission.
+
+---
+
+### DISC-1 · CHANGELOG falsely claims timeframe presets are implemented
+
+**File:** `CHANGELOG.md`, line 22
+
+The changelog entry for v1.0.0 reads:
+> ⏱ Timeframe presets (15m, 1h, 4h, 24h, 7d) with LocalStorage persistence
+
+This feature does **not exist** in the codebase. `search-logs/index.tsx` uses CLI arguments `timeframeValue`/`timeframeUnit` and a single `storedTimeframe` string from LocalStorage. There is no dropdown UI for preset switching.
+
+**Fix:** Either implement FEAT-1 (the timeframe presets dropdown) before this changelog entry can stand, or replace the line with an accurate description of what is actually implemented. Shipping with a false changelog entry is a Store review risk.
+
+---
+
+### DISC-2 · Command names in `package.json` use `dt-` prefix — STORIES.md specified no prefix
+
+**File:** `package.json`, all `"commands"` entries
+
+Epic P0-S4 specified command names as `search-logs`, `problems`, `deployments`, etc. The implementation uses `dt-search-logs`, `dt-problems`, `dt-deployments`, etc.
+
+This is not a runtime bug (Raycast accepts any name), but it means:
+- Deep-links built as `raycast://extensions/.../search-logs` in the story spec are wrong everywhere — you'd need `dt-search-logs`.
+- The already-incorrect menubar deeplink (BUG-4) was written from the original spec naming, compounding the confusion.
+- If users set up Raycast Quick Links before any renaming, those links break on rename.
+
+**Decision needed:** settle on one naming convention and make all deeplinks consistent. Recommend keeping `dt-` prefix (it avoids conflicts with other extensions) but updating all in-code deeplinks and the STORIES.md references.
+
+---
+
+### DISC-3 · `grailResponseSchema` is too strict for aggregate DQL — will throw on `stats count()` queries
+
+**File:** `src/lib/types/grail.ts`, `grailResponseSchema`
+
+The schema requires `result.metadata.grail.analysisTimeframe.start` and `.end`. Aggregate DQL queries (e.g. `fetch dt.davis.problems | filter ... | stats count()`) return a `result` object without `analysisTimeframe` or with a different metadata shape.
+
+The `menubar-problems` count query and any user-written aggregate DQL in the DQL Runner will hit the Zod `.parse()` call in `query.ts` line 173 and throw `"Unexpected Grail response format: ..."` — the query appears to fail even when Grail returned valid data.
+
+**Fix:** Make `metadata` optional in the schema, or use `.partial()` on the inner grail metadata object:
+
+```ts
+metadata: z.object({
+  grail: z.object({
+    query: z.string(),
+    timezone: z.string(),
+    locale: z.string(),
+    analysisTimeframe: z.object({ start: z.string(), end: z.string() }).optional(),
+  }).optional(),
+  scannedBytes: z.number().optional(),
+  scannedRecords: z.number().optional(),
+  executionTimeMillis: z.number().optional(),
+}).optional(),
+```
+
+---
+
+### DISC-4 · `MOCK_SAVED_QUERIES` is imported in `query.ts` but never returned in mock mode
+
+**Files:** `src/lib/query.ts` (line 6), `src/lib/api/mock.ts`
+
+`MOCK_SAVED_QUERIES` is imported alongside all other mock datasets, but there is no branch in the `execute()` mock logic that returns it. The saved-queries command reads from `LocalStorage` directly (via `listSavedQueries()`), not through `execute()`, so this is architecturally correct — but the unused import is misleading and will produce a lint warning.
+
+**Fix:** Remove `MOCK_SAVED_QUERIES` from the import in `query.ts`. The saved-queries mock data only needs to live in `mock.ts` for reference, not be imported into the query hook.
+
+---
+
+### DISC-5 · Client-side sort in Problems duplicates the server-side DQL sort
+
+**File:** `src/commands/problems/index.tsx`, lines 141–149
+
+`buildProblemsQuery()` already emits `| sort event.severity asc, event.start desc`. The component then re-sorts the same array with a `useMemo` using the same severity order. The client-side sort is redundant and slightly misleading (implies the server order is not trusted).
+
+**Fix:** Remove the `useMemo` sort and use `data?.records ?? []` directly. If you want to keep the sort as a safety net (in case server order changes), add a comment explaining that.
+
+---
+
+### DISC-6 · DQL string interpolation has no input sanitisation — potential query injection
+
+**File:** `src/lib/utils/buildDqlQuery.ts`, lines 54–67
+
+`serviceName`, `contentFilter`, and `extraFilter` are interpolated directly into the DQL string with no escaping:
+
+```ts
+parts.push(`filter service.name == "${serviceName}"`);       // unescaped
+parts.push(`filter matchesPhrase(content, "${contentFilter}")`); // unescaped
+parts.push(extraFilter.trim());                               // raw injection
+```
+
+A service name or content filter containing `"` will produce malformed DQL. The `extraFilter` field accepts arbitrary DQL and offers no validation at all — any pipe operator can inject additional DQL clauses.
+
+**Fix for `serviceName` and `contentFilter`:** escape double-quotes before interpolating:
+```ts
+const esc = (s: string) => s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+parts.push(`filter service.name == "${esc(serviceName)}"`);
+```
+
+**Fix for `extraFilter`:** this field is intentionally a power-user escape hatch, which is fine — but document clearly in the type that it accepts raw DQL and is not sanitised, and consider renaming it `rawDqlFilter` to set expectations.
+
+---
+
+### DISC-7 · `execute` useCallback has empty deps array — stale closure if `isMockMode()` changes
+
+**File:** `src/lib/query.ts`, line 204
+
+```ts
+const execute = useCallback(async (...) => { ... }, []);
+//                                                   ^^ stale closure
+```
+
+`isMockMode()` reads from `getPreferenceValues()` at call time, so this is not a runtime issue today. But if any future state or prop is ever captured inside `execute`, it won't re-create when that value changes. The ESLint `exhaustive-deps` rule will also flag this if it ever runs on this file.
+
+This is a low-risk discrepancy but worth aligning to the pattern used elsewhere in the codebase.
+
+**Fix:** Either add a `// eslint-disable-next-line react-hooks/exhaustive-deps` comment with a rationale, or restructure so `execute` reads from refs (e.g. a `tenantRef`) instead of closure-captured values.
+
+---
+
+### DISC-8 · Security test "Token Cache" always passes — it tests nothing
+
+**File:** `src/__tests__/security.test.ts`, lines 43–59
+
+The test in the "Token Cache" describe block creates a fake error string and asserts `toContain(mockAccessToken)` — which is trivially true because it was just created to contain it. It never actually calls `getAccessToken` or verifies that the real implementation avoids logging tokens.
+
+The test comment even acknowledges this: *"This test is just a reminder."*
+
+**Fix:** Replace with a real behavioral test — mock `Cache`, call `getAccessToken`, assert `console.log` was never called with the token:
+
+```ts
+it("getAccessToken does not log the access token", async () => {
+  const spy = jest.spyOn(console, "log").mockImplementation(() => {});
+  mockTokenResponse("sensitive-token-xyz", 300);
+  const { getAccessToken } = await loadAuth();
+  await getAccessToken(TENANT);
+  const loggedValues = spy.mock.calls.flat().join(" ");
+  expect(loggedValues).not.toContain("sensitive-token-xyz");
+  spy.mockRestore();
+});
+```
+
+---
+
 ## 📋 Priority Order
 
 | Priority | Item | Effort | Impact |
@@ -304,11 +451,19 @@ Raycast Store recommends 6–8 screenshots. With two commands undocumented the S
 | 🔴 P0 | BUG-1 — Jira endpoint 404 | 1 line | Jira integration non-functional |
 | 🔴 P0 | BUG-2 — Menu Bar wrong field names | ~20 lines | Menu Bar shows blank data |
 | 🔴 P0 | BUG-3 — Menu Bar double execute() | ~15 lines | Menu Bar always shows 0 problems |
+| 🔴 P0 | DISC-3 — Zod too strict for aggregate DQL | ~10 lines | DQL Runner aggregate queries always fail |
 | 🟠 P1 | BUG-4 — Menu Bar deeplink wrong | 1 line | Configure Tenant CTA broken |
 | 🟠 P1 | BUG-5 — Traces Related Logs is stub | ~30 lines | Key cross-signal navigation missing |
+| 🟠 P1 | DISC-1 — CHANGELOG false claim | 1 line | Store review risk |
 | 🟡 P2 | BUG-6 — `any` type in Menu Bar | 2 lines | Lint warning / type safety |
+| 🟡 P2 | DISC-6 — DQL injection via serviceName | ~5 lines | Malformed queries on special chars |
 | 🟡 P2 | FEAT-1 — Timeframe presets dropdown | ~50 lines | UX gap from story P1-S1f |
 | 🟡 P2 | FEAT-4 — Menu Bar "Open Problems" item | ~8 lines | AC gap from P2-S3 |
+| 🟢 P3 | DISC-2 — Command name prefix convention | doc only | Deeplink consistency |
+| 🟢 P3 | DISC-4 — Unused MOCK_SAVED_QUERIES import | 1 line | Lint warning |
+| 🟢 P3 | DISC-5 — Redundant client-side sort in Problems | ~10 lines | Code clarity |
+| 🟢 P3 | DISC-7 — stale useCallback deps | comment | Future-proofing |
+| 🟢 P3 | DISC-8 — Security test tests nothing | ~10 lines | Test credibility |
 | 🟢 P3 | FEAT-2 — TenantSwitcher in all commands | ~20 lines each | UX convenience |
 | 🟢 P3 | FEAT-5 — Missing metadata screenshots | screenshots | Store submission completeness |
 | ⚪ P4 | FEAT-3 — Background Alerts command | ~60 lines | nice-to-have ambient monitoring |

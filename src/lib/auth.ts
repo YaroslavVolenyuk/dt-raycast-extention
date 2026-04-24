@@ -103,3 +103,40 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
   tokenCache.set(cacheKey, JSON.stringify(cacheEntry));
   return tokenData.access_token;
 }
+
+/**
+ * Validates tenant credentials by attempting to get an access token.
+ * Returns { valid: true } on success, or { valid: false, error: string } on failure.
+ * In mock mode, mock tenants always validate successfully.
+ */
+export async function validateTenantCredentials(
+  tenant: TenantConfig,
+): Promise<{ valid: true } | { valid: false; error: string }> {
+  // Mock tenants always validate in mock mode
+  if (tenant.clientId.includes("MOCK_")) {
+    return { valid: true };
+  }
+
+  try {
+    await getAccessToken(tenant);
+    return { valid: true };
+  } catch (err) {
+    if (err instanceof OAuthError) {
+      // Parse error messages
+      if (err.statusCode === 400) {
+        return { valid: false, error: "Invalid Client ID or Secret — check Dynatrace OAuth app settings" };
+      }
+      if (err.statusCode === 401) {
+        return { valid: false, error: "Unauthorized — Client ID or Secret is incorrect" };
+      }
+      if (err.statusCode === 403) {
+        return { valid: false, error: "Forbidden — check scopes and permissions" };
+      }
+      return { valid: false, error: `OAuth error ${err.statusCode}` };
+    }
+    if (err instanceof TypeError && err.message.includes("fetch")) {
+      return { valid: false, error: "Cannot reach SSO endpoint — check URL and network" };
+    }
+    return { valid: false, error: err instanceof Error ? err.message : "Unknown error" };
+  }
+}

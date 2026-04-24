@@ -14,7 +14,7 @@ export default function EmptyTenantState() {
           <Action
             title="Open Manage Tenants"
             icon={Icon.Gear}
-            onAction={() => open("raycast://extensions/one-developer-corporation/dynatrace/tenants")}
+            onAction={() => open("raycast://extensions/one-developer-corporation/dynatrace-connector/dt-tenants")}
           />
         </ActionPanel>
       }

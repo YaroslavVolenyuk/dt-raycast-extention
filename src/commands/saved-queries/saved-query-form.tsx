@@ -1,17 +1,7 @@
 // Saved Query Form — create and edit saved queries
-import {
-  Form,
-  Action,
-  ActionPanel,
-  showToast,
-  Toast,
-  useNavigation,
-} from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState, useEffect } from "react";
-import {
-  saveSavedQuery,
-  getSavedQuery,
-} from "../../lib/savedQueries";
+import { saveSavedQuery, getSavedQuery } from "../../lib/savedQueries";
 import { getActiveTenant } from "../../lib/tenants";
 
 interface SavedQueryFormProps {
@@ -26,11 +16,7 @@ interface FormValues {
   timeframe: string;
 }
 
-export default function SavedQueryForm({
-  queryId,
-  onSave,
-  onCancel,
-}: SavedQueryFormProps) {
+export default function SavedQueryForm({ queryId, onSave, onCancel }: SavedQueryFormProps) {
   const { pop } = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [initialValues, setInitialValues] = useState<FormValues | null>(null);
@@ -92,10 +78,7 @@ export default function SavedQueryForm({
       isLoading={isLoading || initialValues === null}
       actions={
         <ActionPanel>
-          <Action.SubmitForm
-            title={queryId ? "Save Changes" : "Create Query"}
-            onSubmit={handleSubmit}
-          />
+          <Action.SubmitForm title={queryId ? "Save Changes" : "Create Query"} onSubmit={handleSubmit} />
           {onCancel && (
             <Action
               title="Cancel"
@@ -108,12 +91,7 @@ export default function SavedQueryForm({
         </ActionPanel>
       }
     >
-      <Form.TextField
-        id="name"
-        title="Query Name"
-        placeholder="My custom query"
-        defaultValue={initialValues?.name}
-      />
+      <Form.TextField id="name" title="Query Name" placeholder="My custom query" defaultValue={initialValues?.name} />
 
       <Form.TextArea
         id="dql"

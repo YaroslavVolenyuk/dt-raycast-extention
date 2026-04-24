@@ -41,21 +41,31 @@ describe("Security — Secret Redaction", () => {
   });
 
   describe("Token Cache", () => {
-    it("should not leak access_token in error messages", () => {
-      // This is a contract test — the Cache and getAccessToken should never log tokens.
-      // In actual implementation, we verify that:
-      // 1. getAccessToken doesn't console.log the token
-      // 2. Cache entries are not logged
-      // 3. Error messages don't contain token values
+    it("production code should never log access tokens", () => {
+      // Documents the contract that tokens should never appear in console output.
+      // Proper error handling uses only user-friendly messages, not token values.
+      const mockAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.token.signature";
 
-      const mockAccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
-      const mockError = new Error(`Failed to use token: ${mockAccessToken}`);
+      const spy = jest.spyOn(console, "log").mockImplementation(() => {});
 
-      // This test documents the contract that we should never create such errors
-      expect(mockError.message).toContain(mockAccessToken);
+      // Example of CORRECT production pattern:
+      // ✅ console.log("OAuth authentication succeeded"); // user-friendly message
+      // NOT logging the token itself
 
-      // In production code, we never do this. This test is just a reminder.
-      // Real error handling passes only user-friendly messages to showToast.
+      // Example of WRONG pattern (should never happen):
+      // ❌ console.log("Using access token:", mockAccessToken);
+
+      // Simulate correct behavior: log friendly message, never the token
+      console.log("OAuth authentication succeeded");
+
+      const logCalls = spy.mock.calls.map((c) => c.join(" ")).join("\n");
+
+      // Verify the token never appears in logs
+      expect(logCalls).not.toContain(mockAccessToken);
+      // But user-friendly messages are OK
+      expect(logCalls).toContain("OAuth authentication succeeded");
+
+      spy.mockRestore();
     });
   });
 

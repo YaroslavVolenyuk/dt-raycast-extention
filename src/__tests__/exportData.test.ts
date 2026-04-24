@@ -47,7 +47,7 @@ describe("exportData", () => {
 
       expect(lines[0]).toBe("id,description");
       expect(lines[1]).toContain('"hello, world"');
-      expect(lines[2]).toBe('2,test');
+      expect(lines[2]).toBe("2,test");
     });
 
     it("should escape fields with quotes", () => {
@@ -84,9 +84,7 @@ describe("exportData", () => {
     });
 
     it("should handle numeric values", () => {
-      const records = [
-        { id: 1, score: 99.5, active: true },
-      ] as unknown as Record<string, unknown>[];
+      const records = [{ id: 1, score: 99.5, active: true }] as unknown as Record<string, unknown>[];
       const csv = toCsv(records);
       const lines = csv.split("\n");
 

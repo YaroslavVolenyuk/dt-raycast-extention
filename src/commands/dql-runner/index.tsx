@@ -1,5 +1,5 @@
 // P2-S1: DQL Runner — execute arbitrary DQL queries
-import { Form, Action, ActionPanel, showToast, Toast } from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, LocalStorage } from "@raycast/api";
 import { useState, useEffect } from "react";
 import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
@@ -15,16 +15,81 @@ interface FormValues {
   templateName?: string;
 }
 
+interface FormState {
+  timeframePreset: string;
+  customFrom?: Date;
+  customTo?: Date;
+}
+
 export default function DqlRunnerCommand() {
   const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenantState] = useState<string>("");
+  const [presetDql, setPresetDql] = useState<string>("");
+  const [presetTimeframe, setPresetTimeframe] = useState<string>("1h");
+  const [formState, setFormState] = useState<FormState>({ timeframePreset: "1h" });
 
   useEffect(() => {
-    Promise.all([getActiveTenant(), listTenants()]).then(([active, tenants]) => {
-      setAllTenants(tenants);
-      if (active) setActiveTenantState(active.id);
-    });
+    console.log("[dql-runner] Component mounted, loading preset...");
+
+    Promise.all([getActiveTenant(), listTenants(), LocalStorage.getItem("dql-runner-preset")]).then(
+      async ([active, tenants, preset]) => {
+        console.log("[dql-runner] Loaded from localStorage. Preset:", preset);
+
+        setAllTenants(tenants);
+        if (active) setActiveTenantState(active.id);
+
+        // Load preset if available
+        if (preset) {
+          try {
+            const parsed = JSON.parse(String(preset));
+            console.log("[dql-runner] Parsed preset:", parsed);
+
+            setPresetDql(parsed.dql || "");
+            const timeframe = parsed.timeframePreset || "1h";
+            setPresetTimeframe(timeframe);
+            setFormState({ timeframePreset: timeframe }); // ← Update formState too!
+
+            // Handle custom timeframe dates - set in state for DatePicker
+            const customDates: Partial<FormState> = {};
+            if (parsed.timeframeCustomFrom) {
+              const fromDate = new Date(parsed.timeframeCustomFrom);
+              console.log("[dql-runner] From date:", fromDate.toISOString());
+              customDates.customFrom = fromDate;
+            }
+
+            if (parsed.timeframeCustomTo) {
+              const toDate = new Date(parsed.timeframeCustomTo);
+              console.log("[dql-runner] To date:", toDate.toISOString());
+              customDates.customTo = toDate;
+            }
+
+            // Update formState with dates
+            if (customDates.customFrom || customDates.customTo) {
+              setFormState((prev) => ({
+                ...prev,
+                customFrom: customDates.customFrom,
+                customTo: customDates.customTo,
+              }));
+              console.log("[dql-runner] Dates updated in state");
+            }
+
+            console.log("[dql-runner] Preset loaded successfully. Clearing dql-runner-preset...");
+            // Clear the temporary preset after loading
+            await LocalStorage.removeItem("dql-runner-preset");
+
+            // Also clear storeValue cache so defaultValue takes effect
+            await LocalStorage.removeItem("timeframePreset");
+            console.log("[dql-runner] Cleared timeframePreset from cache");
+          } catch (e) {
+            console.error("[dql-runner] Failed to parse DQL preset:", e);
+          }
+        } else {
+          console.log("[dql-runner] No preset found in localStorage");
+        }
+      },
+    );
   }, []);
+
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<{
     dql: string;
@@ -79,10 +144,10 @@ export default function DqlRunnerCommand() {
           start: start.toISOString(),
           end: now.toISOString(),
         };
-      } else if (values.timeframeCustomFrom && values.timeframeCustomTo) {
+      } else if (formState.customFrom && formState.customTo) {
         timeframe = {
-          start: new Date(values.timeframeCustomFrom).toISOString(),
-          end: new Date(values.timeframeCustomTo).toISOString(),
+          start: formState.customFrom.toISOString(),
+          end: formState.customTo.toISOString(),
         };
       }
 
@@ -105,13 +170,7 @@ export default function DqlRunnerCommand() {
 
   // If we have results, show the results view
   if (results) {
-    return (
-      <QueryResultsView
-        dql={results.dql}
-        timeframe={results.timeframe}
-        onClose={() => setResults(null)}
-      />
-    );
+    return <QueryResultsView dql={results.dql} timeframe={results.timeframe} onClose={() => setResults(null)} />;
   }
 
   return (
@@ -123,36 +182,38 @@ export default function DqlRunnerCommand() {
         </ActionPanel>
       }
     >
-      <Form.Description text="Execute a custom DQL query against your Dynatrace tenant" />
-
+      {/* ─── TENANT SELECTION ─── */}
       {allTenants.length > 0 && (
-        <Form.Dropdown
-          id="tenantId"
-          title="Tenant"
-          value={activeTenant}
-          onChange={setActiveTenantState}
-          storeValue
-        >
+        <Form.Dropdown id="tenantId" title="Tenant" value={activeTenant} onChange={setActiveTenantState} storeValue>
           {allTenants.map((t) => (
-            <Form.Dropdown.Item key={t.id} value={t.id} title={t.displayName} />
+            <Form.Dropdown.Item key={t.id} value={t.id} title={t.name} />
           ))}
         </Form.Dropdown>
       )}
 
+      {allTenants.length > 0 && <Form.Separator />}
+
+      {/* ─── DQL QUERY (MAIN) ─── */}
+      <Form.Description text="Write your DQL query" />
       <Form.TextArea
         id="dql"
-        title="DQL Query"
-        placeholder="fetch dt.entity.service | limit 10"
-        defaultValue=""
+        title="Query"
+        placeholder="fetch logs | filter dt.process.name == 'Service' | limit 100"
+        defaultValue={presetDql}
         storeValue
       />
 
       <Form.Separator />
 
+      {/* ─── TIMEFRAME SELECTION ─── */}
+      <Form.Description text="Select timeframe for the query" />
       <Form.Dropdown
         id="timeframePreset"
         title="Timeframe"
-        defaultValue="1h"
+        value={formState.timeframePreset}
+        onChange={(value) => {
+          setFormState({ timeframePreset: value });
+        }}
         storeValue
       >
         <Form.Dropdown.Item value="15m" title="Last 15 minutes" />
@@ -163,27 +224,32 @@ export default function DqlRunnerCommand() {
         <Form.Dropdown.Item value="custom" title="Custom range" />
       </Form.Dropdown>
 
-      <Form.DatePicker
-        id="timeframeCustomFrom"
-        title="From (custom)"
-        storeValue
-      />
-      <Form.DatePicker id="timeframeCustomTo" title="To (custom)" storeValue />
+      {/* ─── CUSTOM DATE PICKERS (only when selected) ─── */}
+      {formState.timeframePreset === "custom" && (
+        <>
+          <Form.DatePicker
+            id="timeframeCustomFrom"
+            title="From"
+            value={formState.customFrom}
+            onChange={(date) => setFormState((prev) => ({ ...prev, customFrom: date }))}
+            storeValue
+          />
+          <Form.DatePicker
+            id="timeframeCustomTo"
+            title="To"
+            value={formState.customTo}
+            onChange={(date) => setFormState((prev) => ({ ...prev, customTo: date }))}
+            storeValue
+          />
+        </>
+      )}
 
       <Form.Separator />
 
-      <Form.Checkbox
-        id="saveAsTemplate"
-        title="Save as Template"
-        label="Save this query for later use"
-        storeValue
-      />
-      <Form.TextField
-        id="templateName"
-        title="Template Name"
-        placeholder="My custom query"
-        storeValue
-      />
+      {/* ─── SAVE AS TEMPLATE (OPTIONAL) ─── */}
+      <Form.Description text="Optionally save this query as a template" />
+      <Form.Checkbox id="saveAsTemplate" title="Save as Template" label="Reuse this query later" storeValue />
+      <Form.TextField id="templateName" title="Template Name" placeholder="e.g. 'Auth Service Errors'" storeValue />
     </Form>
   );
 }

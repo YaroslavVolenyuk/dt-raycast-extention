@@ -1,13 +1,24 @@
-import { List, ActionPanel, Action, Icon, LocalStorage, Color, Clipboard, showToast, Toast } from "@raycast/api";
+import {
+  List,
+  ActionPanel,
+  Action,
+  Icon,
+  LocalStorage,
+  Color,
+  Clipboard,
+  showToast,
+  Toast,
+  Detail,
+  useNavigation,
+} from "@raycast/api";
 import LogDetailView from "./log-detail";
 import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
 import { buildDqlQuery, LogLevel } from "../../lib/utils/buildDqlQuery";
 import { LogRecord } from "../../lib/types/log";
-import { getActiveTenant, setActiveTenant } from "../../lib/tenants";
-import TenantSwitcher from "../../components/TenantSwitcher";
+import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock, shouldShowEmptyTenantState } from "../../lib/mockTenant";
+import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import type { TenantConfig } from "../../lib/auth";
 import { toJson, toCsv } from "../../lib/utils/exportData";
@@ -26,6 +37,16 @@ const TIMEFRAME_PRESETS = [
   { label: "7d", value: "7d" },
 ] as const;
 
+// Log level dropdown options
+const LOG_LEVEL_OPTIONS: { title: string; value: LogLevel }[] = [
+  { title: "All Levels", value: "all" },
+  { title: "Error", value: "error" },
+  { title: "Fatal", value: "fatal" },
+  { title: "Warning", value: "warning" },
+  { title: "Info", value: "info" },
+  { title: "Debug", value: "debug" },
+];
+
 interface CommandArguments {
   timeframeValue: string;
   timeframeUnit: "h" | "m" | "d";
@@ -37,6 +58,17 @@ interface CommandProps {
   _extraFilter?: string;
 }
 
+// ── Colors & Icons ─────────────────────────────────────────────────────────
+
+const LOG_LEVEL_COLORS: Record<string, Color> = {
+  ERROR: Color.Red,
+  FATAL: Color.Red,
+  WARN: Color.Yellow,
+  WARNING: Color.Yellow,
+  INFO: Color.Blue,
+  DEBUG: Color.SecondaryText,
+};
+
 const LOG_LEVEL_ICONS: Record<string, Icon> = {
   ERROR: Icon.XMarkCircle,
   FATAL: Icon.XMarkCircle,
@@ -46,9 +78,23 @@ const LOG_LEVEL_ICONS: Record<string, Icon> = {
   DEBUG: Icon.Bug,
 };
 
-function getLogIcon(loglevel: string): Icon {
-  return LOG_LEVEL_ICONS[loglevel?.toUpperCase()] ?? Icon.Document;
+function getLogColor(loglevel: string): Color {
+  return LOG_LEVEL_COLORS[loglevel?.toUpperCase()] ?? Color.SecondaryText;
 }
+
+function getLogIcon(loglevel: string): { source: Icon; tintColor: Color } {
+  const icon = LOG_LEVEL_ICONS[loglevel?.toUpperCase()] ?? Icon.Document;
+  return { source: icon, tintColor: getLogColor(loglevel) };
+}
+
+const LOG_LEVEL_EMOJI: Record<string, string> = {
+  ERROR: "🔴",
+  FATAL: "🔴",
+  WARN: "🟡",
+  WARNING: "🟡",
+  INFO: "🔵",
+  DEBUG: "⚙️",
+};
 
 function formatRelativeTime(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -62,10 +108,12 @@ function formatRelativeTime(timestamp: string): string {
 export default function Command(props: CommandProps) {
   const { timeframeValue, timeframeUnit } = props.arguments;
   const extraFilter = props._extraFilter;
+  const { push } = useNavigation();
 
   // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
   const [timeframePreset, setTimeframePreset] = useState<string | null>(null);
+  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(props.arguments.query ?? "error");
   const [selectedService, setSelectedService] = useState<string>("all");
   const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -81,10 +129,7 @@ export default function Command(props: CommandProps) {
 
   // Effective values: prefer timeframe preset, then CLI args, then stored, then default
   const timeframe =
-    timeframePreset ||
-    (timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : null) ||
-    storedTimeframe ||
-    "24h";
+    timeframePreset || (timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : null) || storedTimeframe || "24h";
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
@@ -95,9 +140,13 @@ export default function Command(props: CommandProps) {
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
       getActiveTenantOrMock(() => getActiveTenant()),
-    ]).then(([tf, , preset, activeTenant]) => {
+    ]).then(([tf, savedLevel, preset, activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       if (preset) setTimeframePreset(preset);
+      // Restore log level: CLI arg takes priority, then saved, then default "error"
+      if (!props.arguments.query && savedLevel) {
+        setSelectedLogLevel(savedLevel as LogLevel);
+      }
       setTenant(activeTenant);
       setTenantChecked(true);
       setFiltersLoaded(true);
@@ -112,14 +161,13 @@ export default function Command(props: CommandProps) {
     return () => clearTimeout(timer);
   }, [contentSearch]);
 
-  // Execute query after filters are loaded; re-run if args, tenant, or debounced content changes
+  // Execute query after filters are loaded; re-run when any filter changes
   useEffect(() => {
     if (!filtersLoaded || !tenant) return;
 
     const timeRange = parseTimeframe(timeframe);
-    const logLevel = props.arguments.query ?? "error";
     const dql = buildDqlQuery({
-      logLevel,
+      logLevel: selectedLogLevel,
       serviceName: selectedService !== "all" ? selectedService : undefined,
       contentFilter: debouncedContent || undefined,
       extraFilter: extraFilter ? `filter ${extraFilter}` : undefined,
@@ -129,11 +177,11 @@ export default function Command(props: CommandProps) {
 
     // Persist effective timeframe and log level
     LocalStorage.setItem(KEY_TIMEFRAME, timeframe);
-    LocalStorage.setItem(KEY_LOG_LEVEL, logLevel);
+    LocalStorage.setItem(KEY_LOG_LEVEL, selectedLogLevel);
 
     // Reset pagination when query changes
     setAllRecords([]);
-  }, [timeframe, selectedService, debouncedContent, filtersLoaded, tenant, props.arguments.query, extraFilter]);
+  }, [timeframe, selectedLogLevel, selectedService, debouncedContent, filtersLoaded, tenant, extraFilter]);
 
   // Update data when new results come in (append for "load more", replace on new query)
   useEffect(() => {
@@ -159,11 +207,9 @@ export default function Command(props: CommandProps) {
     setAllRecords([]); // Reset pagination on filter change
   };
 
-  const handleTenantChange = async (id: string) => {
-    await setActiveTenant(id);
-    const all = await import("../../lib/tenants").then((m) => m.listTenants());
-    const next = all.find((t) => t.id === id) ?? null;
-    setTenant(next);
+  const handleLogLevelChange = (value: string) => {
+    setSelectedLogLevel(value as LogLevel);
+    setAllRecords([]);
   };
 
   const handleTimeframePresetChange = async (preset: string) => {
@@ -177,11 +223,10 @@ export default function Command(props: CommandProps) {
 
     const oldestRecord = allRecords[allRecords.length - 1];
     const timeRange = parseTimeframe(timeframe);
-    const logLevel = props.arguments.query ?? "error";
 
     // Build query with "before" cursor for pagination
     const dql = buildDqlQuery({
-      logLevel,
+      logLevel: selectedLogLevel,
       serviceName: selectedService !== "all" ? selectedService : undefined,
       contentFilter: debouncedContent || undefined,
       before: oldestRecord.timestamp,
@@ -189,7 +234,7 @@ export default function Command(props: CommandProps) {
     });
 
     execute(dql, timeRange, tenant);
-  }, [allRecords, tenant, timeframe, selectedService, debouncedContent, props.arguments.query, execute, extraFilter]);
+  }, [allRecords, tenant, timeframe, selectedLogLevel, selectedService, debouncedContent, execute, extraFilter]);
 
   const handleExportJson = async () => {
     try {
@@ -245,7 +290,7 @@ export default function Command(props: CommandProps) {
   }, [allRecords]);
 
   // Show empty tenant state only in real mode without tenant
-  if (tenantChecked && shouldShowEmptyTenantState(!tenant)) {
+  if (tenantChecked && !tenant) {
     return (
       <List isLoading={false}>
         <EmptyTenantState />
@@ -253,33 +298,84 @@ export default function Command(props: CommandProps) {
     );
   }
 
-  // Render service dropdown if enough services
-  const serviceDropdown =
-    serviceOptions.length >= 2 ? (
-      <List.Dropdown tooltip="Filter by Service" value={selectedService} onChange={handleServiceChange}>
-        <List.Dropdown.Item title="All Services" value="all" />
-        <List.Dropdown.Section title="Services">
+  // Timeframe dropdown — for quick selection of time range
+  const timeframeDropdown = (
+    <List.Dropdown title="Timeframe" value={timeframePreset || ""} onChange={handleTimeframePresetChange}>
+      {TIMEFRAME_PRESETS.map((preset) => (
+        <List.Dropdown.Item key={preset.value} title={`Last ${preset.label}`} value={preset.value} />
+      ))}
+    </List.Dropdown>
+  );
+
+  // Log level dropdown — always visible as primary filter
+  const logLevelDropdown = (
+    <List.Dropdown title="Log Level" value={selectedLogLevel} onChange={handleLogLevelChange}>
+      {LOG_LEVEL_OPTIONS.map((opt) => (
+        <List.Dropdown.Item key={opt.value} title={opt.title} value={opt.value} />
+      ))}
+    </List.Dropdown>
+  );
+
+  // Shared action panel content
+  const filterAndExportActions = (
+    <>
+      {/* Service filter — shown when multiple services detected */}
+      {serviceOptions.length >= 2 && (
+        <ActionPanel.Section title="Filter by Service">
+          <Action
+            title="All Services"
+            icon={selectedService === "all" ? Icon.CheckCircle : Icon.Circle}
+            onAction={() => handleServiceChange("all")}
+          />
           {serviceOptions.map((s) => (
-            <List.Dropdown.Item key={s} title={s} value={s} />
+            <Action
+              key={s}
+              title={s}
+              icon={selectedService === s ? Icon.CheckCircle : Icon.Circle}
+              onAction={() => handleServiceChange(s)}
+            />
           ))}
-        </List.Dropdown.Section>
-      </List.Dropdown>
-    ) : tenant ? (
-      <TenantSwitcher value={tenant.id} onChange={handleTenantChange} />
-    ) : undefined;
+        </ActionPanel.Section>
+      )}
+
+      <ActionPanel.Section title="Timeframe">
+        {TIMEFRAME_PRESETS.map((preset) => (
+          <Action
+            key={preset.value}
+            title={`Last ${preset.label}`}
+            icon={timeframePreset === preset.value ? Icon.CheckCircle : Icon.Clock}
+            onAction={() => handleTimeframePresetChange(preset.value)}
+          />
+        ))}
+      </ActionPanel.Section>
+
+      {allRecords.length > 0 && (
+        <ActionPanel.Section title="Export">
+          <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleExportJson} />
+          <Action title="Copy All as CSV" icon={Icon.Clipboard} onAction={handleExportCsv} />
+        </ActionPanel.Section>
+      )}
+    </>
+  );
 
   if (!isLoading && !error && allRecords.length === 0 && !isLoadingMore) {
     return (
       <List
         isLoading={false}
-        searchBarPlaceholder="Search in log content (with 300ms debounce)..."
-        searchBarAccessory={serviceDropdown}
+        searchBarPlaceholder="Search in log content..."
+        searchBarAccessory={
+          <>
+            {timeframeDropdown}
+            {logLevelDropdown}
+          </>
+        }
         onSearchTextChange={setContentSearch}
       >
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No logs found"
-          description={`Adjust filters or timeframe to find logs.`}
+          description="Try changing the log level, timeframe, or search query."
+          actions={<ActionPanel>{filterAndExportActions}</ActionPanel>}
         />
       </List>
     );
@@ -287,7 +383,15 @@ export default function Command(props: CommandProps) {
 
   if (error && !isLoading && allRecords.length === 0) {
     return (
-      <List isLoading={false} searchBarAccessory={serviceDropdown}>
+      <List
+        isLoading={false}
+        searchBarAccessory={
+          <>
+            {timeframeDropdown}
+            {logLevelDropdown}
+          </>
+        }
+      >
         <List.EmptyView
           icon={Icon.Warning}
           title="Query Failed"
@@ -300,15 +404,15 @@ export default function Command(props: CommandProps) {
                 onAction={() => {
                   if (!tenant) return;
                   const timeRange = parseTimeframe(timeframe);
-                  const logLevel = props.arguments.query ?? "error";
                   const dql = buildDqlQuery({
-                    logLevel,
+                    logLevel: selectedLogLevel,
                     serviceName: selectedService !== "all" ? selectedService : undefined,
                     contentFilter: debouncedContent || undefined,
                   });
                   execute(dql, timeRange, tenant);
                 }}
               />
+              {filterAndExportActions}
             </ActionPanel>
           }
         />
@@ -319,62 +423,44 @@ export default function Command(props: CommandProps) {
   return (
     <List
       isLoading={isLoading && allRecords.length === 0}
-      searchBarPlaceholder="Search in log content (with 300ms debounce)..."
-      searchBarAccessory={serviceDropdown}
-      onSearchTextChange={setContentSearch}
-      actions={
-        <ActionPanel>
-          <ActionPanel.Section title="Timeframe">
-            {TIMEFRAME_PRESETS.map((preset) => (
-              <Action
-                key={preset.value}
-                title={`Set to ${preset.label}`}
-                icon={timeframePreset === preset.value ? Icon.CheckCircle : Icon.Circle}
-                onAction={() => handleTimeframePresetChange(preset.value)}
-              />
-            ))}
-          </ActionPanel.Section>
-          {allRecords.length > 0 && (
-            <ActionPanel.Section title="Export">
-              <Action
-                title="Copy All as JSON"
-                icon={Icon.Clipboard}
-                onAction={handleExportJson}
-              />
-              <Action
-                title="Copy All as CSV"
-                icon={Icon.Clipboard}
-                onAction={handleExportCsv}
-              />
-            </ActionPanel.Section>
-          )}
-        </ActionPanel>
+      searchBarPlaceholder="Search in log content..."
+      searchBarAccessory={
+        <>
+          {timeframeDropdown}
+          {logLevelDropdown}
+        </>
       }
+      onSearchTextChange={setContentSearch}
     >
-      {allRecords.map((log, index) => (
-        <List.Item
-          key={index}
-          icon={getLogIcon(log.loglevel)}
-          title={(log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string}
-          subtitle={log.content}
-          accessories={[
-            {
-              tag: {
-                value: log.loglevel,
-                color: log.loglevel === "ERROR" || log.loglevel === "FATAL" ? Color.Red : undefined,
-              },
-            },
-            { text: formatRelativeTime(log.timestamp) },
-          ]}
-          actions={
-            <ActionPanel>
-              <Action.Push title="Show Details" target={<LogDetailView log={log} />} />
-              <Action.CopyToClipboard content={log.content} title="Copy Log Content" />
-              <Action.CopyToClipboard content={log.timestamp} title="Copy Timestamp" />
-            </ActionPanel>
-          }
-        />
-      ))}
+      {allRecords.map((log, index) => {
+        const level = log.loglevel?.toUpperCase() ?? "";
+        const tagColor = getLogColor(log.loglevel);
+        const emoji = LOG_LEVEL_EMOJI[level] ?? "📄";
+        return (
+          <List.Item
+            key={index}
+            icon={Icon.Document}
+            title={(log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string}
+            subtitle={log.content}
+            accessories={[
+              { tag: { value: level, color: tagColor }, tooltip: `Log Level: ${level}` },
+              { text: formatRelativeTime(log.timestamp), tooltip: log.timestamp },
+            ]}
+            actions={
+              <ActionPanel>
+                <Action
+                  title="Open Details"
+                  icon={Icon.ArrowRight}
+                  onAction={() => push(<LogDetailView log={log} tenant={tenant} />)}
+                />
+                <Action.CopyToClipboard content={log.content} title="Copy Log Content" />
+                <Action.CopyToClipboard content={log.timestamp} title="Copy Timestamp" />
+                {filterAndExportActions}
+              </ActionPanel>
+            }
+          />
+        );
+      })}
 
       {/* Load more button */}
       {allRecords.length > 0 && !error && (
@@ -384,6 +470,7 @@ export default function Command(props: CommandProps) {
           actions={
             <ActionPanel>
               <Action title={isLoadingMore ? "Loading…" : "Load More"} icon={Icon.Plus} onAction={handleLoadMore} />
+              {filterAndExportActions}
             </ActionPanel>
           }
         />

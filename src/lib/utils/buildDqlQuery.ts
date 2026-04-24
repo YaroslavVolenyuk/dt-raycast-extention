@@ -3,6 +3,14 @@
 
 export type LogLevel = "error" | "warning" | "info" | "debug" | "fatal" | "all";
 
+/**
+ * Escapes special characters in a string for safe interpolation into DQL query strings.
+ * Escapes backslashes first, then double quotes.
+ */
+function escapeDqlString(str: string): string {
+  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
 const LOG_LEVEL_MAP: Record<LogLevel, string | null> = {
   error: "ERROR",
   warning: "WARN",
@@ -15,13 +23,13 @@ const LOG_LEVEL_MAP: Record<LogLevel, string | null> = {
 interface BuildDqlOptions {
   logLevel: LogLevel;
   limit?: number;
-  /** Server-side filter by service.name */
+  /** Server-side filter by service.name (automatically escaped for safety) */
   serviceName?: string;
-  /** Server-side full-text search in log content */
+  /** Server-side full-text search in log content (automatically escaped for safety) */
   contentFilter?: string;
   /** Cursor-based pagination: return records with timestamp < before (ISO string) */
   before?: string;
-  /** Optional free-text DQL filter appended as-is */
+  /** Optional free-text DQL filter appended as-is. NOT ESCAPED — power-user escape hatch for raw DQL. */
   extraFilter?: string;
 }
 
@@ -52,11 +60,11 @@ export function buildDqlQuery({
   }
 
   if (serviceName) {
-    parts.push(`filter service.name == "${serviceName}"`);
+    parts.push(`filter service.name == "${escapeDqlString(serviceName)}"`);
   }
 
   if (contentFilter) {
-    parts.push(`filter matchesPhrase(content, "${contentFilter}")`);
+    parts.push(`filter matchesPhrase(content, "${escapeDqlString(contentFilter)}")`);
   }
 
   if (before) {

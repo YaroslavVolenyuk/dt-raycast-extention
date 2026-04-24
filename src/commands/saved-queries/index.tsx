@@ -13,22 +13,17 @@ import {
   Clipboard,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
-import {
-  listSavedQueries,
-  deleteSavedQuery,
-  toggleFavorite,
-  getSavedQuery,
-} from "../../lib/savedQueries";
+import { listSavedQueries, deleteSavedQuery, toggleFavorite, getSavedQuery } from "../../lib/savedQueries";
 import { useState, useEffect } from "react";
 import QueryResultsView from "../dql-runner/query-results";
 import SavedQueryForm from "./saved-query-form";
 
 export default function SavedQueriesCommand() {
-  const { data: queries = [], isLoading, revalidate } = useCachedPromise(
-    listSavedQueries,
-    [],
-    { keepPreviousData: true },
-  );
+  const {
+    data: queries = [],
+    isLoading,
+    revalidate,
+  } = useCachedPromise(listSavedQueries, [], { keepPreviousData: true });
 
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
@@ -173,13 +168,7 @@ interface QueryListItemProps {
   onDelete: () => void;
 }
 
-function QueryListItem({
-  query,
-  onRun,
-  onToggleFavorite,
-  onEdit,
-  onDelete,
-}: QueryListItemProps) {
+function QueryListItem({ query, onRun, onToggleFavorite, onEdit, onDelete }: QueryListItemProps) {
   const dqlPreview = query.dql.substring(0, 60).replace(/\n/g, " ");
 
   return (
@@ -194,16 +183,8 @@ function QueryListItem({
       ]}
       actions={
         <ActionPanel>
-          <Action
-            title="Run Query"
-            icon={Icon.Play}
-            onAction={onRun}
-          />
-          <Action.Push
-            title="Edit"
-            icon={Icon.Pencil}
-            target={<EditQueryView queryId={query.id} onSave={onEdit} />}
-          />
+          <Action title="Run Query" icon={Icon.Play} onAction={onRun} />
+          <Action.Push title="Edit" icon={Icon.Pencil} target={<EditQueryView queryId={query.id} onSave={onEdit} />} />
           <Action
             title="Toggle Favorite"
             icon={query.isFavorite ? Icon.Star : Icon.StarCircle}
@@ -221,25 +202,14 @@ function QueryListItem({
               });
             }}
           />
-          <Action
-            title="Delete"
-            icon={Icon.Trash}
-            style={Action.Style.Destructive}
-            onAction={onDelete}
-          />
+          <Action title="Delete" icon={Icon.Trash} style={Action.Style.Destructive} onAction={onDelete} />
         </ActionPanel>
       }
     />
   );
 }
 
-function EditQueryView({
-  queryId,
-  onSave,
-}: {
-  queryId: string;
-  onSave: () => void;
-}) {
+function EditQueryView({ queryId, onSave }: { queryId: string; onSave: () => void }) {
   const { pop } = useNavigation();
   return (
     <SavedQueryForm

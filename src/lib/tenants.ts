@@ -6,12 +6,45 @@
 
 import { LocalStorage } from "@raycast/api";
 import { z } from "zod";
+import { isMockMode } from "./devMode";
 import type { TenantConfig } from "./auth";
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "tenants:v1";
 const ACTIVE_KEY = "tenants:active";
+
+// ── Mock data for development ──────────────────────────────────────────────────
+
+const MOCK_TENANTS: TenantConfig[] = [
+  {
+    id: "mock-prod",
+    name: "Production (Mock)",
+    tenantEndpoint: "https://prod.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_PROD_ID",
+    clientSecret: "dt0s02.MOCK_PROD_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+  {
+    id: "mock-dev",
+    name: "Development (Mock)",
+    tenantEndpoint: "https://dev.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_DEV_ID",
+    clientSecret: "dt0s02.MOCK_DEV_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+  {
+    id: "mock-staging",
+    name: "Staging (Mock)",
+    tenantEndpoint: "https://staging.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_STAGING_ID",
+    clientSecret: "dt0s02.MOCK_STAGING_SECRET.XXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+];
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 
@@ -30,11 +63,21 @@ export const tenantConfigSchema = z.object({
 
 async function readAll(): Promise<TenantConfig[]> {
   const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
-  if (!raw) return [];
+  if (!raw) {
+    // If no tenants and mock mode is enabled, return mock data for development
+    if (isMockMode()) {
+      return MOCK_TENANTS;
+    }
+    return [];
+  }
   try {
     const parsed = JSON.parse(raw);
     return z.array(tenantConfigSchema).parse(parsed);
   } catch {
+    // If parsing fails and mock mode is enabled, return mock data
+    if (isMockMode()) {
+      return MOCK_TENANTS;
+    }
     return [];
   }
 }
@@ -74,6 +117,12 @@ export async function deleteTenant(id: string): Promise<void> {
 export async function getActiveTenant(): Promise<TenantConfig | null> {
   const tenants = await readAll();
   if (tenants.length === 0) return null;
+
+  // In mock mode, prefer "Production (Mock)" if available
+  if (isMockMode()) {
+    const mockProd = tenants.find((t) => t.id === "mock-prod");
+    if (mockProd) return mockProd;
+  }
 
   const activeId = await LocalStorage.getItem<string>(ACTIVE_KEY);
   if (activeId) {

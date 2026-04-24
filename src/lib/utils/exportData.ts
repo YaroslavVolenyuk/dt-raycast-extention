@@ -34,9 +34,7 @@ export function toCsv(records: Record<string, unknown>[]): string {
   const headerRow = headers.map(escapeCsvField).join(",");
 
   // Build data rows
-  const dataRows = records.map((record) =>
-    headers.map((header) => escapeCsvField(record[header])).join(","),
-  );
+  const dataRows = records.map((record) => headers.map((header) => escapeCsvField(record[header])).join(","));
 
   // Combine all rows
   return [headerRow, ...dataRows].join("\n");
@@ -52,10 +50,7 @@ export function getExportTimestamp(): string {
 /**
  * Generate filename for export
  */
-export function getExportFilename(
-  basename: string,
-  format: "json" | "csv",
-): string {
+export function getExportFilename(basename: string, format: "json" | "csv"): string {
   const timestamp = getExportTimestamp();
   return `${basename}-${timestamp}.${format}`;
 }

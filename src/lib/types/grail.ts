@@ -7,30 +7,36 @@ import { z } from "zod";
 
 export const grailResponseSchema = z.object({
   state: z.enum(["SUCCEEDED", "RUNNING", "FAILED"]),
-  progress: z.number(),
+  progress: z.number().optional(),
   result: z
     .object({
       records: z.array(z.record(z.string(), z.unknown())),
       types: z.array(
         z.object({
           indexRange: z.array(z.number()).length(2),
-          mappings: z.record(z.string(), z.string()),
+          mappings: z.record(z.string(), z.unknown()), // Dynatrace returns objects, not strings
         }),
       ),
-      metadata: z.object({
-        grail: z.object({
-          query: z.string(),
-          timezone: z.string(),
-          locale: z.string(),
-          analysisTimeframe: z.object({
-            start: z.string(),
-            end: z.string(),
-          }),
-        }),
-        scannedBytes: z.number(),
-        scannedRecords: z.number(),
-        executionTimeMillis: z.number(),
-      }),
+      metadata: z
+        .object({
+          grail: z
+            .object({
+              query: z.string(),
+              timezone: z.string(),
+              locale: z.string(),
+              analysisTimeframe: z
+                .object({
+                  start: z.string(),
+                  end: z.string(),
+                })
+                .optional(),
+            })
+            .optional(),
+          scannedBytes: z.number().optional(),
+          scannedRecords: z.number().optional(),
+          executionTimeMillis: z.number().optional(),
+        })
+        .optional(),
     })
     .optional(),
   error: z
