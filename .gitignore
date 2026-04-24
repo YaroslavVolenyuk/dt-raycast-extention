@@ -19,3 +19,9 @@ compiled_raycast_rust
 
 # Development mode icons (root level, for npm run dev)
 dynatrace-icon*.png
+
+# Environment variables (contains secrets)
+.env
+.env.local
+.env.*.local
+
