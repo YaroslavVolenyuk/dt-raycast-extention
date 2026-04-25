@@ -15,6 +15,7 @@ import {
   open,
 } from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
+import type { TenantConfig } from "../../lib/auth";
 import { formatLogContent } from "../../lib/utils/formatLogContent";
 import { createJiraIssue, buildJiraIssueUrl } from "../../lib/integrations/jira";
 
@@ -35,7 +36,7 @@ function val(v: unknown): string | undefined {
 /**
  * Builds a Dynatrace Logs deep-link (used only for Jira integration).
  */
-function buildLogsUrl(baseUrl: string, timestamp: string): string {
+function buildLogsUrl(baseUrl: string): string {
   // Ensure baseUrl has https:// protocol
   let url = baseUrl;
   if (!url) {
@@ -183,7 +184,7 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
 
     // Use tenant endpoint if available, fall back to preferences
     const baseUrl = (tenant?.tenantEndpoint || prefs.dynatraceEndpoint)?.replace(/\/$/, "") ?? "";
-    const logsUrl = buildLogsUrl(baseUrl, log.timestamp);
+    const logsUrl = buildLogsUrl(baseUrl);
     const hasJiraConfig = !!(prefs.jiraUrl && prefs.jiraEmail && prefs.jiraApiToken && prefs.jiraProjectKey);
 
     // ── Field values (undefined → hide) ───────────────────────────────────────
@@ -299,17 +300,12 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
           timeframePreset: "custom",
         };
 
-        console.log("[log-detail] Saving preset to localStorage:", preset);
-
         // Store DQL and timeframe in localStorage so dql-runner can pick it up
         await LocalStorage.setItem("dql-runner-preset", JSON.stringify(preset));
-
-        console.log("[log-detail] Preset saved. Opening DQL runner...");
 
         // Open DQL runner command
         await open("raycast://extensions/one-developer-corporation/dynatrace-connector/dt-dql-runner");
       } catch (error) {
-        console.error("[log-detail] Error:", error);
         await showToast({
           style: Toast.Style.Failure,
           title: "Failed to open DQL Runner",
@@ -387,7 +383,7 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
               <ActionPanel.Section title="AI Analysis">
                 <Action
                   title="Explain This Error"
-                  icon={Icon.Lightbulb}
+                  icon={Icon.LightBulb}
                   onAction={async () => {
                     const toast = await showToast({
                       style: Toast.Style.Animated,

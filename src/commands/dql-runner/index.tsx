@@ -25,16 +25,11 @@ export default function DqlRunnerCommand() {
   const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
   const [activeTenant, setActiveTenantState] = useState<string>("");
   const [presetDql, setPresetDql] = useState<string>("");
-  const [presetTimeframe, setPresetTimeframe] = useState<string>("1h");
   const [formState, setFormState] = useState<FormState>({ timeframePreset: "1h" });
 
   useEffect(() => {
-    console.log("[dql-runner] Component mounted, loading preset...");
-
     Promise.all([getActiveTenant(), listTenants(), LocalStorage.getItem("dql-runner-preset")]).then(
       async ([active, tenants, preset]) => {
-        console.log("[dql-runner] Loaded from localStorage. Preset:", preset);
-
         setAllTenants(tenants);
         if (active) setActiveTenantState(active.id);
 
@@ -42,24 +37,20 @@ export default function DqlRunnerCommand() {
         if (preset) {
           try {
             const parsed = JSON.parse(String(preset));
-            console.log("[dql-runner] Parsed preset:", parsed);
 
             setPresetDql(parsed.dql || "");
             const timeframe = parsed.timeframePreset || "1h";
-            setPresetTimeframe(timeframe);
             setFormState({ timeframePreset: timeframe }); // ← Update formState too!
 
             // Handle custom timeframe dates - set in state for DatePicker
             const customDates: Partial<FormState> = {};
             if (parsed.timeframeCustomFrom) {
               const fromDate = new Date(parsed.timeframeCustomFrom);
-              console.log("[dql-runner] From date:", fromDate.toISOString());
               customDates.customFrom = fromDate;
             }
 
             if (parsed.timeframeCustomTo) {
               const toDate = new Date(parsed.timeframeCustomTo);
-              console.log("[dql-runner] To date:", toDate.toISOString());
               customDates.customTo = toDate;
             }
 
@@ -70,21 +61,16 @@ export default function DqlRunnerCommand() {
                 customFrom: customDates.customFrom,
                 customTo: customDates.customTo,
               }));
-              console.log("[dql-runner] Dates updated in state");
             }
 
-            console.log("[dql-runner] Preset loaded successfully. Clearing dql-runner-preset...");
             // Clear the temporary preset after loading
             await LocalStorage.removeItem("dql-runner-preset");
 
             // Also clear storeValue cache so defaultValue takes effect
             await LocalStorage.removeItem("timeframePreset");
-            console.log("[dql-runner] Cleared timeframePreset from cache");
           } catch (e) {
-            console.error("[dql-runner] Failed to parse DQL preset:", e);
+            // Silent fail: preset loading is non-critical
           }
-        } else {
-          console.log("[dql-runner] No preset found in localStorage");
         }
       },
     );
@@ -231,14 +217,14 @@ export default function DqlRunnerCommand() {
             id="timeframeCustomFrom"
             title="From"
             value={formState.customFrom}
-            onChange={(date) => setFormState((prev) => ({ ...prev, customFrom: date }))}
+            onChange={(date) => setFormState((prev) => ({ ...prev, customFrom: date ?? undefined }))}
             storeValue
           />
           <Form.DatePicker
             id="timeframeCustomTo"
             title="To"
             value={formState.customTo}
-            onChange={(date) => setFormState((prev) => ({ ...prev, customTo: date }))}
+            onChange={(date) => setFormState((prev) => ({ ...prev, customTo: date ?? undefined }))}
             storeValue
           />
         </>

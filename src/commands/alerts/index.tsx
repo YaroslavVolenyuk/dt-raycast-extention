@@ -1,5 +1,6 @@
 import { getPreferenceValues, LocalStorage, showHUD, showToast, Toast } from "@raycast/api";
 import { getActiveTenant } from "../../lib/tenants";
+import { getAccessToken } from "../../lib/auth";
 
 interface Preferences {
   enableAlerts: boolean;
@@ -19,11 +20,12 @@ async function checkProblems() {
     const tenant = await getActiveTenant();
     if (!tenant) return;
 
-    const endpoint = `${tenant.apiUrl}/api/v2/query/execute`;
+    const token = await getAccessToken(tenant);
+    const endpoint = `${tenant.tenantEndpoint}/platform/storage/query/v1/query:execute`;
     const response = await fetch(endpoint, {
       method: "POST",
       headers: {
-        Authorization: `Api-Token ${tenant.apiToken}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

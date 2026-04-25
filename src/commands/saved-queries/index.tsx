@@ -6,7 +6,6 @@ import {
   Alert,
   confirmAlert,
   Icon,
-  Color,
   useNavigation,
   showToast,
   Toast,
@@ -14,7 +13,8 @@ import {
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { listSavedQueries, deleteSavedQuery, toggleFavorite, getSavedQuery } from "../../lib/savedQueries";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import type { SavedQuery } from "../../lib/types/savedQuery";
 import QueryResultsView from "../dql-runner/query-results";
 import SavedQueryForm from "./saved-query-form";
 
@@ -28,7 +28,7 @@ export default function SavedQueriesCommand() {
   const [selectedQuery, setSelectedQuery] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const { push, pop } = useNavigation();
+  const { push } = useNavigation();
 
   const favorites = queries.filter((q) => q.isFavorite);
   const others = queries.filter((q) => !q.isFavorite);
@@ -52,7 +52,7 @@ export default function SavedQueriesCommand() {
           message: `"${query.name}" has been deleted`,
         });
         revalidate();
-      } catch (error) {
+      } catch {
         await showToast({
           style: Toast.Style.Failure,
           title: "Delete failed",
@@ -65,7 +65,7 @@ export default function SavedQueriesCommand() {
     try {
       await toggleFavorite(id);
       revalidate();
-    } catch (error) {
+    } catch {
       await showToast({
         style: Toast.Style.Failure,
         title: "Update failed",
@@ -161,7 +161,7 @@ export default function SavedQueriesCommand() {
 }
 
 interface QueryListItemProps {
-  query: any;
+  query: SavedQuery;
   onRun: () => void;
   onToggleFavorite: () => void;
   onEdit: () => void;

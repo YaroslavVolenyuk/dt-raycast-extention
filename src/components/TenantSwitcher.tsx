@@ -22,7 +22,7 @@ export default function TenantSwitcher({ value, onChange }: Props) {
   if (tenants.length < 2) return null;
 
   return (
-    <List.Dropdown title="Switch Tenant" value={value} onChange={onChange}>
+    <List.Dropdown tooltip="Switch Tenant" value={value} onChange={onChange}>
       {tenants.map((t) => (
         <List.Dropdown.Item key={t.id} title={t.name} value={t.id} />
       ))}

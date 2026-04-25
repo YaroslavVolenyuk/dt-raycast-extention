@@ -3,7 +3,7 @@
 
 import { List, ActionPanel, Action, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { listTenants, getActiveTenant } from "../../lib/tenants";
+import { listTenants } from "../../lib/tenants";
 import { validateTenantCredentials, OAuthError } from "../../lib/auth";
 import type { TenantConfig } from "../../lib/auth";
 
@@ -198,7 +198,7 @@ export default function Command() {
 
           {result.errorMessage && !result.success && (
             <List.Item
-              icon={Icon.AlertCircle}
+              icon={Icon.Warning}
               title="Error Details"
               subtitle={result.errorMessage}
               accessories={[{ text: "Copy", icon: Icon.CopyClipboard }]}

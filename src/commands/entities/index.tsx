@@ -88,7 +88,7 @@ export default function EntitiesCommand() {
       isLoading={isLoading}
       searchBarPlaceholder="Search entities..."
       searchBarAccessory={
-        <List.Dropdown title="Filter by Type" value={entityType} onChange={setEntityType}>
+        <List.Dropdown tooltip="Filter by Type" value={entityType} onChange={setEntityType}>
           <List.Dropdown.Item title="All Types" value="all" />
           <List.Dropdown.Item title="Services" value="service" />
           <List.Dropdown.Item title="Hosts" value="host" />

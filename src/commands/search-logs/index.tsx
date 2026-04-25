@@ -8,7 +8,6 @@ import {
   Clipboard,
   showToast,
   Toast,
-  Detail,
   useNavigation,
 } from "@raycast/api";
 import LogDetailView from "./log-detail";
@@ -69,32 +68,9 @@ const LOG_LEVEL_COLORS: Record<string, Color> = {
   DEBUG: Color.SecondaryText,
 };
 
-const LOG_LEVEL_ICONS: Record<string, Icon> = {
-  ERROR: Icon.XMarkCircle,
-  FATAL: Icon.XMarkCircle,
-  WARN: Icon.Warning,
-  WARNING: Icon.Warning,
-  INFO: Icon.Info,
-  DEBUG: Icon.Bug,
-};
-
 function getLogColor(loglevel: string): Color {
   return LOG_LEVEL_COLORS[loglevel?.toUpperCase()] ?? Color.SecondaryText;
 }
-
-function getLogIcon(loglevel: string): { source: Icon; tintColor: Color } {
-  const icon = LOG_LEVEL_ICONS[loglevel?.toUpperCase()] ?? Icon.Document;
-  return { source: icon, tintColor: getLogColor(loglevel) };
-}
-
-const LOG_LEVEL_EMOJI: Record<string, string> = {
-  ERROR: "🔴",
-  FATAL: "🔴",
-  WARN: "🟡",
-  WARNING: "🟡",
-  INFO: "🔵",
-  DEBUG: "⚙️",
-};
 
 function formatRelativeTime(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -300,7 +276,7 @@ export default function Command(props: CommandProps) {
 
   // Timeframe dropdown — for quick selection of time range
   const timeframeDropdown = (
-    <List.Dropdown title="Timeframe" value={timeframePreset || ""} onChange={handleTimeframePresetChange}>
+    <List.Dropdown tooltip="Timeframe" value={timeframePreset || ""} onChange={handleTimeframePresetChange}>
       {TIMEFRAME_PRESETS.map((preset) => (
         <List.Dropdown.Item key={preset.value} title={`Last ${preset.label}`} value={preset.value} />
       ))}
@@ -309,7 +285,7 @@ export default function Command(props: CommandProps) {
 
   // Log level dropdown — always visible as primary filter
   const logLevelDropdown = (
-    <List.Dropdown title="Log Level" value={selectedLogLevel} onChange={handleLogLevelChange}>
+    <List.Dropdown tooltip="Log Level" value={selectedLogLevel} onChange={handleLogLevelChange}>
       {LOG_LEVEL_OPTIONS.map((opt) => (
         <List.Dropdown.Item key={opt.value} title={opt.title} value={opt.value} />
       ))}
@@ -435,10 +411,9 @@ export default function Command(props: CommandProps) {
       {allRecords.map((log, index) => {
         const level = log.loglevel?.toUpperCase() ?? "";
         const tagColor = getLogColor(log.loglevel);
-        const emoji = LOG_LEVEL_EMOJI[level] ?? "📄";
         return (
           <List.Item
-            key={index}
+            key={`${log.timestamp}-${index}`}
             icon={Icon.Document}
             title={(log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string}
             subtitle={log.content}
@@ -451,7 +426,7 @@ export default function Command(props: CommandProps) {
                 <Action
                   title="Open Details"
                   icon={Icon.ArrowRight}
-                  onAction={() => push(<LogDetailView log={log} tenant={tenant} />)}
+                  onAction={() => push(<LogDetailView log={log} tenant={tenant ?? undefined} />)}
                 />
                 <Action.CopyToClipboard content={log.content} title="Copy Log Content" />
                 <Action.CopyToClipboard content={log.timestamp} title="Copy Timestamp" />

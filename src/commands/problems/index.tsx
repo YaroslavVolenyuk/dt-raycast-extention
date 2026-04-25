@@ -1,4 +1,4 @@
-import { List, ActionPanel, Action, Icon, useNavigation, Color, Clipboard, showToast, Toast } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Color, Clipboard, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Problem, buildProblemsQuery } from "../../lib/types/problem";
@@ -12,7 +12,7 @@ import { toJson, toCsv } from "../../lib/utils/exportData";
 
 const SEVERITY_ICONS: Record<string, Icon> = {
   AVAILABILITY: Icon.XMarkCircle,
-  ERROR: Icon.XMark,
+  ERROR: Icon.Xmark,
   PERFORMANCE: Icon.Gauge,
   RESOURCE_CONTENTION: Icon.HardDrive,
   CUSTOM_ALERT: Icon.Bell,
@@ -58,7 +58,6 @@ function formatTimeAgo(timestamp: string): string {
 }
 
 export default function ProblemsCommand() {
-  const { push } = useNavigation();
   const [statusFilter, setStatusFilter] = useState<"OPEN" | "ALL">("OPEN");
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const [tenantChecked, setTenantChecked] = useState(false);
@@ -155,7 +154,7 @@ export default function ProblemsCommand() {
         isLoading={false}
         searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
       >
-        <List.EmptyView icon={Icon.Sparkles} title="All systems operational 🎉" description="No open problems" />
+        <List.EmptyView icon={Icon.Star} title="All systems operational 🎉" description="No open problems" />
       </List>
     );
   }
@@ -193,7 +192,7 @@ export default function ProblemsCommand() {
       isLoading={isLoading}
       searchBarAccessory={
         <List.Dropdown
-          title="Filter by Status"
+          tooltip="Filter by Status"
           value={statusFilter}
           onChange={(value) => setStatusFilter(value as "OPEN" | "ALL")}
         >

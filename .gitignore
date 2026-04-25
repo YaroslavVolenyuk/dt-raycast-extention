@@ -25,3 +25,5 @@ dynatrace-icon*.png
 .env.local
 .env.*.local
 
+dynatrace-raycast-audit.docx
+dynatrace-raycast-audit.md

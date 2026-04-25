@@ -3,13 +3,8 @@
 
 import { useCallback, useState, useRef } from "react";
 import { showToast, Toast } from "@raycast/api";
-import { MOCK_LOGS, MOCK_PROBLEMS, MOCK_DEPLOYMENTS, MOCK_SPANS, MOCK_ENTITIES, ago } from "./api/mock";
+import { MOCK_LOGS, MOCK_PROBLEMS, MOCK_DEPLOYMENTS, MOCK_SPANS, MOCK_ENTITIES } from "./api/mock";
 import { LogRecord } from "./types/log";
-import { Problem } from "./types/problem";
-import { Deployment } from "./types/deployment";
-import { Span } from "./types/span";
-import { Entity } from "./types/entity";
-import { SavedQuery } from "./types/savedQuery";
 import { grailResponseSchema } from "./types/grail";
 import { getAccessToken, OAuthError, TenantConfig } from "./auth";
 import { isMockMode, devLog, simulateNetworkDelay } from "./devMode";
@@ -138,16 +133,6 @@ export function useDynatraceQuery<T = unknown>() {
 
         const endpoint = `${tenant.tenantEndpoint.replace(/\/$/, "")}/platform/storage/query/v1/query:execute`;
 
-        console.log("📤 Sending DQL request:", {
-          endpoint,
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken.slice(0, 20)}...`,
-          },
-          querySnippet: payload.query.slice(0, 100),
-        });
-
         const response = await fetch(endpoint, {
           method: "POST",
           headers: {
@@ -161,12 +146,6 @@ export function useDynatraceQuery<T = unknown>() {
         const rawText = await response.text();
 
         if (!response.ok) {
-          console.error("🔴 API Error Response:", {
-            status: response.status,
-            url: endpoint,
-            headers: Object.fromEntries(response.headers.entries()),
-            body: rawText.slice(0, 2000),
-          });
           const preview = rawText.startsWith("<")
             ? `Server returned HTML (status ${response.status}). Check your tenant endpoint URL.`
             : `HTTP ${response.status}: ${rawText.slice(0, 300)}`;
@@ -186,11 +165,9 @@ export function useDynatraceQuery<T = unknown>() {
         let parsedResponse;
         try {
           const parsed = JSON.parse(rawText);
-          console.log("📥 Full API Response:", JSON.stringify(parsed, null, 2).slice(0, 2000));
           parsedResponse = grailResponseSchema.parse(parsed);
         } catch (zodErr) {
           if (zodErr instanceof ZodError) {
-            console.error("❌ Zod validation errors:", zodErr.issues);
             throw new Error(
               `Unexpected Grail response format: ${zodErr.issues
                 .slice(0, 3)
@@ -219,7 +196,6 @@ export function useDynatraceQuery<T = unknown>() {
       }
     },
     // Empty deps array is safe: isMockMode() and getAccessToken() read from preferences/refs at call-time, not at closure-time
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 

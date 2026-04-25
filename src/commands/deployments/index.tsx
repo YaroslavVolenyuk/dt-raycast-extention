@@ -1,9 +1,8 @@
-import { List, ActionPanel, Action, Icon, useNavigation, Color } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
 import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
-import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";

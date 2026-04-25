@@ -2,6 +2,7 @@
 import { List, Detail, Action, ActionPanel, Clipboard, showToast, Toast, Icon, Color } from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
+import type { TenantConfig } from "../../lib/auth";
 import { saveSavedQuery } from "../../lib/savedQueries";
 import { useEffect, useState } from "react";
 
@@ -24,26 +25,12 @@ const LOG_LEVEL_ICONS: Record<string, Icon> = {
   DEBUG: Icon.Bug,
 };
 
-const LOG_LEVEL_EMOJI: Record<string, string> = {
-  ERROR: "🔴",
-  FATAL: "🔴",
-  WARN: "🟡",
-  WARNING: "🟡",
-  INFO: "🔵",
-  DEBUG: "⚙️",
-};
-
 function getLogColor(loglevel?: string): Color {
   return LOG_LEVEL_COLORS[loglevel?.toUpperCase() ?? ""] ?? Color.SecondaryText;
 }
 
 function getLogIcon(loglevel?: string): Icon {
   return LOG_LEVEL_ICONS[loglevel?.toUpperCase() ?? ""] ?? Icon.Document;
-}
-
-function getLogEmoji(loglevel?: string): string {
-  const level = loglevel?.toUpperCase() ?? "";
-  return LOG_LEVEL_EMOJI[level] ?? "📄";
 }
 
 interface QueryResultsViewProps {
@@ -59,10 +46,9 @@ interface ResultMapping {
 }
 
 export default function QueryResultsView({ dql, timeframe, onClose }: QueryResultsViewProps) {
-  const [tenant, setTenant] = useState<any>(null);
+  const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const { data, isLoading, error, execute } = useDynatraceQuery();
   const [mappings, setMappings] = useState<ResultMapping[]>([]);
-  const [showRaw, setShowRaw] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -85,7 +71,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
           keys.map((key, index) => ({
             index,
             key,
-            type: typeof (firstRecord as Record<string, any>)[key],
+            type: typeof (firstRecord as Record<string, unknown>)[key],
           })),
         );
       }
@@ -115,8 +101,8 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
         title: "Saved",
         message: `Query saved as "${query.name}"`,
       });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
+    } catch (saveErr) {
+      const message = saveErr instanceof Error ? saveErr.message : "Unknown error";
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to save query",
@@ -134,7 +120,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
         title: "Copied",
         message: "Results copied to clipboard as JSON",
       });
-    } catch (err) {
+    } catch {
       await showToast({
         style: Toast.Style.Failure,
         title: "Copy failed",
@@ -150,7 +136,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
         title: "Copied",
         message: "DQL query copied to clipboard",
       });
-    } catch (err) {
+    } catch {
       await showToast({
         style: Toast.Style.Failure,
         title: "Copy failed",
@@ -206,7 +192,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
     >
       <List.Section title={`Results (${data.records.length} records)`}>
         {data.records.map((record, index) => {
-          const recordObj = record as Record<string, any>;
+          const recordObj = record as Record<string, unknown>;
           const title = titleMapping ? String(recordObj[titleMapping.key] ?? "—") : `Record ${index + 1}`;
           const subtitle = subtitleMapping ? String(recordObj[subtitleMapping.key] ?? "") : undefined;
 
@@ -214,9 +200,8 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
           const loglevel = recordObj.loglevel as string | undefined;
           const logColor = getLogColor(loglevel);
           const logIcon = getLogIcon(loglevel);
-          const logEmoji = getLogEmoji(loglevel);
 
-          const accessories: any[] = [];
+          const accessories: Array<{ tag?: { value: string; color: Color }; text?: string }> = [];
 
           // Add loglevel tag if present
           if (loglevel) {

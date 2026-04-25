@@ -1,4 +1,4 @@
-import { List, Icon, Color, useNavigation, ActionPanel, Action, showToast, Toast } from "@raycast/api";
+import { List, Icon, Color, useNavigation, ActionPanel, Action } from "@raycast/api";
 import { useState, useEffect } from "react";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock } from "../../lib/mockTenant";
@@ -81,7 +81,6 @@ export default function SearchTraces() {
     <List
       isLoading={isLoading}
       searchBarPlaceholder="Search by service name..."
-      searchBarValue={serviceName}
       onSearchTextChange={setServiceName}
       searchBarAccessory={
         <FilterAccessory

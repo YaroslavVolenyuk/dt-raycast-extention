@@ -1,11 +1,11 @@
 // P2-S3: Menu Bar Problems — show open problem count in macOS menu bar
-import { MenuBarExtra, Icon, Color, Action, ActionPanel, Toast, open, showToast } from "@raycast/api";
+import { MenuBarExtra, Icon, Color, open } from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
 import type { Problem } from "../../lib/types/problem";
 import type { TenantConfig } from "../../lib/auth";
 import { useCachedPromise } from "@raycast/utils";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function MenuBarProblems() {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
@@ -51,7 +51,7 @@ export default function MenuBarProblems() {
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
       case "AVAILABILITY":
-        return Icon.CircleProgressFull;
+        return Icon.CircleProgress;
       case "ERROR":
         return Icon.ExclamationMark;
       case "PERFORMANCE":
@@ -74,7 +74,7 @@ export default function MenuBarProblems() {
       case "RESOURCE_CONTENTION":
         return Color.Blue;
       default:
-        return Color.Gray;
+        return Color.SecondaryText;
     }
   };
 
@@ -108,7 +108,7 @@ export default function MenuBarProblems() {
       // No problems - use checkmark icon with gray tint
       return {
         source: Icon.Checkmark,
-        tintColor: Color.Gray,
+        tintColor: Color.SecondaryText,
       };
     }
   };

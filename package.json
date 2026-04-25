@@ -5,7 +5,7 @@
   "description": "Monitor your Dynatrace environment directly from Raycast — search logs, track problems, inspect deployments and entities.",
   "icon": "dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
-  "owner": "one-developer-corporation",
+  "owner": "Yaroslav Volenyuk",
   "version": "1.0.0",
   "platforms": [
     "macOS"
@@ -106,7 +106,7 @@
         },
         {
           "name": "query",
-          "placeholder": "ERROR",
+          "placeholder": "error",
           "type": "text",
           "required": false
         }
