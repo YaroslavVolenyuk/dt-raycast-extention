@@ -5,7 +5,6 @@
   "description": "Monitor your Dynatrace environment directly from Raycast — search logs, track problems, inspect deployments and entities.",
   "icon": "dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
-  "owner": "Yaroslav Volenyuk",
   "version": "1.0.0",
   "platforms": [
     "macOS"
@@ -37,10 +36,11 @@
     {
       "name": "jiraUrl",
       "title": "Jira URL",
-      "description": "Your Jira Cloud instance URL (e.g., https://yourcompany.atlassian.net)",
+      "description": "For scoped tokens: https://api.atlassian.com/ex/jira/{cloudId} | For unscoped tokens: https://yourcompany.atlassian.net",
       "type": "textfield",
       "required": false,
-      "placeholder": "https://yourcompany.atlassian.net"
+      "placeholder": "https://api.atlassian.com/ex/jira/e6f310ff-605a-4f7c-b043-5d591d075292",
+      "default": "https://api.atlassian.com/ex/jira/e6f310ff-605a-4f7c-b043-5d591d075292"
     },
     {
       "name": "jiraEmail",

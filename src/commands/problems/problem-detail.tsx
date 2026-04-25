@@ -1,7 +1,8 @@
-import { Detail, ActionPanel, Action, Icon, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { Detail, ActionPanel, Action, Icon, getPreferenceValues, useNavigation } from "@raycast/api";
 import { Problem } from "../../lib/types/problem";
 import type { TenantConfig } from "../../lib/auth";
-import { createJiraIssue, buildJiraIssueUrl } from "../../lib/integrations/jira";
+import { JiraIssueForm } from "../../components/JiraIssueForm";
+import { JiraIssueResult } from "../../components/JiraIssueResult";
 
 interface Props {
   problem: Problem;
@@ -17,6 +18,7 @@ interface JiraPreferences {
 
 export default function ProblemDetailView({ problem, tenant }: Props) {
   const prefs = getPreferenceValues<JiraPreferences>();
+  const { push } = useNavigation();
   const hasJiraConfig = !!(prefs.jiraUrl && prefs.jiraEmail && prefs.jiraApiToken && prefs.jiraProjectKey);
 
   const markdown = `
@@ -67,43 +69,19 @@ ${problem.maintenance_window ? "Yes — This problem is currently under maintena
               <Action
                 title="Create Jira Incident"
                 icon={Icon.ExclamationMark}
-                onAction={async () => {
-                  const toast = await showToast({
-                    style: Toast.Style.Animated,
-                    title: "Creating Jira incident...",
-                  });
+                onAction={() => {
+                  const summary = `[Dynatrace] ${problem["event.name"]}`;
+                  const description = `**Severity**: ${problem["event.severity"]}\n**Status**: ${problem["event.status"]}\n**Affected Entities**: ${problem.affected_entity_ids?.join(", ") || "N/A"}\n**Root Cause**: ${problem.root_cause_entity_id || "Not determined"}\n\n[Open in Dynatrace](${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]})`;
 
-                  try {
-                    const issueResponse = await createJiraIssue(prefs.jiraUrl!, prefs.jiraEmail!, prefs.jiraApiToken!, {
-                      projectKey: prefs.jiraProjectKey!,
-                      summary: `[Dynatrace] ${problem["event.name"]}`,
-                      description: `**Severity**: ${problem["event.severity"]}\n**Status**: ${problem["event.status"]}\n**Affected Entities**: ${problem.affected_entity_ids?.join(", ") || "N/A"}\n**Root Cause**: ${problem.root_cause_entity_id || "Not determined"}\n\n[Open in Dynatrace](${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]})`,
-                      issueType: "Incident",
-                      priority:
-                        problem["event.severity"] === "AVAILABILITY"
-                          ? "Highest"
-                          : problem["event.severity"] === "ERROR"
-                            ? "High"
-                            : "Medium",
-                    });
-
-                    toast.style = Toast.Style.Success;
-                    toast.title = "Incident created";
-                    toast.message = `${issueResponse.key} — opening in browser`;
-
-                    const issueUrl = buildJiraIssueUrl(prefs.jiraUrl!, issueResponse.key);
-                    // In a real Raycast app, we'd use Action.OpenInBrowser here
-                    // For now, copy to clipboard
-                    await showToast({
-                      style: Toast.Style.Success,
-                      title: `Issue ${issueResponse.key} created`,
-                      message: issueUrl,
-                    });
-                  } catch (error) {
-                    toast.style = Toast.Style.Failure;
-                    toast.title = "Failed to create issue";
-                    toast.message = error instanceof Error ? error.message : "Unknown error";
-                  }
+                  push(
+                    <JiraIssueForm
+                      initialSummary={summary}
+                      initialDescription={description}
+                      onSuccess={(issueKey, issueUrl) => {
+                        push(<JiraIssueResult issueKey={issueKey} issueUrl={issueUrl} />);
+                      }}
+                    />,
+                  );
                 }}
               />
             </ActionPanel.Section>

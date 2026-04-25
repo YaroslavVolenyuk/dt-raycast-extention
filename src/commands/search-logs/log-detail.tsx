@@ -17,7 +17,8 @@ import {
 import { LogRecord } from "../../lib/types/log";
 import type { TenantConfig } from "../../lib/auth";
 import { formatLogContent } from "../../lib/utils/formatLogContent";
-import { createJiraIssue, buildJiraIssueUrl } from "../../lib/integrations/jira";
+import { JiraIssueForm } from "../../components/JiraIssueForm";
+import { JiraIssueResult } from "../../components/JiraIssueResult";
 
 interface ExtensionPrefs {
   dynatraceEndpoint: string;
@@ -440,44 +441,22 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
             {hasJiraConfig && log.content && (
               <ActionPanel.Section title="Jira">
                 <Action
-                  title="Create Jira Bug"
+                  title="Create Jira Issue"
                   icon={Icon.Bug}
-                  onAction={async () => {
-                    const toast = await showToast({
-                      style: Toast.Style.Animated,
-                      title: "Creating Jira bug...",
-                    });
+                  onAction={() => {
+                    const firstLine = log.content!.split("\n")[0].slice(0, 80);
+                    const summary = `[Dynatrace] ${firstLine}${log.content!.length > 80 ? "..." : ""}`;
+                    const description = `**Service**: ${log["service.name"] || "Unknown"}\n**Log Level**: ${log.loglevel || "N/A"}\n**Timestamp**: ${log.timestamp}\n\n**Error**:\n\`\`\`\n${log.content}\n\`\`\`\n\n[Open in Dynatrace](${logsUrl})`;
 
-                    try {
-                      const firstLine = log.content.split("\n")[0].slice(0, 80);
-                      const issueResponse = await createJiraIssue(
-                        prefs.jiraUrl!,
-                        prefs.jiraEmail!,
-                        prefs.jiraApiToken!,
-                        {
-                          projectKey: prefs.jiraProjectKey!,
-                          summary: `[Dynatrace] ${firstLine}${log.content.length > 80 ? "..." : ""}`,
-                          description: `**Service**: ${log["service.name"] || "Unknown"}\n**Log Level**: ${log.loglevel || "N/A"}\n**Timestamp**: ${log.timestamp}\n\n**Error**:\n\`\`\`\n${log.content}\n\`\`\`\n\n[Open in Dynatrace](${logsUrl})`,
-                          issueType: "Bug",
-                          priority: log.loglevel === "FATAL" ? "Highest" : "High",
-                        },
-                      );
-
-                      toast.style = Toast.Style.Success;
-                      toast.title = "Bug created";
-                      toast.message = `${issueResponse.key}`;
-
-                      const issueUrl = buildJiraIssueUrl(prefs.jiraUrl!, issueResponse.key);
-                      await showToast({
-                        style: Toast.Style.Success,
-                        title: `Issue ${issueResponse.key} created`,
-                        message: issueUrl,
-                      });
-                    } catch (error) {
-                      toast.style = Toast.Style.Failure;
-                      toast.title = "Failed to create bug";
-                      toast.message = error instanceof Error ? error.message : "Unknown error";
-                    }
+                    push(
+                      <JiraIssueForm
+                        initialSummary={summary}
+                        initialDescription={description}
+                        onSuccess={(issueKey, issueUrl) => {
+                          push(<JiraIssueResult issueKey={issueKey} issueUrl={issueUrl} />);
+                        }}
+                      />,
+                    );
                   }}
                 />
               </ActionPanel.Section>

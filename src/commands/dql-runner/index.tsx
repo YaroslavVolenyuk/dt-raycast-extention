@@ -68,7 +68,7 @@ export default function DqlRunnerCommand() {
 
             // Also clear storeValue cache so defaultValue takes effect
             await LocalStorage.removeItem("timeframePreset");
-          } catch (e) {
+          } catch {
             // Silent fail: preset loading is non-critical
           }
         }
