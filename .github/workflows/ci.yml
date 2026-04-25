@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Lint
-        run: npx ray lint --fix=false
+        run: npx ray lint
 
       - name: Build
         run: npx ray build
