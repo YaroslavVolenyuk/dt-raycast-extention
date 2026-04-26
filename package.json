@@ -7,7 +7,8 @@
   "author": "yaroslav_volenyuk",
   "version": "1.0.0",
   "platforms": [
-    "macOS"
+    "macOS",
+    "Windows"
   ],
   "categories": [
     "Developer Tools",
@@ -94,20 +95,33 @@
       "arguments": [
         {
           "name": "timeframeValue",
-          "placeholder": "1",
           "type": "text",
+          "placeholder": "24",
           "required": false
         },
         {
           "name": "timeframeUnit",
-          "placeholder": "h",
-          "type": "text",
+          "type": "dropdown",
+          "placeholder": "Hours",
+          "data": [
+            { "title": "Minutes", "value": "m" },
+            { "title": "Hours", "value": "h" },
+            { "title": "Days", "value": "d" }
+          ],
           "required": false
         },
         {
           "name": "query",
-          "placeholder": "error",
-          "type": "text",
+          "type": "dropdown",
+          "placeholder": "All Logs",
+          "data": [
+            { "title": "All Logs", "value": "all" },
+            { "title": "Error", "value": "error" },
+            { "title": "Fatal", "value": "fatal" },
+            { "title": "Warning", "value": "warning" },
+            { "title": "Info", "value": "info" },
+            { "title": "Debug", "value": "debug" }
+          ],
           "required": false
         }
       ]
@@ -195,6 +209,9 @@
       "icon": "dynatrace-icon.png"
     }
   ],
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@raycast/api": "^1.104.1",
     "@raycast/utils": "^1.17.0",

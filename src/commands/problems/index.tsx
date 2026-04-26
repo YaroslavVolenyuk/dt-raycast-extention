@@ -51,10 +51,10 @@ function formatDuration(startTime: string, endTime?: string | null): string {
 function formatTimeAgo(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return `${diffMin}m`;
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return `${diffH}h`;
+  return `${Math.floor(diffH / 24)}d`;
 }
 
 export default function ProblemsCommand() {
@@ -223,39 +223,46 @@ export default function ProblemsCommand() {
         </ActionPanel>
       }
     >
-      {problems.map((problem) => (
-        <List.Item
-          key={problem["event.id"]}
-          icon={getIcon(problem["event.severity"])}
-          title={problem["event.name"]}
-          subtitle={
-            problem.affected_entity_ids && problem.affected_entity_ids.length > 0
-              ? problem.affected_entity_ids.slice(0, 2).join(", ") +
-                (problem.affected_entity_ids.length > 2 ? ` +${problem.affected_entity_ids.length - 2} more` : "")
-              : "No affected entities"
-          }
-          accessories={[
-            {
-              tag: {
-                value: problem["event.severity"],
-                color: getColor(problem["event.severity"]),
+      {problems.map((problem) => {
+        // Truncate problem name to ~22 chars for better layout
+        const problemName = problem["event.name"];
+        const namePreview = problemName && problemName.length > 22
+          ? problemName.substring(0, 19) + "…"
+          : problemName;
+
+        // Truncate affected entities to ~50 chars
+        const entitiesText = problem.affected_entity_ids && problem.affected_entity_ids.length > 0
+          ? problem.affected_entity_ids.slice(0, 2).join(", ") +
+            (problem.affected_entity_ids.length > 2 ? ` +${problem.affected_entity_ids.length - 2} more` : "")
+          : "No affected entities";
+        const entitiesPreview = entitiesText && entitiesText.length > 52
+          ? entitiesText.substring(0, 49) + "…"
+          : entitiesText;
+
+        return (
+          <List.Item
+            key={problem["event.id"]}
+            icon={getIcon(problem["event.severity"])}
+            title={namePreview}
+            subtitle={entitiesPreview}
+            accessories={[
+              { icon: Icon.Clock, text: formatTimeAgo(problem["event.start"]), tooltip: problem["event.start"] },
+              {
+                tag: {
+                  value: problem["event.severity"],
+                  color: getColor(problem["event.severity"]),
+                },
               },
-            },
-            {
-              text: formatDuration(problem["event.start"], problem["event.end"]),
-            },
-            {
-              text: formatTimeAgo(problem["event.start"]),
-            },
-          ]}
-          actions={
-            <ActionPanel>
-              <Action.Push title="Show Details" target={<ProblemDetailView problem={problem} tenant={tenant!} />} />
-              <Action.CopyToClipboard content={problem["event.id"]} title="Copy Problem ID" />
-            </ActionPanel>
-          }
-        />
-      ))}
+            ]}
+            actions={
+              <ActionPanel>
+                <Action.Push title="Show Details" target={<ProblemDetailView problem={problem} tenant={tenant!} />} />
+                <Action.CopyToClipboard content={problem["event.id"]} title="Copy Problem ID" />
+              </ActionPanel>
+            }
+          />
+        );
+      })}
     </List>
   );
 }

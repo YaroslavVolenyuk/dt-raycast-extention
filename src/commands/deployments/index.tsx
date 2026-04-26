@@ -11,10 +11,10 @@ import DeploymentDetailView from "./deployment-detail";
 function formatTimeAgo(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return `${diffMin}m`;
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return `${diffH}h`;
+  return `${Math.floor(diffH / 24)}d`;
 }
 
 export default function DeploymentsCommand() {
@@ -114,16 +114,17 @@ export default function DeploymentsCommand() {
           subtitle={`${deployment.affected_entity_name || "Unknown"} · v${deployment["deployment.version"] || "?"}`}
           accessories={[
             {
-              tag: {
-                value: deployment["deployment.release_stage"] || "unknown",
-                color: deployment["deployment.release_stage"] === "canary" ? Color.Yellow : Color.Green,
-              },
+              icon: Icon.Clock,
+              text: formatTimeAgo(deployment["event.start"]),
             },
             {
               text: deployment["event.provider"] || "unknown",
             },
             {
-              text: formatTimeAgo(deployment["event.start"]),
+              tag: {
+                value: deployment["deployment.release_stage"] || "unknown",
+                color: deployment["deployment.release_stage"] === "canary" ? Color.Yellow : Color.Green,
+              },
             },
           ]}
           actions={

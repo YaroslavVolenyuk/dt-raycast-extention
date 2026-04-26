@@ -147,6 +147,7 @@ export default function SearchTraces() {
           }
           accessories={[
             {
+              icon: Icon.Hourglass,
               text: formatDuration(span["span.duration.us"]),
               tooltip: "Span duration",
             },

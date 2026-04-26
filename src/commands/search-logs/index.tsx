@@ -75,10 +75,10 @@ function getLogColor(loglevel: string): Color {
 function formatRelativeTime(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
   const diffMin = Math.floor(diffMs / 60_000);
-  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffMin < 60) return `${diffMin}m`;
   const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h ago`;
-  return `${Math.floor(diffH / 24)}d ago`;
+  if (diffH < 24) return `${diffH}h`;
+  return `${Math.floor(diffH / 24)}d`;
 }
 
 export default function Command(props: CommandProps) {
@@ -274,23 +274,8 @@ export default function Command(props: CommandProps) {
     );
   }
 
-  // Timeframe dropdown — for quick selection of time range
-  const timeframeDropdown = (
-    <List.Dropdown tooltip="Timeframe" value={timeframePreset || ""} onChange={handleTimeframePresetChange}>
-      {TIMEFRAME_PRESETS.map((preset) => (
-        <List.Dropdown.Item key={preset.value} title={`Last ${preset.label}`} value={preset.value} />
-      ))}
-    </List.Dropdown>
-  );
-
-  // Log level dropdown — always visible as primary filter
-  const logLevelDropdown = (
-    <List.Dropdown tooltip="Log Level" value={selectedLogLevel} onChange={handleLogLevelChange}>
-      {LOG_LEVEL_OPTIONS.map((opt) => (
-        <List.Dropdown.Item key={opt.value} title={opt.title} value={opt.value} />
-      ))}
-    </List.Dropdown>
-  );
+  // Note: Timeframe (value + unit) and Log level are now handled via package.json command arguments,
+  // so they appear in Raycast's command input UI rather than inside the component.
 
   // Shared action panel content
   const filterAndExportActions = (
@@ -339,12 +324,6 @@ export default function Command(props: CommandProps) {
       <List
         isLoading={false}
         searchBarPlaceholder="Search in log content..."
-        searchBarAccessory={
-          <>
-            {timeframeDropdown}
-            {logLevelDropdown}
-          </>
-        }
         onSearchTextChange={setContentSearch}
       >
         <List.EmptyView
@@ -361,12 +340,6 @@ export default function Command(props: CommandProps) {
     return (
       <List
         isLoading={false}
-        searchBarAccessory={
-          <>
-            {timeframeDropdown}
-            {logLevelDropdown}
-          </>
-        }
       >
         <List.EmptyView
           icon={Icon.Warning}
@@ -400,26 +373,30 @@ export default function Command(props: CommandProps) {
     <List
       isLoading={isLoading && allRecords.length === 0}
       searchBarPlaceholder="Search in log content..."
-      searchBarAccessory={
-        <>
-          {timeframeDropdown}
-          {logLevelDropdown}
-        </>
-      }
       onSearchTextChange={setContentSearch}
     >
       {allRecords.map((log, index) => {
         const level = log.loglevel?.toUpperCase() ?? "";
         const tagColor = getLogColor(log.loglevel);
+        // Truncate service name to ~22 chars for more space for time/tag
+        const serviceName = (log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string;
+        const servicePreview = serviceName.length > 22
+          ? serviceName.substring(0, 19) + "…"
+          : serviceName;
+        // Truncate content to ~50 chars to leave room for time and log level tag
+        const contentPreview = log.content && log.content.length > 52
+          ? log.content.substring(0, 49) + "…"
+          : log.content;
+
         return (
           <List.Item
             key={`${log.timestamp}-${index}`}
             icon={Icon.Document}
-            title={(log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string}
-            subtitle={log.content}
+            title={servicePreview}
+            subtitle={contentPreview}
             accessories={[
+              { icon: Icon.Clock, text: formatRelativeTime(log.timestamp), tooltip: log.timestamp },
               { tag: { value: level, color: tagColor }, tooltip: `Log Level: ${level}` },
-              { text: formatRelativeTime(log.timestamp), tooltip: log.timestamp },
             ]}
             actions={
               <ActionPanel>
