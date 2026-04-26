@@ -70,6 +70,26 @@ Inspect log records with pretty-printed JSON, stack trace formatting, and relate
 ![Run DQL Query](metadata/dql-runner.png)
 Execute arbitrary DQL queries, view results in dynamic tables, and save frequently used queries.
 
+### DQL Result Detail
+![DQL Result Detail](metadata/dql-detail.png)
+Inspect individual DQL result records as pretty-printed JSON with a one-click "Copy as JSON" action.
+
+### Problem Detail View
+![Problem Detail View](metadata/problems-details.png)
+Drill into any Davis AI problem to see its ID, severity, status, duration, affected entities, and root cause. Open directly in Dynatrace with a single action.
+
+### AI Log Explanation
+![AI Log Explanation](metadata/log-detail-ai-explanation.png)
+Get an instant AI-generated explanation of a log error — possible causes, dependency issues, and next steps — without leaving Raycast.
+
+### Jira Ticket Creation
+![Jira Ticket Creation](metadata/jira-ticket-creation.png)
+Create a Jira issue pre-filled with service name, log level, timestamp, and error content directly from any log record.
+
+### Menu Bar Problems
+![Menu Bar Problems](metadata/menu-bar-problems.png)
+A persistent menu bar counter shows the number of open problems, refreshed every 5 minutes. Click to see the top problems by severity and jump straight to Active Problems.
+
 ### Manage Tenants
 ![Manage Tenants](metadata/tenants.png)
 Add and switch between multiple Dynatrace environments with OAuth 2.0 authentication.

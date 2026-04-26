@@ -226,18 +226,16 @@ export default function ProblemsCommand() {
       {problems.map((problem) => {
         // Truncate problem name to ~22 chars for better layout
         const problemName = problem["event.name"];
-        const namePreview = problemName && problemName.length > 22
-          ? problemName.substring(0, 19) + "…"
-          : problemName;
+        const namePreview = problemName && problemName.length > 22 ? problemName.substring(0, 19) + "…" : problemName;
 
         // Truncate affected entities to ~50 chars
-        const entitiesText = problem.affected_entity_ids && problem.affected_entity_ids.length > 0
-          ? problem.affected_entity_ids.slice(0, 2).join(", ") +
-            (problem.affected_entity_ids.length > 2 ? ` +${problem.affected_entity_ids.length - 2} more` : "")
-          : "No affected entities";
-        const entitiesPreview = entitiesText && entitiesText.length > 52
-          ? entitiesText.substring(0, 49) + "…"
-          : entitiesText;
+        const entitiesText =
+          problem.affected_entity_ids && problem.affected_entity_ids.length > 0
+            ? problem.affected_entity_ids.slice(0, 2).join(", ") +
+              (problem.affected_entity_ids.length > 2 ? ` +${problem.affected_entity_ids.length - 2} more` : "")
+            : "No affected entities";
+        const entitiesPreview =
+          entitiesText && entitiesText.length > 52 ? entitiesText.substring(0, 49) + "…" : entitiesText;
 
         return (
           <List.Item

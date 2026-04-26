@@ -36,16 +36,6 @@ const TIMEFRAME_PRESETS = [
   { label: "7d", value: "7d" },
 ] as const;
 
-// Log level dropdown options
-const LOG_LEVEL_OPTIONS: { title: string; value: LogLevel }[] = [
-  { title: "All Levels", value: "all" },
-  { title: "Error", value: "error" },
-  { title: "Fatal", value: "fatal" },
-  { title: "Warning", value: "warning" },
-  { title: "Info", value: "info" },
-  { title: "Debug", value: "debug" },
-];
-
 interface CommandArguments {
   timeframeValue: string;
   timeframeUnit: "h" | "m" | "d";
@@ -183,11 +173,6 @@ export default function Command(props: CommandProps) {
     setAllRecords([]); // Reset pagination on filter change
   };
 
-  const handleLogLevelChange = (value: string) => {
-    setSelectedLogLevel(value as LogLevel);
-    setAllRecords([]);
-  };
-
   const handleTimeframePresetChange = async (preset: string) => {
     setTimeframePreset(preset);
     await LocalStorage.setItem(KEY_TIMEFRAME_PRESET, preset);
@@ -321,11 +306,7 @@ export default function Command(props: CommandProps) {
 
   if (!isLoading && !error && allRecords.length === 0 && !isLoadingMore) {
     return (
-      <List
-        isLoading={false}
-        searchBarPlaceholder="Search in log content..."
-        onSearchTextChange={setContentSearch}
-      >
+      <List isLoading={false} searchBarPlaceholder="Search in log content..." onSearchTextChange={setContentSearch}>
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No logs found"
@@ -338,9 +319,7 @@ export default function Command(props: CommandProps) {
 
   if (error && !isLoading && allRecords.length === 0) {
     return (
-      <List
-        isLoading={false}
-      >
+      <List isLoading={false}>
         <List.EmptyView
           icon={Icon.Warning}
           title="Query Failed"
@@ -380,13 +359,10 @@ export default function Command(props: CommandProps) {
         const tagColor = getLogColor(log.loglevel);
         // Truncate service name to ~22 chars for more space for time/tag
         const serviceName = (log["service.name"] ?? log["dt.app.name"] ?? "Unknown Service") as string;
-        const servicePreview = serviceName.length > 22
-          ? serviceName.substring(0, 19) + "…"
-          : serviceName;
+        const servicePreview = serviceName.length > 22 ? serviceName.substring(0, 19) + "…" : serviceName;
         // Truncate content to ~50 chars to leave room for time and log level tag
-        const contentPreview = log.content && log.content.length > 52
-          ? log.content.substring(0, 49) + "…"
-          : log.content;
+        const contentPreview =
+          log.content && log.content.length > 52 ? log.content.substring(0, 49) + "…" : log.content;
 
         return (
           <List.Item
