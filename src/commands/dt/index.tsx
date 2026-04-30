@@ -9,6 +9,9 @@ import SearchLogsCommand from "../search-logs/index";
 import ProblemsCommand from "../problems/index";
 import DeploymentsCommand from "../deployments/index";
 import EntitiesCommand from "../entities/index";
+import Nl2DqlCommand from "../nl2dql/index";
+import AskDavisCommand from "../ask-davis/index";
+import SloCommand from "../slo/index";
 import DqlRunnerCommand from "../dql-runner/index";
 import SavedQueriesCommand from "../saved-queries/index";
 import TenantsCommand from "../tenants/index";
@@ -38,6 +41,30 @@ export default function DtHub() {
       color: Color.Blue,
       keywords: ["logs", "log", "search", "grail", "dql", "dt-logs"],
       component: <SearchLogsCommand {...EMPTY_SEARCH_LOGS_ARGS} />,
+    },
+    {
+      title: "Convert to DQL (NL2DQL)",
+      subtitle: "dt-nl2dql · Ask Davis to convert natural language to DQL queries",
+      icon: Icon.MagicWand,
+      color: Color.Magenta,
+      keywords: ["nl2dql", "natural", "language", "davis", "copilot", "dql", "convert", "dt-nl2dql"],
+      component: <Nl2DqlCommand />,
+    },
+    {
+      title: "Ask Davis",
+      subtitle: "dt-ask · Ask Davis AI questions about your environment with follow-ups",
+      icon: Icon.ChatLines,
+      color: Color.Purple,
+      keywords: ["ask", "davis", "chat", "copilot", "questions", "ai", "diagnostic", "dt-ask"],
+      component: <AskDavisCommand />,
+    },
+    {
+      title: "SLO Dashboard",
+      subtitle: "dt-slo · View all SLOs with compliance status and error budget",
+      icon: Icon.Binoculars,
+      color: Color.Green,
+      keywords: ["slo", "objectives", "compliance", "error budget", "status", "dt-slo"],
+      component: <SloCommand />,
     },
     {
       title: "Active Problems",

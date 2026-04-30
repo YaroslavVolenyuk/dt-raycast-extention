@@ -7,6 +7,7 @@ import {
   dynatraceRest,
   dynatraceRestPaginated,
   registerMock,
+  clearMocks,
   RestError,
   ValidationError,
   DavisCopilotUnavailableError,
@@ -39,8 +40,7 @@ const mockTenant: TenantConfig = {
 describe("dynatraceRest", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Clear mock registry
-    registerMock("", null); // Reset
+    clearMocks();
   });
 
   it("should make a GET request without body", async () => {
@@ -112,9 +112,9 @@ describe("dynatraceRest", () => {
       } as Response),
     );
 
-    await expect(
-      dynatraceRest(mockTenant, "/davis/v1/copilot/nl2dql", { method: "POST" }),
-    ).rejects.toThrow(DavisCopilotUnavailableError);
+    await expect(dynatraceRest(mockTenant, "/davis/v1/copilot/nl2dql", { method: "POST" })).rejects.toThrow(
+      DavisCopilotUnavailableError,
+    );
   });
 
   it("should handle 429 rate limit error", async () => {
@@ -189,9 +189,7 @@ describe("dynatraceRest", () => {
 
     global.fetch = jest.fn(() => Promise.reject(new DOMException("Aborted", "AbortError")));
 
-    await expect(
-      dynatraceRest(mockTenant, "/api/v2/test", { signal: controller.signal }),
-    ).rejects.toThrow(RestError);
+    await expect(dynatraceRest(mockTenant, "/api/v2/test", { signal: controller.signal })).rejects.toThrow(RestError);
   });
 });
 
@@ -201,7 +199,10 @@ describe("dynatraceRestPaginated", () => {
   });
 
   it("should concatenate paginated results", async () => {
-    const page1 = [{ id: "1", name: "Item 1" }, { id: "2", name: "Item 2" }];
+    const page1 = [
+      { id: "1", name: "Item 1" },
+      { id: "2", name: "Item 2" },
+    ];
     const page2 = [{ id: "3", name: "Item 3" }];
 
     let callCount = 0;
@@ -284,25 +285,38 @@ describe("dynatraceRestPaginated", () => {
 });
 
 describe("Mock mode", () => {
+  beforeEach(() => {
+    clearMocks();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { isMockMode } = require("../lib/devMode");
+    isMockMode.mockReturnValue(true);
+  });
+
   it("should return mock data when registered", async () => {
     const mockData = { id: "mock-123", name: "Mock Item" };
     registerMock("/api/v2/test", mockData);
 
-    // Mock isMockMode to return true
-    const { isMockMode } = require("../lib/devMode");
-    isMockMode.mockReturnValue(true);
-
     const result = await dynatraceRest(mockTenant, "/api/v2/test");
 
     expect(result.data).toEqual(mockData);
+    expect(result.status).toBe(200);
   });
 
   it("should return empty response when no mock found", async () => {
-    const { isMockMode } = require("../lib/devMode");
-    isMockMode.mockReturnValue(true);
+    clearMocks();
 
     const result = await dynatraceRest(mockTenant, "/api/v2/unknown");
 
     expect(result.data).toEqual([]);
+    expect(result.status).toBe(200);
+  });
+
+  it("should match mock paths with includes", async () => {
+    const mockData = { result: "found" };
+    registerMock("/api/v2", mockData);
+
+    const result = await dynatraceRest(mockTenant, "/api/v2/slo/list");
+
+    expect(result.data).toEqual(mockData);
   });
 });

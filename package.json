@@ -150,6 +150,30 @@
       "icon": "dynatrace-icon.png"
     },
     {
+      "name": "dt-nl2dql",
+      "title": "Convert to DQL (NL2DQL)",
+      "subtitle": "Dynatrace",
+      "description": "Convert natural language questions to DQL queries using Davis CoPilot",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-ask",
+      "title": "Ask Davis",
+      "subtitle": "Dynatrace",
+      "description": "Ask Davis AI questions about your environment with conversation history",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-slo",
+      "title": "SLO Dashboard",
+      "subtitle": "Dynatrace",
+      "description": "View all Service Level Objectives with compliance status and error budget",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
       "name": "dt-dql-runner",
       "title": "Run DQL Query",
       "subtitle": "Dynatrace",
@@ -230,10 +254,10 @@
   },
   "scripts": {
     "build": "ray build",
-    "dev": "NODE_NO_WARNINGS=1 ray develop",
+    "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
-    "test": "NODE_NO_WARNINGS=1 jest",
+    "test": "jest",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }

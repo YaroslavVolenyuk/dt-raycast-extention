@@ -3,10 +3,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { showToast, Toast } from "@raycast/api";
-import { ZodSchema } from "zod";
 import { dynatraceRest, RestClientOptions, RestError, ValidationError, DavisCopilotUnavailableError } from "./rest";
 import { TenantConfig } from "../auth";
-import { isMockMode, devLog } from "../devMode";
+import { devLog } from "../devMode";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -81,13 +80,7 @@ export function useDynatraceRest<T = unknown>(
   path: string,
   options: UseRestOptions<T> = {},
 ): UseRestState<T> {
-  const {
-    interval,
-    enabled = true,
-    showErrorToast = true,
-    onError,
-    ...restOptions
-  } = options;
+  const { interval, enabled = true, showErrorToast = true, onError, ...restOptions } = options;
 
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(true);

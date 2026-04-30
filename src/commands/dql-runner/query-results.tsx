@@ -1,9 +1,21 @@
 // Query Results View — displays dynamic results from DQL query
-import { List, Detail, Action, ActionPanel, Clipboard, showToast, Toast, Icon, Color } from "@raycast/api";
+import {
+  List,
+  Detail,
+  Action,
+  ActionPanel,
+  Clipboard,
+  showToast,
+  Toast,
+  Icon,
+  Color,
+  useNavigation,
+} from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
 import { saveSavedQuery } from "../../lib/savedQueries";
+import { explainDql } from "../../lib/api/davis";
 import { useEffect, useState } from "react";
 
 // Log level colors and icons
@@ -49,6 +61,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const { data, isLoading, error, execute } = useDynatraceQuery();
   const [mappings, setMappings] = useState<ResultMapping[]>([]);
+  const { push } = useNavigation();
 
   useEffect(() => {
     const init = async () => {
@@ -144,6 +157,43 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
     }
   };
 
+  const handleExplainQuery = async () => {
+    if (!tenant) return;
+
+    try {
+      const explanation = await explainDql(tenant, dql);
+      push(
+        <Detail
+          navigationTitle="Query Explanation"
+          markdown={`# Query Explanation\n\n${explanation}\n\n---\n\n## Original Query\n\n\`\`\`dql\n${dql}\n\`\`\``}
+          actions={
+            <ActionPanel>
+              <Action
+                title="Copy Explanation"
+                icon={Icon.Clipboard}
+                onAction={async () => {
+                  await Clipboard.copy(explanation);
+                  await showToast({
+                    style: Toast.Style.Success,
+                    title: "Copied",
+                    message: "Explanation copied to clipboard",
+                  });
+                }}
+              />
+            </ActionPanel>
+          }
+        />,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to explain query";
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Error",
+        message,
+      });
+    }
+  };
+
   if (error) {
     return (
       <Detail
@@ -184,6 +234,7 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
       actions={
         <ActionPanel>
           <Action title="Save as Saved Query" icon={Icon.StarCircle} onAction={handleSaveAsTemplate} />
+          <Action title="Explain Query" icon={Icon.Lightbulb} onAction={handleExplainQuery} />
           <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleCopyJson} />
           <Action title="Copy DQL Query" icon={Icon.Clipboard} onAction={handleCopyDql} />
           {onClose && <Action title="Back" icon={Icon.ArrowLeft} onAction={onClose} />}

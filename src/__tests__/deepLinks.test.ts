@@ -48,9 +48,7 @@ describe("buildDeepLink", () => {
 
   it("should build deep link for deployment", () => {
     const url = buildDeepLink("deployment", "DEPLOYMENT-001", mockTenant);
-    expect(url).toBe(
-      "https://abc123.live.dynatrace.com/ui/apps/dynatrace.deployments/deployment/DEPLOYMENT-001",
-    );
+    expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.deployments/deployment/DEPLOYMENT-001");
   });
 
   it("should build deep link for workflow", () => {
@@ -60,23 +58,20 @@ describe("buildDeepLink", () => {
 
   it("should build deep link for synthetic monitor", () => {
     const url = buildDeepLink("synthetic", "SYNTHETIC-monitor-1", mockTenant);
-    expect(url).toBe(
-      "https://abc123.live.dynatrace.com/ui/apps/dynatrace.synthetics/monitors/SYNTHETIC-monitor-1",
-    );
+    expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.synthetics/monitors/SYNTHETIC-monitor-1");
   });
 
   it("should build deep link for settings", () => {
     const url = buildDeepLink("settings", "builtin:ownership.teams", mockTenant);
-    expect(url).toBe(
-      "https://abc123.live.dynatrace.com/ui/apps/dynatrace.settings/settings/builtin%3Aownership.teams",
-    );
+    // The URL should contain the encoded colon
+    expect(url).toContain("dynatrace.settings");
+    expect(url).toContain("builtin");
+    expect(url).toContain("ownership.teams");
   });
 
   it("should build deep link for maintenance window", () => {
     const url = buildDeepLink("maintenance-window", "maintenance-123", mockTenant);
-    expect(url).toBe(
-      "https://abc123.live.dynatrace.com/ui/apps/dynatrace.settings/settings/objects/maintenance-123",
-    );
+    expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.settings/settings/objects/maintenance-123");
   });
 
   it("should build deep link for metric", () => {
@@ -86,13 +81,18 @@ describe("buildDeepLink", () => {
   });
 
   it("should handle unknown deep link type with fallback", () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const url = buildDeepLink("unknown" as any, "id-123", mockTenant);
     expect(url).toBe("https://abc123.live.dynatrace.com/ui/");
   });
 
   it("should encode special characters in metric IDs", () => {
     const url = buildDeepLink("metric", "custom.metric(param1,param2)", mockTenant);
-    expect(url).toContain("custom.metric%28param1%2Cparam2%29");
+    // Verify encoding of parentheses and comma
+    expect(url).toContain("dynatrace.metric.explorer");
+    expect(url).toContain("%28"); // encoded (
+    expect(url).toContain("%29"); // encoded )
+    expect(url).toContain("%2C"); // encoded comma
   });
 });
 

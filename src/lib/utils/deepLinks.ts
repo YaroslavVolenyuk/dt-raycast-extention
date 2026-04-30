@@ -27,68 +27,79 @@ interface DeepLinkConfig {
   pathPattern: (id: string) => string;
 }
 
+// ── Helper: Encode Entity ID for URLs ────────────────────────────────────────
+
+/**
+ * Encode special characters in entity IDs for URL safety
+ * @param id - Entity ID that may contain special characters
+ * @returns Properly encoded ID for use in URLs
+ */
+function encodeEntityIdForUrl(id: string): string {
+  return encodeURIComponent(id).replace(/\(/g, "%28").replace(/\)/g, "%29").replace(/'/g, "%27").replace(/"/g, "%22");
+}
+
 // ── App ID Mappings ──────────────────────────────────────────────────────────
 
 const DEEP_LINK_CONFIG: Record<DeepLinkType, DeepLinkConfig> = {
   problem: {
     appId: "dynatrace.problems",
-    pathPattern: (id) => `/problems/${id}`,
+    pathPattern: (id) => `/problems/${encodeEntityIdForUrl(id)}`,
   },
   trace: {
     appId: "dynatrace.trace.analysis",
-    pathPattern: (id) => `/details/${id}`,
+    pathPattern: (id) => `/details/${encodeEntityIdForUrl(id)}`,
   },
   entity: {
     appId: "dynatrace.entity.explorer",
-    pathPattern: (id) => `/entity/${id}`,
+    pathPattern: (id) => `/entity/${encodeEntityIdForUrl(id)}`,
   },
   "log-query": {
     appId: "dynatrace.log.viewer",
-    pathPattern: (id) => `/logs/${id}`,
+    pathPattern: (id) => `/logs/${encodeEntityIdForUrl(id)}`,
   },
   slo: {
     appId: "dynatrace.slo.details",
-    pathPattern: (id) => `/slo/${id}`,
+    pathPattern: (id) => `/slo/${encodeEntityIdForUrl(id)}`,
   },
   deployment: {
     appId: "dynatrace.deployments",
-    pathPattern: (id) => `/deployment/${id}`,
+    pathPattern: (id) => `/deployment/${encodeEntityIdForUrl(id)}`,
   },
   workflow: {
     appId: "dynatrace.automation",
-    pathPattern: (id) => `/workflow/${id}`,
+    pathPattern: (id) => `/workflow/${encodeEntityIdForUrl(id)}`,
   },
   synthetic: {
     appId: "dynatrace.synthetics",
-    pathPattern: (id) => `/monitors/${id}`,
+    pathPattern: (id) => `/monitors/${encodeEntityIdForUrl(id)}`,
   },
   settings: {
     appId: "dynatrace.settings",
-    pathPattern: (id) => `/settings/${id}`,
+    pathPattern: (id) => `/settings/${encodeEntityIdForUrl(id)}`,
   },
   "maintenance-window": {
     appId: "dynatrace.settings",
-    pathPattern: (id) => `/settings/objects/${id}`,
+    pathPattern: (id) => `/settings/objects/${encodeEntityIdForUrl(id)}`,
   },
   metric: {
     appId: "dynatrace.metric.explorer",
-    pathPattern: (id) => `/metrics/${encodeURIComponent(id)}`,
+    pathPattern: (id) => `/metrics/${encodeEntityIdForUrl(id)}`,
   },
   host: {
     appId: "dynatrace.entity.explorer",
-    pathPattern: (id) => `/entity/${id}`,
+    pathPattern: (id) => `/entity/${encodeEntityIdForUrl(id)}`,
   },
   service: {
     appId: "dynatrace.entity.explorer",
-    pathPattern: (id) => `/entity/${id}`,
+    pathPattern: (id) => `/entity/${encodeEntityIdForUrl(id)}`,
   },
   extension: {
     appId: "dynatrace.extensions",
-    pathPattern: (id) => `/extension/${id}`,
+    pathPattern: (id) => `/extension/${encodeEntityIdForUrl(id)}`,
   },
   breakpoint: {
     appId: "dynatrace.debugger",
-    pathPattern: (id) => `/breakpoint/${id}`,
+    pathPattern: (id) => `/breakpoint/${encodeEntityIdForUrl(id)}`,
   },
 };
 
@@ -110,11 +121,7 @@ const DEEP_LINK_CONFIG: Record<DeepLinkType, DeepLinkConfig> = {
  * const url = buildDeepLink("slo", "slo-payment-99.9", tenant);
  * // Returns: https://abc123.live.dynatrace.com/ui/apps/dynatrace.slo.details/slo/slo-payment-99.9
  */
-export function buildDeepLink(
-  type: DeepLinkType,
-  id: string,
-  tenant: TenantConfig,
-): string {
+export function buildDeepLink(type: DeepLinkType, id: string, tenant: TenantConfig): string {
   // Get app ID and path pattern, or use fallback
   const config = DEEP_LINK_CONFIG[type];
 
@@ -144,16 +151,12 @@ export function getSupportedDeepLinkTypes(): DeepLinkType[] {
 }
 
 /**
- * Encode special characters in entity IDs for URL safety
+ * Encode special characters in entity IDs for URL safety (exported for testing)
  * @param id - Entity ID that may contain special characters
  * @returns Properly encoded ID for use in URLs
  */
 export function encodeEntityId(id: string): string {
-  return encodeURIComponent(id)
-    .replace(/\(/g, "%28")
-    .replace(/\)/g, "%29")
-    .replace(/'/g, "%27")
-    .replace(/"/g, "%22");
+  return encodeEntityIdForUrl(id);
 }
 
 // ── Examples ──────────────────────────────────────────────────────────────────

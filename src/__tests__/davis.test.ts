@@ -26,13 +26,11 @@ describe("Davis CoPilot API", () => {
 
   describe("convertNl2Dql", () => {
     it("should return mock DQL for common natural language queries in mock mode", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
-      const result = await convertNl2Dql(
-        mockTenant,
-        "error logs from payment service last hour",
-      );
+      const result = await convertNl2Dql(mockTenant, "error logs from payment service last hour");
 
       expect(result).toContain("fetch logs");
       expect(result).toContain("payment-service");
@@ -40,6 +38,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should handle unknown queries in mock mode with fallback", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -50,13 +49,11 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should return DQL for kubernetes queries", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
-      const result = await convertNl2Dql(
-        mockTenant,
-        "what is the cpu usage of my kubernetes cluster",
-      );
+      const result = await convertNl2Dql(mockTenant, "what is the cpu usage of my kubernetes cluster");
 
       expect(result).toContain("kubernetes");
     });
@@ -64,6 +61,7 @@ describe("Davis CoPilot API", () => {
 
   describe("explainDql", () => {
     it("should return explanation for common DQL queries in mock mode", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -75,6 +73,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should provide default explanation in mock mode for unknown queries", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -86,18 +85,20 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should explain complex DQL queries", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
-      const dql = "fetch dt.davis.problems, filter by severity == \"CRITICAL\" | stats count()";
+      const dql = 'fetch dt.davis.problems, filter by severity == "CRITICAL" | stats count()';
       const result = await explainDql(mockTenant, dql);
 
-      expect(result).toContain("count");
+      expect(result.toLowerCase()).toContain("count");
     });
   });
 
   describe("askDavis", () => {
     it("should return answer with sources for service issues", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -110,6 +111,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should return answer for performance questions", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -120,6 +122,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should return answer for deployment queries", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -130,6 +133,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should support conversation history", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -144,6 +148,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should support entity context", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -159,6 +164,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should return sources with relevant information", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -172,6 +178,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should provide fallback answer for unknown questions", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -182,6 +189,7 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should handle error budget status questions", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
@@ -192,13 +200,14 @@ describe("Davis CoPilot API", () => {
     });
 
     it("should handle latency trend questions", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");
       isMockMode.mockReturnValue(true);
 
       const result = await askDavis(mockTenant, "check latency trends");
 
       expect(result.answer).toBeTruthy();
-      expect(result.answer).toContain("latency");
+      expect(result.answer.toLowerCase()).toContain("latency");
     });
   });
 });

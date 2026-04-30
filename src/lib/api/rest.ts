@@ -61,6 +61,15 @@ export function registerMock(path: string | RegExp, data: unknown): void {
   devLog(`Registered mock for path: ${path}`, { dataType: typeof data });
 }
 
+export function clearMocks(): void {
+  mockRegistry.clear();
+  devLog("Cleared all mocks");
+}
+
+export function getMockRegistry(): Map<string | RegExp, unknown> {
+  return new Map(mockRegistry);
+}
+
 function matchMockPath(path: string): unknown | null {
   for (const [pattern, data] of mockRegistry.entries()) {
     if (typeof pattern === "string") {
@@ -109,14 +118,7 @@ export async function dynatraceRest<T = unknown>(
   path: string,
   options: RestClientOptions<T> = {},
 ): Promise<RestResponse<T>> {
-  const {
-    method = "GET",
-    body,
-    schema,
-    queryParams,
-    signal,
-    headers: customHeaders,
-  } = options;
+  const { method = "GET", body, schema, queryParams, signal, headers: customHeaders } = options;
 
   // ── Mock Mode ─────────────────────────────────────────────────────────────
   if (isMockMode()) {
@@ -337,12 +339,7 @@ export async function dynatraceRestPaginated<T = unknown>(
   path: string,
   options: PaginationOptions<T> = {},
 ): Promise<RestResponse<unknown[]>> {
-  const {
-    paginate = true,
-    maxPages = 10,
-    pageField = "nextPageKey",
-    ...restOptions
-  } = options;
+  const { paginate = true, maxPages = 10, pageField = "nextPageKey", ...restOptions } = options;
 
   if (!paginate) {
     const response = await dynatraceRest<T>(tenant, path, restOptions);
@@ -358,11 +355,7 @@ export async function dynatraceRestPaginated<T = unknown>(
   let currentPath = path;
 
   while (pageCount < maxPages) {
-    const response = await dynatraceRest<PaginatedResponse | unknown[]>(
-      tenant,
-      currentPath,
-      restOptions,
-    );
+    const response = await dynatraceRest<PaginatedResponse | unknown[]>(tenant, currentPath, restOptions);
 
     const responseData = response.data;
 
@@ -374,9 +367,7 @@ export async function dynatraceRestPaginated<T = unknown>(
       const obj = responseData as Record<string, unknown>;
 
       // Try common record field names
-      const recordsField = ["results", "records", "data", "items"].find(
-        (field) => Array.isArray(obj[field]),
-      );
+      const recordsField = ["results", "records", "data", "items"].find((field) => Array.isArray(obj[field]));
       if (recordsField) {
         allRecords = allRecords.concat(obj[recordsField] as unknown[]);
       } else {

@@ -21,25 +21,25 @@ const MOCK_NL2DQL_PAIRS: Record<string, string> = {
   "error logs from payment service last hour":
     'fetch logs, filter by dt.entity.service_name == "payment-service" and loglevel == "ERROR" | fields timestamp, content',
   "what is the cpu usage of my kubernetes cluster":
-    'fetch dt.entity.kubernetes.cluster | fields name, entity.name | lookup [fetch dt.entity.host | fields cpu.usage.percent] on entity.name',
+    "fetch dt.entity.kubernetes.cluster | fields name, entity.name | lookup [fetch dt.entity.host | fields cpu.usage.percent] on entity.name",
   "show me all failed deployments in the last week":
     'fetch events, filter by type == "DEPLOYMENT_EVENT" and status == "FAILED" and timestamp > now() - 7d | fields timestamp, service_name, status',
   "find slow transactions in the order service":
     'fetch spans, filter by dt.entity.service_name == "order-service" and duration > 1000 | stats avg(duration), percentile(duration, 95) by trace_id',
   "list all problems from the last 24 hours":
-    'fetch dt.davis.problems, filter by timestamp > now() - 24h | fields timestamp, title, severity, entity.name',
+    "fetch dt.davis.problems, filter by timestamp > now() - 24h | fields timestamp, title, severity, entity.name",
 };
 
 const MOCK_DQL2NL_PAIRS: Record<string, string> = {
   'fetch logs, filter by dt.entity.service_name == "payment-service" and loglevel == "ERROR"':
     "Retrieves error-level log entries from the payment-service, useful for investigating service errors and failures.",
-  "fetch dt.davis.problems, filter by severity == \"CRITICAL\" | stats count() by entity.name":
+  'fetch dt.davis.problems, filter by severity == "CRITICAL" | stats count() by entity.name':
     "Counts all critical-level problems grouped by entity name, giving you a summary of critical issues per service or host.",
   "fetch spans | stats avg(duration), percentile(duration, 95) by dt.entity.service_name":
     "Calculates average response time and 95th percentile latency for each service, helping identify slow services.",
-  "fetch events, filter by type == \"DEPLOYMENT\" | stats count() by timeframe(1h)":
+  'fetch events, filter by type == "DEPLOYMENT" | stats count() by timeframe(1h)':
     "Shows deployment frequency per hour, useful for tracking deployment patterns and trends.",
-  "fetch dt.entity.service | filter status == \"PROBLEM\" | fields name, status, problem_count":
+  'fetch dt.entity.service | filter status == "PROBLEM" | fields name, status, problem_count':
     "Lists all services with problem status and their problem counts, great for quick health checks.",
 };
 
@@ -115,15 +115,11 @@ export async function convertNl2Dql(tenant: TenantConfig, text: string): Promise
     return `fetch logs, filter by content contains "${text}" | fields timestamp, content`;
   }
 
-  const response = await dynatraceRest<NL2DQLResponse>(
-    tenant,
-    "/davis/v1/copilot/nl2dql",
-    {
-      method: "POST",
-      body: { text },
-      schema: nl2dqlResponseSchema,
-    },
-  );
+  const response = await dynatraceRest<NL2DQLResponse>(tenant, "/davis/v1/copilot/nl2dql", {
+    method: "POST",
+    body: { text },
+    schema: nl2dqlResponseSchema,
+  });
 
   return response.data.dql;
 }
@@ -148,15 +144,11 @@ export async function explainDql(tenant: TenantConfig, dql: string): Promise<str
     return `This DQL query fetches and filters data from Dynatrace. It appears to be analyzing: ${dql.slice(0, 100)}...`;
   }
 
-  const response = await dynatraceRest<DQL2NLResponse>(
-    tenant,
-    "/davis/v1/copilot/dql2nl",
-    {
-      method: "POST",
-      body: { dql },
-      schema: dql2nlResponseSchema,
-    },
-  );
+  const response = await dynatraceRest<DQL2NLResponse>(tenant, "/davis/v1/copilot/dql2nl", {
+    method: "POST",
+    body: { dql },
+    schema: dql2nlResponseSchema,
+  });
 
   return response.data.explanation;
 }
@@ -199,15 +191,11 @@ export async function askDavis(
     conversationHistory: conversationHistory || [],
   };
 
-  const response = await dynatraceRest<DavisAnswer>(
-    tenant,
-    "/davis/v1/copilot/ask",
-    {
-      method: "POST",
-      body: payload,
-      schema: davisAnswerSchema,
-    },
-  );
+  const response = await dynatraceRest<DavisAnswer>(tenant, "/davis/v1/copilot/ask", {
+    method: "POST",
+    body: payload,
+    schema: davisAnswerSchema,
+  });
 
   return response.data;
 }
