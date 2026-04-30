@@ -14,6 +14,8 @@ import type { SettingsObject } from "../types/settings";
 import type { MetricData, DataPoint } from "../types/metric";
 import type { SyntheticMonitorData } from "../types/synthetic";
 import { ExecutionStatus, MonitorType } from "../types/synthetic";
+import type { MaintenanceWindow } from "../types/maintenance";
+import { MaintenanceWindowType, MaintenanceScopeType } from "../types/maintenance";
 
 export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -1134,5 +1136,91 @@ export const MOCK_SYNTHETICS: SyntheticMonitorData[] = [
     availability: 0,
     failureCount: 0,
     lastExecution: undefined,
+  },
+];
+
+/**
+ * Maintenance Windows mock data
+ */
+export const MOCK_MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
+  {
+    id: "maint-001",
+    name: "Database Upgrade - Production",
+    type: MaintenanceWindowType.ONE_TIME,
+    description: "Major version upgrade for PostgreSQL cluster",
+    startTime: Date.now() - 30 * m, // Currently active (started 30 min ago)
+    endTime: Date.now() + 90 * m, // Ends in 90 min
+    suppressAlertingEnabled: true,
+    suppressProblemsEnabled: true,
+    scope: {
+      type: MaintenanceScopeType.MANAGEMENT_ZONE,
+      value: "zone-prod-db",
+    },
+    createdBy: "devops-team",
+    createdAt: Date.now() - 7 * d,
+    modifiedAt: Date.now() - 30 * m,
+    enabled: true,
+  },
+  {
+    id: "maint-002",
+    name: "API Gateway Rolling Restart",
+    type: MaintenanceWindowType.PLANNED,
+    description: "Zero-downtime restart with blue-green deployment",
+    startTime: Date.now() + 2 * h, // Scheduled in 2 hours
+    endTime: Date.now() + 3 * h,
+    suppressAlertingEnabled: true,
+    suppressProblemsEnabled: false,
+    scope: {
+      type: MaintenanceScopeType.ENTITY,
+      value: "SERVICE-api-gateway",
+    },
+    createdBy: "sre-team",
+    createdAt: Date.now() - 2 * d,
+    enabled: true,
+  },
+  {
+    id: "maint-003",
+    name: "Elasticsearch Cluster Maintenance",
+    type: MaintenanceWindowType.RECURRING,
+    startTime: Date.now() + 24 * h, // Tomorrow
+    endTime: Date.now() + 26 * h,
+    suppressAlertingEnabled: true,
+    suppressProblemsEnabled: true,
+    scope: {
+      type: MaintenanceScopeType.MANAGEMENT_ZONE,
+      value: "zone-logs",
+    },
+    createdBy: "infra-team",
+    createdAt: Date.now() - 14 * d,
+    enabled: true,
+  },
+  {
+    id: "maint-004",
+    name: "Network Maintenance - ISP Work",
+    type: MaintenanceWindowType.ONE_TIME,
+    startTime: Date.now() - 3 * d, // Ended 3 days ago
+    endTime: Date.now() - 3 * d + 4 * h,
+    suppressAlertingEnabled: true,
+    suppressProblemsEnabled: false,
+    createdBy: "network-team",
+    createdAt: Date.now() - 10 * d,
+    enabled: true,
+  },
+  {
+    id: "maint-005",
+    name: "Kubernetes Node Patching",
+    type: MaintenanceWindowType.PLANNED,
+    description: "Security patches for control plane and worker nodes",
+    startTime: Date.now() + 48 * h,
+    endTime: Date.now() + 50 * h,
+    suppressAlertingEnabled: false,
+    suppressProblemsEnabled: false,
+    scope: {
+      type: MaintenanceScopeType.MANAGEMENT_ZONE,
+      value: "zone-k8s",
+    },
+    createdBy: "platform-team",
+    createdAt: Date.now() - 5 * d,
+    enabled: true,
   },
 ];
