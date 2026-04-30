@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx ray *)",
+      "Bash(nvm list *)",
+      "Read(//Users/yaroslavvolenyuk/.nvm/versions/node/**)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(GIT_EDITOR=true git rebase --continue)",
+      "Bash(git rebase *)",
+      "Bash(echo \"EXIT=$?\")"
+    ]
+  }
+}
