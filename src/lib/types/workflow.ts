@@ -18,9 +18,11 @@ export const workflowExecutionSchema = z.object({
   endTime: z.string().datetime().nullable().optional(),
   durationMs: z.number().nullable().optional(),
   triggeredBy: z.string().optional(), // user or trigger type
-  result: z.object({
-    output: z.unknown().optional(),
-  }).optional(),
+  result: z
+    .object({
+      output: z.unknown().optional(),
+    })
+    .optional(),
 });
 
 export type WorkflowExecution = z.infer<typeof workflowExecutionSchema>;

@@ -16,12 +16,7 @@ export const settingsTypeSchema = z.enum([
 export type SettingsType = z.infer<typeof settingsTypeSchema>;
 
 // Settings scope (where the setting applies)
-export const settingsScopeSchema = z.enum([
-  "ENVIRONMENT",
-  "MANAGEMENT_ZONE",
-  "ENTITY",
-  "APPLICATION",
-]);
+export const settingsScopeSchema = z.enum(["ENVIRONMENT", "MANAGEMENT_ZONE", "ENTITY", "APPLICATION"]);
 
 export type SettingsScope = z.infer<typeof settingsScopeSchema>;
 

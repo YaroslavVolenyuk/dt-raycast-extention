@@ -71,11 +71,7 @@ export default function SettingDetailView({ setting, tenant, onRefresh }: Settin
         <ActionPanel>
           <Action title="Copy JSON" icon={Icon.Clipboard} onAction={handleCopyJSON} />
           <Action title="Copy Object ID" icon={Icon.Clipboard} onAction={handleCopyID} />
-          <Action
-            title="Open in Dynatrace"
-            icon={Icon.Globe}
-            onAction={handleOpenInDynatrace}
-          />
+          <Action title="Open in Dynatrace" icon={Icon.Globe} onAction={handleOpenInDynatrace} />
           <Action title="Refresh" icon={Icon.RotateClockwise} onAction={onRefresh} />
           <Action title="Back" icon={Icon.ChevronLeft} onAction={pop} />
         </ActionPanel>

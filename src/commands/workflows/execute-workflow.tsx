@@ -1,13 +1,5 @@
 // B1-3, B1-4: Execute workflow with parameters
-import {
-  Form,
-  Action,
-  ActionPanel,
-  Icon,
-  showToast,
-  Toast,
-  useNavigation,
-} from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, useNavigation } from "@raycast/api";
 import type { Workflow } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { useState } from "react";
@@ -18,18 +10,15 @@ interface ExecuteWorkflowFormProps {
   onSuccess?: () => void;
 }
 
-export default function ExecuteWorkflowForm({
-  workflow,
-  tenant,
-  onSuccess,
-}: ExecuteWorkflowFormProps) {
+export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: ExecuteWorkflowFormProps) {
   const { pop } = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, any>>({});
+  const [formValues, setFormValues] = useState<Record<string, string | number | boolean | undefined>>({});
 
   // Parse input parameters from schema
   const parameters = buildFormParameters(workflow.inputParametersSchema);
-  const requiredParams = (workflow.inputParametersSchema as any)?.required || [];
+  const schema = workflow.inputParametersSchema as { required?: string[] };
+  const requiredParams = schema?.required || [];
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -95,9 +84,7 @@ export default function ExecuteWorkflowForm({
               title={param.name}
               placeholder={param.description || ""}
               value={formValues[param.name] || ""}
-              onChange={(value) =>
-                setFormValues({ ...formValues, [param.name]: value ? Number(value) : undefined })
-              }
+              onChange={(value) => setFormValues({ ...formValues, [param.name]: value ? Number(value) : undefined })}
               error={isRequired && !formValues[param.name] ? "This field is required" : undefined}
             />
           );
@@ -150,24 +137,29 @@ interface FormParameter {
   type: string;
   description?: string;
   enum?: string[];
-  default?: any;
+  default?: string | number | boolean;
 }
 
-function buildFormParameters(schema?: any): FormParameter[] {
-  if (!schema || !schema.properties) {
+function buildFormParameters(schema?: Record<string, unknown>): FormParameter[] {
+  const typedSchema = schema as {
+    properties?: Record<
+      string,
+      { type?: string; description?: string; enum?: string[]; default?: string | number | boolean }
+    >;
+  };
+  if (!typedSchema || !typedSchema.properties) {
     return [];
   }
 
   const parameters: FormParameter[] = [];
 
-  for (const [key, prop] of Object.entries(schema.properties)) {
-    const propObj = prop as any;
+  for (const [key, prop] of Object.entries(typedSchema.properties)) {
     parameters.push({
       name: key,
-      type: propObj.type || "string",
-      description: propObj.description,
-      enum: propObj.enum,
-      default: propObj.default,
+      type: prop?.type || "string",
+      description: prop?.description,
+      enum: prop?.enum,
+      default: prop?.default,
     });
   }
 
@@ -176,8 +168,8 @@ function buildFormParameters(schema?: any): FormParameter[] {
 
 async function executeWorkflow(
   workflow: Workflow,
-  inputs: Record<string, any>,
-  tenant: TenantConfig | null
+  inputs: Record<string, string | number | boolean | undefined>,
+  tenant: TenantConfig | null,
 ): Promise<{ executionId: string }> {
   // In real app, would POST to /platform/automation/v1/workflows/{id}/run
   // with body: { input: inputs }

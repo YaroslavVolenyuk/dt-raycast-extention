@@ -1,8 +1,7 @@
 // B1-2: Workflow detail view with execution history
-import { Detail, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
+import { Detail, Action, ActionPanel, Icon, useNavigation } from "@raycast/api";
 import type { Workflow, WorkflowExecution } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
-import { useState } from "react";
 import { MOCK_WORKFLOW_EXECUTIONS } from "../../lib/api/mock";
 import ExecuteWorkflowForm from "./execute-workflow";
 import ExecutionsList from "./executions-list";
@@ -15,12 +14,9 @@ interface WorkflowDetailViewProps {
 
 export default function WorkflowDetailView({ workflow, tenant, onRefresh }: WorkflowDetailViewProps) {
   const { push } = useNavigation();
-  const [isExecuting, setIsExecuting] = useState(false);
 
   // Mock execution history - in real app, would fetch from API
-  const executionHistory: WorkflowExecution[] = MOCK_WORKFLOW_EXECUTIONS.filter(
-    (e) => e.workflowId === workflow.id
-  );
+  const executionHistory: WorkflowExecution[] = MOCK_WORKFLOW_EXECUTIONS.filter((e) => e.workflowId === workflow.id);
 
   // Build markdown detail view
   const markdown = buildWorkflowDetail(workflow, executionHistory);
@@ -43,7 +39,7 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
                     onSuccess={() => {
                       onRefresh();
                     }}
-                  />
+                  />,
                 );
               } else {
                 // No parameters - execute directly
@@ -61,7 +57,7 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
                   workflowName={workflow.name}
                   tenant={tenant}
                   onRefresh={onRefresh}
-                />
+                />,
               );
             }}
           />
@@ -70,8 +66,8 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
             icon={Icon.Globe}
             onAction={() => {
               if (tenant) {
-                const deepLinkUrl = `${tenant.url}/ui/apps/dynatrace.workflows/workflow/${workflow.id}`;
-                // In real app, use openInBrowser(deepLinkUrl)
+                // In real app, use openInBrowser with:
+                // `${tenant.url}/ui/apps/dynatrace.workflows/workflow/${workflow.id}`
               }
             }}
           />
@@ -121,13 +117,16 @@ function buildWorkflowDetail(workflow: Workflow, executionHistory: WorkflowExecu
   // Input parameters schema
   if (workflow.inputParametersSchema && Object.keys(workflow.inputParametersSchema).length > 0) {
     md += `## Input Parameters\n\n`;
-    const props = (workflow.inputParametersSchema as any).properties || {};
-    const required = (workflow.inputParametersSchema as any).required || [];
+    const schema = workflow.inputParametersSchema as {
+      properties?: Record<string, { type?: string; description?: string }>;
+      required?: string[];
+    };
+    const props = schema.properties || {};
+    const required = schema.required || [];
 
     for (const [key, prop] of Object.entries(props)) {
       const isRequired = required.includes(key) ? "**required**" : "optional";
-      const propObj = prop as any;
-      md += `- **${key}** (${propObj.type}, ${isRequired}): ${propObj.description || ""}\n`;
+      md += `- **${key}** (${prop?.type || "unknown"}, ${isRequired}): ${prop?.description || ""}\n`;
     }
     md += `\n`;
   }
@@ -202,7 +201,10 @@ function formatDate(date?: string): string {
   }
 }
 
-async function handleExecuteWorkflow(workflow: Workflow, inputs: Record<string, any> | null) {
+async function handleExecuteWorkflow(
+  workflow: Workflow,
+  inputs: Record<string, string | number | boolean | undefined> | null,
+) {
   try {
     // In real app, would POST to /platform/automation/v1/workflows/{id}/run
     console.log(`Executing workflow ${workflow.id}`, inputs);

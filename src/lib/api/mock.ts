@@ -878,11 +878,7 @@ export const MOCK_SETTINGS: SettingsObject[] = [
     isModified: false,
     value: {
       team: "platform-team",
-      services: [
-        "api-gateway",
-        "auth-service",
-        "rate-limiter",
-      ],
+      services: ["api-gateway", "auth-service", "rate-limiter"],
       contacts: [
         {
           type: "email",

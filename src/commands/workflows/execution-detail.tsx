@@ -1,5 +1,5 @@
 // B2-1: Execution detail view with task breakdown
-import { Detail, Action, ActionPanel, Icon, Color, showToast, Toast, useNavigation } from "@raycast/api";
+import { Detail, Action, ActionPanel, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import type { WorkflowExecution, ExecutionTask } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { MOCK_EXECUTION_TASKS } from "../../lib/api/mock";
@@ -25,7 +25,7 @@ export default function ExecutionDetailView({
 
   // Mock task data - in real app, would fetch from /platform/automation/v1/executions/{id}/tasks
   const tasks: ExecutionTask[] = MOCK_EXECUTION_TASKS.filter(
-    (t) => execution.id.includes("001") || execution.id.includes("003")
+    () => execution.id.includes("001") || execution.id.includes("003"),
   );
 
   const markdown = buildExecutionDetail(execution, tasks, workflowName);
@@ -112,7 +112,7 @@ export default function ExecutionDetailView({
             />
           )}
           {execution.status !== "RUNNING" && (
-            <Action title="Re-run Workflow" icon={Icon.RotateClockwise} onAction={handleReRun} />
+            <Action title="Re-Run Workflow" icon={Icon.RotateClockwise} onAction={handleReRun} />
           )}
           <Action title="Refresh" icon={Icon.RotateClockwise} onAction={onRefresh} />
           <Action title="Back" icon={Icon.ChevronLeft} onAction={pop} />
@@ -122,11 +122,7 @@ export default function ExecutionDetailView({
   );
 }
 
-function buildExecutionDetail(
-  execution: WorkflowExecution,
-  tasks: ExecutionTask[],
-  workflowName: string
-): string {
+function buildExecutionDetail(execution: WorkflowExecution, tasks: ExecutionTask[], workflowName: string): string {
   let md = `# Execution Details\n\n`;
   md += `**Workflow:** ${workflowName}\n`;
   md += `**Execution ID:** \`${execution.id}\`\n\n`;
@@ -261,7 +257,7 @@ async function cancelExecution(executionId: string, tenant: TenantConfig | null)
 async function reRunExecution(
   workflowId: string,
   execution: WorkflowExecution,
-  tenant: TenantConfig | null
+  tenant: TenantConfig | null,
 ): Promise<string> {
   if (!tenant) {
     throw new Error("No tenant selected");

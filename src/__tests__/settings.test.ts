@@ -177,7 +177,7 @@ describe("Settings Value JSON", () => {
   test("alerting profile should have rules and notifications", () => {
     const alerting = MOCK_SETTINGS.find((s) => s.schemaId === "builtin:alerting.profile");
     if (alerting) {
-      const value = alerting.value as any;
+      const value = alerting.value as Record<string, unknown>;
       expect(value.filters || value.rules || value.name).toBeDefined();
     }
   });
@@ -185,7 +185,7 @@ describe("Settings Value JSON", () => {
   test("management zone should have zone rules", () => {
     const mz = MOCK_SETTINGS.find((s) => s.schemaId === "builtin:management-zones");
     if (mz) {
-      const value = mz.value as any;
+      const value = mz.value as Record<string, unknown>;
       expect(value.rules || value.name).toBeDefined();
     }
   });

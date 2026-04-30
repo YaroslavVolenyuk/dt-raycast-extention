@@ -24,7 +24,7 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
 
   // Sort by startTime descending (most recent first)
   const sortedExecutions = [...allExecutions].sort(
-    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
   );
 
   // Paginate
@@ -39,7 +39,7 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
         workflowName={workflowName}
         tenant={tenant}
         onRefresh={onRefresh}
-      />
+      />,
     );
   };
 
@@ -69,15 +69,9 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
         </ActionPanel>
       }
     >
-      <List.Section
-        title={`Executions - Page ${pageIndex + 1} of ${totalPages} (${sortedExecutions.length} total)`}
-      >
+      <List.Section title={`Executions - Page ${pageIndex + 1} of ${totalPages} (${sortedExecutions.length} total)`}>
         {paginatedExecutions.map((execution) => (
-          <ExecutionListItem
-            key={execution.id}
-            execution={execution}
-            onSelect={handleSelectExecution}
-          />
+          <ExecutionListItem key={execution.id} execution={execution} onSelect={handleSelectExecution} />
         ))}
       </List.Section>
     </List>

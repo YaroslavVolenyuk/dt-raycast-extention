@@ -34,7 +34,7 @@ describe("Workflow Executions (B2)", () => {
 
     test("should maintain task order by start time", () => {
       const sortedTasks = [...MOCK_EXECUTION_TASKS].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
       );
 
       for (let i = 0; i < sortedTasks.length - 1; i++) {
@@ -62,7 +62,7 @@ describe("Workflow Executions (B2)", () => {
 
     test("should allow re-run for completed executions", () => {
       const completedExecutions = MOCK_WORKFLOW_EXECUTIONS.filter(
-        (e) => e.status === "SUCCEEDED" || e.status === "FAILED"
+        (e) => e.status === "SUCCEEDED" || e.status === "FAILED",
       );
       expect(completedExecutions.length).toBeGreaterThan(0);
     });
@@ -103,7 +103,7 @@ describe("Workflow Executions (B2)", () => {
 
     test("should sort executions by startTime descending", () => {
       const sorted = [...MOCK_WORKFLOW_EXECUTIONS].sort(
-        (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+        (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
       );
 
       for (let i = 0; i < sorted.length - 1; i++) {
@@ -134,7 +134,7 @@ describe("Workflow Executions (B2)", () => {
 
     test("should track execution duration", () => {
       const completedExecutions = MOCK_WORKFLOW_EXECUTIONS.filter(
-        (e) => e.status === "SUCCEEDED" || e.status === "FAILED"
+        (e) => e.status === "SUCCEEDED" || e.status === "FAILED",
       );
 
       for (const exec of completedExecutions) {
@@ -211,9 +211,6 @@ describe("Workflow Executions (B2)", () => {
     test("should handle missing task data gracefully", () => {
       // Mock behavior when task data is unavailable
       const execution = MOCK_WORKFLOW_EXECUTIONS[0];
-      const tasksForExecution = MOCK_EXECUTION_TASKS.filter((t) =>
-        execution.id.includes("001") || execution.id.includes("003")
-      );
 
       // Should still render execution without tasks
       expect(execution).toBeDefined();

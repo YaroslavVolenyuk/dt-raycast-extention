@@ -1,5 +1,5 @@
 // src/__tests__/workflow.test.ts
-import { workflowSchema, workflowListSchema, ExecutionTask } from "../lib/types/workflow";
+import { workflowSchema, workflowListSchema } from "../lib/types/workflow";
 import { MOCK_WORKFLOWS, MOCK_WORKFLOW_EXECUTIONS, MOCK_EXECUTION_TASKS } from "../lib/api/mock";
 
 describe("Workflow Types", () => {
@@ -70,11 +70,10 @@ describe("Mock Workflows", () => {
   test("should have valid input parameter schemas", () => {
     for (const workflow of MOCK_WORKFLOWS) {
       if (workflow.inputParametersSchema) {
-        const schema = workflow.inputParametersSchema as any;
+        const schema = workflow.inputParametersSchema as { properties?: Record<string, { type?: string }> };
         if (schema.properties) {
           for (const prop of Object.values(schema.properties)) {
-            const propObj = prop as any;
-            expect(propObj.type).toBeDefined();
+            expect(prop?.type).toBeDefined();
           }
         }
       }
@@ -95,8 +94,6 @@ describe("Mock Workflows", () => {
 describe("Workflow execution scenarios", () => {
   test("should filter workflows by trigger type", () => {
     const manualWorkflows = MOCK_WORKFLOWS.filter((w) => w.triggerType === "MANUAL");
-    const scheduleWorkflows = MOCK_WORKFLOWS.filter((w) => w.triggerType === "SCHEDULE");
-    const eventWorkflows = MOCK_WORKFLOWS.filter((w) => w.triggerType === "EVENT");
 
     // Should have at least some workflows of each type
     expect(manualWorkflows.length).toBeGreaterThan(0);
@@ -151,11 +148,11 @@ describe("Workflow execution scenarios", () => {
 describe("Workflow parameter validation", () => {
   test("workflows with parameters should define required fields", () => {
     const workflowsWithParams = MOCK_WORKFLOWS.filter(
-      (w) => w.inputParametersSchema && Object.keys(w.inputParametersSchema).length > 0
+      (w) => w.inputParametersSchema && Object.keys(w.inputParametersSchema).length > 0,
     );
 
     for (const workflow of workflowsWithParams) {
-      const schema = workflow.inputParametersSchema as any;
+      const schema = workflow.inputParametersSchema as { properties?: Record<string, unknown> };
       // Schema should have properties
       if (schema.properties) {
         expect(Object.keys(schema.properties).length).toBeGreaterThan(0);
@@ -165,7 +162,7 @@ describe("Workflow parameter validation", () => {
 
   test("should handle workflows without parameters", () => {
     const noParamWorkflows = MOCK_WORKFLOWS.filter(
-      (w) => !w.inputParametersSchema || Object.keys(w.inputParametersSchema).length === 0
+      (w) => !w.inputParametersSchema || Object.keys(w.inputParametersSchema).length === 0,
     );
     expect(noParamWorkflows.length).toBeGreaterThan(0);
   });

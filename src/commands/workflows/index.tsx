@@ -5,7 +5,7 @@ import { getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
 import { workflowListSchema } from "../../lib/types/workflow";
 import type { Workflow } from "../../lib/types/workflow";
-import { registerMock, isMockMode } from "../../lib/api/rest";
+import { registerMock } from "../../lib/api/rest";
 import { useState, useEffect } from "react";
 import { MOCK_WORKFLOWS } from "../../lib/api/mock";
 import WorkflowDetailView from "./workflow-detail";
@@ -80,10 +80,6 @@ export default function WorkflowsCommand() {
     );
   }
 
-  // Get unique trigger types and owners for filtering
-  const triggerTypes = Array.from(new Set(workflows.map((w) => w.triggerType)));
-  const owners = Array.from(new Set(workflows.map((w) => w.owner).filter(Boolean))) as string[];
-
   // Group by status for display
   const enabled = filteredWorkflows.filter((w) => w.enabled);
   const disabled = filteredWorkflows.filter((w) => !w.enabled);
@@ -107,11 +103,7 @@ export default function WorkflowsCommand() {
       {enabled.length > 0 && (
         <List.Section title="🟢 Enabled">
           {enabled.map((workflow) => (
-            <WorkflowListItem
-              key={workflow.id}
-              workflow={workflow}
-              onSelect={handleSelectWorkflow}
-            />
+            <WorkflowListItem key={workflow.id} workflow={workflow} onSelect={handleSelectWorkflow} />
           ))}
         </List.Section>
       )}
@@ -119,11 +111,7 @@ export default function WorkflowsCommand() {
       {disabled.length > 0 && (
         <List.Section title="⚫ Disabled">
           {disabled.map((workflow) => (
-            <WorkflowListItem
-              key={workflow.id}
-              workflow={workflow}
-              onSelect={handleSelectWorkflow}
-            />
+            <WorkflowListItem key={workflow.id} workflow={workflow} onSelect={handleSelectWorkflow} />
           ))}
         </List.Section>
       )}
@@ -138,12 +126,7 @@ interface WorkflowListItemProps {
 
 function WorkflowListItem({ workflow, onSelect }: WorkflowListItemProps) {
   // Determine trigger icon
-  const triggerIcon =
-    workflow.triggerType === "SCHEDULE"
-      ? "🕐"
-      : workflow.triggerType === "EVENT"
-        ? "⚡"
-        : "👆";
+  const triggerIcon = workflow.triggerType === "SCHEDULE" ? "🕐" : workflow.triggerType === "EVENT" ? "⚡" : "👆";
 
   // Determine last execution status color
   const statusColor = workflow.lastExecutionStatus

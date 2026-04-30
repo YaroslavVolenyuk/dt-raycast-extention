@@ -3,7 +3,7 @@ import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/
 import { useDynatraceRest } from "../../lib/api/useRest";
 import { getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
-import { settingsListSchema, getSettingsTypeLabel, getSettingsTypeIcon, SETTINGS_TYPES } from "../../lib/types/settings";
+import { settingsListSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
 import type { SettingsObject, SettingsType } from "../../lib/types/settings";
 import { registerMock } from "../../lib/api/rest";
 import { useState, useEffect } from "react";
@@ -57,10 +57,7 @@ export default function SettingsCommand() {
         searchBarPlaceholder="Search settings by name..."
         actions={
           <ActionPanel>
-            <Action
-              title="Clear Type Filter"
-              onAction={() => setFilterSchemaId(null)}
-            />
+            <Action title="Clear Type Filter" onAction={() => setFilterSchemaId(null)} />
           </ActionPanel>
         }
       >
@@ -88,20 +85,12 @@ export default function SettingsCommand() {
       searchBarPlaceholder="Search settings by name..."
       actions={
         <ActionPanel>
-          {filterSchemaId && (
-            <Action
-              title="Clear Type Filter"
-              onAction={() => setFilterSchemaId(null)}
-            />
-          )}
+          {filterSchemaId && <Action title="Clear Type Filter" onAction={() => setFilterSchemaId(null)} />}
         </ActionPanel>
       }
     >
       {Array.from(groupedSettings.entries()).map(([schemaId, items]) => (
-        <List.Section
-          key={schemaId}
-          title={`${getSettingsTypeIcon(schemaId)} ${getSettingsTypeLabel(schemaId)}`}
-        >
+        <List.Section key={schemaId} title={`${getSettingsTypeIcon(schemaId)} ${getSettingsTypeLabel(schemaId)}`}>
           {items.map((setting) => (
             <SettingsListItem
               key={setting.id}
@@ -179,11 +168,7 @@ function SettingsListItem({ setting, onSelect, onFilterByType }: SettingsListIte
       actions={
         <ActionPanel>
           <Action title="View Details" icon={Icon.Eye} onAction={() => onSelect(setting)} />
-          <Action
-            title="Filter by Type"
-            icon={Icon.Filter}
-            onAction={() => onFilterByType(setting.schemaId)}
-          />
+          <Action title="Filter by Type" icon={Icon.Filter} onAction={() => onFilterByType(setting.schemaId)} />
         </ActionPanel>
       }
     />
