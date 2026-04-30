@@ -9,6 +9,7 @@ import { Deployment } from "../types/deployment";
 import { Span } from "../types/span";
 import type { Entity } from "../types/entity";
 import type { SavedQuery } from "../types/savedQuery";
+import type { Workflow, WorkflowExecution, ExecutionTask } from "../types/workflow";
 
 export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -503,5 +504,222 @@ export const MOCK_SAVED_QUERIES: SavedQuery[] = [
     timeframe: "7d",
     createdAt: ago(10 * d),
     isFavorite: true,
+  },
+];
+
+// Mock Workflow Executions
+export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
+  {
+    id: "exec-001",
+    workflowId: "wf-remediate-high-latency",
+    status: "SUCCEEDED",
+    startTime: ago(2 * h),
+    endTime: ago(2 * h - 5 * m),
+    durationMs: 300000,
+    triggeredBy: "incident-142",
+  },
+  {
+    id: "exec-002",
+    workflowId: "wf-restart-service",
+    status: "RUNNING",
+    startTime: ago(5 * m),
+    endTime: null,
+    durationMs: null,
+    triggeredBy: "manual",
+  },
+  {
+    id: "exec-003",
+    workflowId: "wf-notify-oncall",
+    status: "FAILED",
+    startTime: ago(1 * h),
+    endTime: ago(1 * h - 2 * m),
+    durationMs: 120000,
+    triggeredBy: "problem-incident",
+  },
+  {
+    id: "exec-004",
+    workflowId: "wf-scaling-policy",
+    status: "SUCCEEDED",
+    startTime: ago(4 * h),
+    endTime: ago(4 * h - 10 * m),
+    durationMs: 600000,
+    triggeredBy: "schedule",
+  },
+  {
+    id: "exec-005",
+    workflowId: "wf-remediate-high-latency",
+    status: "SUCCEEDED",
+    startTime: ago(24 * h),
+    endTime: ago(24 * h - 3 * m),
+    durationMs: 180000,
+    triggeredBy: "incident-141",
+  },
+];
+
+// Mock Execution Tasks
+export const MOCK_EXECUTION_TASKS: ExecutionTask[] = [
+  {
+    id: "task-001",
+    name: "Check service health",
+    status: "SUCCEEDED",
+    startTime: ago(2 * h),
+    endTime: ago(2 * h - 30 * 1000),
+    durationMs: 30000,
+  },
+  {
+    id: "task-002",
+    name: "Trigger restart",
+    status: "SUCCEEDED",
+    startTime: ago(2 * h - 30 * 1000),
+    endTime: ago(2 * h - 60 * 1000),
+    durationMs: 30000,
+  },
+  {
+    id: "task-003",
+    name: "Notify ops team",
+    status: "FAILED",
+    startTime: ago(1 * h),
+    endTime: ago(1 * h - 10 * 1000),
+    durationMs: 10000,
+    errorMessage: "Slack webhook failed: 403 Forbidden",
+  },
+  {
+    id: "task-004",
+    name: "Wait for recovery",
+    status: "RUNNING",
+    startTime: ago(5 * m),
+    endTime: null,
+    durationMs: null,
+  },
+];
+
+// Mock Workflows
+export const MOCK_WORKFLOWS: Workflow[] = [
+  {
+    id: "wf-remediate-high-latency",
+    name: "Remediate High Latency",
+    description: "Automatically investigate and remediate high latency issues in payment service",
+    owner: "platform-team",
+    triggerType: "EVENT",
+    enabled: true,
+    createdAt: ago(30 * d),
+    modifiedAt: ago(2 * d),
+    lastExecutionStatus: "SUCCEEDED",
+    lastExecutionTime: ago(2 * h),
+    inputParametersSchema: {
+      type: "object",
+      properties: {
+        service: { type: "string", description: "Service name" },
+        threshold: { type: "number", description: "Latency threshold in ms" },
+      },
+      required: ["service"],
+    },
+    tags: ["latency", "remediation", "automatic"],
+  },
+  {
+    id: "wf-restart-service",
+    name: "Restart Service",
+    description: "Manual workflow to restart a service",
+    owner: "devops-team",
+    triggerType: "MANUAL",
+    enabled: true,
+    createdAt: ago(45 * d),
+    modifiedAt: ago(1 * d),
+    lastExecutionStatus: "RUNNING",
+    lastExecutionTime: ago(5 * m),
+    inputParametersSchema: {
+      type: "object",
+      properties: {
+        service: { type: "string" },
+        gracefulShutdownSeconds: { type: "number", default: 30 },
+      },
+      required: ["service"],
+    },
+    tags: ["restart", "maintenance"],
+  },
+  {
+    id: "wf-notify-oncall",
+    name: "Notify On-call",
+    description: "Send critical alerts to on-call engineer via Slack",
+    owner: "platform-team",
+    triggerType: "EVENT",
+    enabled: true,
+    createdAt: ago(60 * d),
+    modifiedAt: ago(5 * d),
+    lastExecutionStatus: "FAILED",
+    lastExecutionTime: ago(1 * h),
+    inputParametersSchema: {
+      type: "object",
+      properties: {
+        severity: { type: "string", enum: ["CRITICAL", "HIGH", "MEDIUM"] },
+        message: { type: "string" },
+      },
+      required: ["severity", "message"],
+    },
+    tags: ["notification", "alert"],
+  },
+  {
+    id: "wf-scaling-policy",
+    name: "Auto Scaling Policy",
+    description: "Automatically scale services based on CPU and memory metrics",
+    owner: "infrastructure-team",
+    triggerType: "SCHEDULE",
+    enabled: true,
+    createdAt: ago(90 * d),
+    modifiedAt: ago(10 * d),
+    lastExecutionStatus: "SUCCEEDED",
+    lastExecutionTime: ago(4 * h),
+    inputParametersSchema: {},
+    tags: ["scaling", "infrastructure"],
+  },
+  {
+    id: "wf-backup-database",
+    name: "Backup Database",
+    description: "Daily database backup with verification",
+    owner: "database-team",
+    triggerType: "SCHEDULE",
+    enabled: false,
+    createdAt: ago(120 * d),
+    modifiedAt: ago(20 * d),
+    lastExecutionStatus: "SUCCEEDED",
+    lastExecutionTime: ago(48 * h),
+    inputParametersSchema: {},
+    tags: ["backup", "database"],
+  },
+  {
+    id: "wf-deploy-canary",
+    name: "Deploy Canary",
+    description: "Deploy new version to canary environment with metrics validation",
+    owner: "platform-team",
+    triggerType: "MANUAL",
+    enabled: true,
+    createdAt: ago(75 * d),
+    modifiedAt: ago(3 * d),
+    lastExecutionStatus: "SUCCEEDED",
+    lastExecutionTime: ago(8 * h),
+    inputParametersSchema: {
+      type: "object",
+      properties: {
+        version: { type: "string" },
+        service: { type: "string" },
+        percentageTraffic: { type: "number", minimum: 1, maximum: 100 },
+      },
+      required: ["version", "service"],
+    },
+    tags: ["deployment", "canary"],
+  },
+  {
+    id: "wf-daily-health-check",
+    name: "Daily Health Check",
+    description: "Run daily infrastructure health check",
+    owner: "infrastructure-team",
+    triggerType: "SCHEDULE",
+    enabled: true,
+    createdAt: ago(60 * d),
+    modifiedAt: ago(7 * d),
+    lastExecutionStatus: "SUCCEEDED",
+    lastExecutionTime: ago(12 * h),
+    inputParametersSchema: {},
+    tags: ["health-check", "daily"],
   },
 ];

@@ -16,6 +16,7 @@ import DqlRunnerCommand from "../dql-runner/index";
 import SavedQueriesCommand from "../saved-queries/index";
 import TenantsCommand from "../tenants/index";
 import SearchTracesCommand from "../traces/index";
+import WorkflowsCommand from "../workflows/index";
 
 interface HubEntry {
   title: string;
@@ -65,6 +66,14 @@ export default function DtHub() {
       color: Color.Green,
       keywords: ["slo", "objectives", "compliance", "error budget", "status", "dt-slo"],
       component: <SloCommand />,
+    },
+    {
+      title: "Workflows",
+      subtitle: "dt-workflows · View and execute automation workflows",
+      icon: Icon.Gear,
+      color: Color.Orange,
+      keywords: ["workflows", "automation", "execute", "schedule", "event", "dt-workflows"],
+      component: <WorkflowsCommand />,
     },
     {
       title: "Active Problems",
