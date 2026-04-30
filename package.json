@@ -246,6 +246,31 @@
       "description": "Test tenant connection and view configuration details",
       "mode": "view",
       "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-metrics",
+      "title": "Metrics Explorer",
+      "subtitle": "Dynatrace",
+      "description": "Search and view metrics with trends, aggregations, and sparklines",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-synthetics",
+      "title": "Synthetic Monitors",
+      "subtitle": "Dynatrace",
+      "description": "View synthetic monitors with availability, response times, and per-location breakdown",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-menubar-slo",
+      "title": "SLO Menubar",
+      "subtitle": "Dynatrace",
+      "description": "Monitor SLO violations in macOS menubar with 5-minute refresh",
+      "mode": "menu-bar",
+      "icon": "dynatrace-icon.png",
+      "interval": "5m"
     }
   ],
   "engines": {

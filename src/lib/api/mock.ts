@@ -11,6 +11,9 @@ import type { Entity } from "../types/entity";
 import type { SavedQuery } from "../types/savedQuery";
 import type { Workflow, WorkflowExecution, ExecutionTask } from "../types/workflow";
 import type { SettingsObject } from "../types/settings";
+import type { MetricData, DataPoint } from "../types/metric";
+import type { SyntheticMonitorData } from "../types/synthetic";
+import { ExecutionStatus, MonitorType } from "../types/synthetic";
 
 export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -926,5 +929,210 @@ export const MOCK_SETTINGS: SettingsObject[] = [
         },
       ],
     },
+  },
+];
+
+/**
+ * Mock metrics data for testing metrics explorer
+ */
+export const MOCK_METRICS: MetricData[] = [
+  {
+    metric: {
+      metricId: "builtin:host.cpu.usage",
+      displayName: "CPU Usage",
+      unit: "%",
+      description: "Host CPU usage percentage",
+    },
+    currentValue: 65.3,
+    minValue: 42.1,
+    maxValue: 89.7,
+    avgValue: 62.4,
+    lastUpdated: Date.now(),
+    dataPoints: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: Date.now() - (60 - i) * 60000,
+      value: 45 + Math.sin(i / 10) * 20 + Math.random() * 10,
+    })),
+  },
+  {
+    metric: {
+      metricId: "builtin:host.mem.usage",
+      displayName: "Memory Usage",
+      unit: "%",
+      description: "Host memory usage percentage",
+    },
+    currentValue: 72.1,
+    minValue: 68.5,
+    maxValue: 78.3,
+    avgValue: 71.8,
+    lastUpdated: Date.now(),
+    dataPoints: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: Date.now() - (60 - i) * 60000,
+      value: 70 + Math.sin(i / 15) * 5 + Math.random() * 3,
+    })),
+  },
+  {
+    metric: {
+      metricId: "builtin:service.response.time",
+      displayName: "Response Time",
+      unit: "ms",
+      description: "Average service response time",
+    },
+    currentValue: 245,
+    minValue: 120,
+    maxValue: 890,
+    avgValue: 380,
+    lastUpdated: Date.now(),
+    dataPoints: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: Date.now() - (60 - i) * 60000,
+      value: 300 + Math.sin(i / 8) * 150 + Math.random() * 100,
+    })),
+  },
+  {
+    metric: {
+      metricId: "builtin:service.errors.rate",
+      displayName: "Error Rate",
+      unit: "%",
+      description: "Service error rate",
+    },
+    currentValue: 1.2,
+    minValue: 0.3,
+    maxValue: 5.7,
+    avgValue: 1.8,
+    lastUpdated: Date.now(),
+    dataPoints: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: Date.now() - (60 - i) * 60000,
+      value: Math.max(0.1, 1 + Math.sin(i / 20) * 2 + Math.random() * 1.5),
+    })),
+  },
+  {
+    metric: {
+      metricId: "builtin:service.throughput",
+      displayName: "Throughput",
+      unit: "requests/min",
+      description: "Requests per minute",
+    },
+    currentValue: 5320,
+    minValue: 3100,
+    maxValue: 7800,
+    avgValue: 5450,
+    lastUpdated: Date.now(),
+    dataPoints: Array.from({ length: 60 }, (_, i) => ({
+      timestamp: Date.now() - (60 - i) * 60000,
+      value: 5000 + Math.sin(i / 12) * 1500 + Math.random() * 800,
+    })),
+  },
+];
+
+/**
+ * Mock synthetic monitors data for testing
+ */
+export const MOCK_SYNTHETICS: SyntheticMonitorData[] = [
+  {
+    monitor: {
+      monitorId: "synthetic-http-001",
+      name: "API Health Check",
+      type: MonitorType.HTTP,
+      url: "https://api.example.com/health",
+      enabled: true,
+      schedule: { interval: 5, timezone: "UTC" },
+      locations: ["North America - US East", "Europe - Germany", "Asia - Singapore"],
+      createdAt: Date.now() - 30 * d,
+      modifiedAt: Date.now() - 2 * d,
+      tags: { team: "platform", sla: "99.9" },
+    },
+    availability: 99.8,
+    failureCount: 1,
+    avgResponseTime: 245,
+    lastExecution: {
+      executionId: "exec-001",
+      monitorId: "synthetic-http-001",
+      timestamp: Date.now() - 5 * m,
+      status: ExecutionStatus.OK,
+      responseTime: 238,
+      locationResults: [
+        { location: "North America - US East", status: ExecutionStatus.OK, responseTime: 215, timestamp: Date.now() - 5 * m },
+        { location: "Europe - Germany", status: ExecutionStatus.OK, responseTime: 245, timestamp: Date.now() - 5 * m },
+        { location: "Asia - Singapore", status: ExecutionStatus.OK, responseTime: 275, timestamp: Date.now() - 5 * m },
+      ],
+    },
+  },
+  {
+    monitor: {
+      monitorId: "synthetic-http-002",
+      name: "Payment Gateway",
+      type: MonitorType.HTTP,
+      url: "https://payments.example.com/status",
+      enabled: true,
+      schedule: { interval: 10, timezone: "UTC" },
+      locations: ["North America - US East", "Europe - Germany"],
+      createdAt: Date.now() - 60 * d,
+      modifiedAt: Date.now() - 1 * d,
+      tags: { team: "payments", sla: "99.95", critical: "true" },
+    },
+    availability: 100,
+    failureCount: 0,
+    avgResponseTime: 180,
+    lastExecution: {
+      executionId: "exec-002",
+      monitorId: "synthetic-http-002",
+      timestamp: Date.now() - 10 * m,
+      status: ExecutionStatus.OK,
+      responseTime: 175,
+      locationResults: [
+        { location: "North America - US East", status: ExecutionStatus.OK, responseTime: 165, timestamp: Date.now() - 10 * m },
+        { location: "Europe - Germany", status: ExecutionStatus.OK, responseTime: 185, timestamp: Date.now() - 10 * m },
+      ],
+    },
+  },
+  {
+    monitor: {
+      monitorId: "synthetic-browser-001",
+      name: "Customer Portal Login Flow",
+      type: MonitorType.BROWSER,
+      url: "https://portal.example.com/login",
+      enabled: true,
+      schedule: { interval: 15, timezone: "UTC" },
+      locations: ["North America - US West", "Europe - UK"],
+      createdAt: Date.now() - 45 * d,
+      modifiedAt: Date.now() - 3 * h,
+      tags: { team: "frontend", user_experience: "critical" },
+    },
+    availability: 95.2,
+    failureCount: 2,
+    avgResponseTime: 3200,
+    lastExecution: {
+      executionId: "exec-003",
+      monitorId: "synthetic-browser-001",
+      timestamp: Date.now() - 15 * m,
+      status: ExecutionStatus.FAILED,
+      responseTime: 5200,
+      locationResults: [
+        { location: "North America - US West", status: ExecutionStatus.OK, responseTime: 3100, timestamp: Date.now() - 15 * m },
+        {
+          location: "Europe - UK",
+          status: ExecutionStatus.FAILED,
+          errorMessage: "Timeout waiting for element #login-btn",
+          timestamp: Date.now() - 15 * m,
+        },
+      ],
+      errorMessage: "One or more locations failed",
+    },
+  },
+  {
+    monitor: {
+      monitorId: "synthetic-http-003",
+      name: "Search Service",
+      type: MonitorType.HTTP,
+      url: "https://search.example.com/api/search?q=test",
+      enabled: false,
+      schedule: { interval: 30, timezone: "UTC" },
+      locations: ["North America - US East"],
+      createdAt: Date.now() - 90 * d,
+      modifiedAt: Date.now() - 14 * d,
+      tags: { team: "search", status: "maintenance" },
+    },
+    availability: 0,
+    failureCount: 0,
+    lastExecution: undefined,
   },
 ];

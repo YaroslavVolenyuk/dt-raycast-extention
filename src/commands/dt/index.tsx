@@ -18,6 +18,8 @@ import TenantsCommand from "../tenants/index";
 import SearchTracesCommand from "../traces/index";
 import WorkflowsCommand from "../workflows/index";
 import SettingsCommand from "../settings/index";
+import MetricsCommand from "../metrics/index";
+import SyntheticsCommand from "../synthetics/index";
 
 interface HubEntry {
   title: string;
@@ -67,6 +69,22 @@ export default function DtHub() {
       color: Color.Green,
       keywords: ["slo", "objectives", "compliance", "error budget", "status", "dt-slo"],
       component: <SloCommand />,
+    },
+    {
+      title: "Metrics Explorer",
+      subtitle: "dt-metrics · Search metrics with trends, aggregations, and sparklines",
+      icon: Icon.BarChart,
+      color: Color.Blue,
+      keywords: ["metrics", "explorer", "cpu", "memory", "response time", "sparkline", "dt-metrics"],
+      component: <MetricsCommand />,
+    },
+    {
+      title: "Synthetic Monitors",
+      subtitle: "dt-synthetics · View uptime and availability across test locations",
+      icon: Icon.Globe,
+      color: Color.Green,
+      keywords: ["synthetic", "monitors", "uptime", "availability", "http", "browser", "dt-synthetics"],
+      component: <SyntheticsCommand />,
     },
     {
       title: "Workflows",
