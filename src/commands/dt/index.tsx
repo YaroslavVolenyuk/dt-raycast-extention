@@ -17,6 +17,7 @@ import SavedQueriesCommand from "../saved-queries/index";
 import TenantsCommand from "../tenants/index";
 import SearchTracesCommand from "../traces/index";
 import WorkflowsCommand from "../workflows/index";
+import SettingsCommand from "../settings/index";
 
 interface HubEntry {
   title: string;
@@ -74,6 +75,14 @@ export default function DtHub() {
       color: Color.Orange,
       keywords: ["workflows", "automation", "execute", "schedule", "event", "dt-workflows"],
       component: <WorkflowsCommand />,
+    },
+    {
+      title: "Settings / Config",
+      subtitle: "dt-settings · Search and configure alerting, zones, tags, ownership",
+      icon: Icon.Sliders,
+      color: Color.Purple,
+      keywords: ["settings", "config", "alerting", "zones", "tags", "configuration", "dt-settings"],
+      component: <SettingsCommand />,
     },
     {
       title: "Active Problems",

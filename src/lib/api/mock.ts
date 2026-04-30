@@ -10,6 +10,7 @@ import { Span } from "../types/span";
 import type { Entity } from "../types/entity";
 import type { SavedQuery } from "../types/savedQuery";
 import type { Workflow, WorkflowExecution, ExecutionTask } from "../types/workflow";
+import type { SettingsObject } from "../types/settings";
 
 export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -721,5 +722,213 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     lastExecutionTime: ago(12 * h),
     inputParametersSchema: {},
     tags: ["health-check", "daily"],
+  },
+];
+
+// Mock Settings Objects
+export const MOCK_SETTINGS: SettingsObject[] = [
+  {
+    id: "alert-prod-critical",
+    schemaId: "builtin:alerting.profile",
+    schemaVersion: "1.0",
+    objectId: "alert-prod-critical-001",
+    displayName: "Alerting Profile - Production Critical",
+    description: "Alert profile for critical production incidents",
+    scope: "ENVIRONMENT",
+    author: "alert-admin",
+    createdAt: ago(90 * d),
+    modifiedAt: ago(5 * d),
+    isModified: false,
+    value: {
+      name: "Production Critical Alerts",
+      mzId: null,
+      filters: [
+        {
+          filterType: "SEVERITY",
+          value: "CRITICAL",
+        },
+        {
+          filterType: "ENTITY_TAG",
+          value: "production",
+        },
+      ],
+      notificationRules: [
+        {
+          type: "email",
+          recipients: ["oncall@company.com"],
+          delay: 0,
+        },
+        {
+          type: "slack",
+          channel: "#critical-alerts",
+          delay: 5,
+        },
+      ],
+    },
+  },
+  {
+    id: "mz-payment",
+    schemaId: "builtin:management-zones",
+    schemaVersion: "1.0",
+    objectId: "mz-payment-zone",
+    displayName: "Payment Services Zone",
+    description: "Management zone for all payment-related services",
+    scope: "ENVIRONMENT",
+    author: "platform-team",
+    createdAt: ago(60 * d),
+    modifiedAt: ago(10 * d),
+    isModified: false,
+    value: {
+      name: "Payment Services Zone",
+      rules: [
+        {
+          type: "SERVICE",
+          condition: "service.name CONTAINS payment",
+        },
+        {
+          type: "SERVICE",
+          condition: "service.owner = payment-team",
+        },
+      ],
+    },
+  },
+  {
+    id: "autotag-env",
+    schemaId: "builtin:tags.auto-tagging",
+    schemaVersion: "1.0",
+    objectId: "autotag-env-001",
+    displayName: "Environment Auto-Tags",
+    description: "Automatically tag entities by deployment environment",
+    scope: "ENVIRONMENT",
+    author: "devops-team",
+    createdAt: ago(45 * d),
+    modifiedAt: ago(3 * d),
+    isModified: true,
+    value: {
+      rules: [
+        {
+          enabled: true,
+          entityFilter: ["SERVICE"],
+          matchType: "ALL",
+          rules: [
+            {
+              attribute: "tag",
+              operator: "contains",
+              value: "prod",
+            },
+          ],
+          tags: [
+            {
+              key: "environment",
+              value: "production",
+            },
+          ],
+        },
+        {
+          enabled: true,
+          entityFilter: ["SERVICE"],
+          matchType: "ALL",
+          rules: [
+            {
+              attribute: "tag",
+              operator: "contains",
+              value: "staging",
+            },
+          ],
+          tags: [
+            {
+              key: "environment",
+              value: "staging",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    id: "noti-slack",
+    schemaId: "builtin:notification",
+    schemaVersion: "1.0",
+    objectId: "noti-slack-001",
+    displayName: "Slack Integration",
+    description: "Main Slack webhook for Dynatrace notifications",
+    scope: "ENVIRONMENT",
+    author: "platform-team",
+    createdAt: ago(120 * d),
+    modifiedAt: ago(30 * d),
+    isModified: false,
+    value: {
+      name: "Slack Integration",
+      type: "SLACK",
+      webhookUrl: "https://hooks.slack.com/services/XXX/YYY/ZZZ",
+      channels: ["#alerts", "#incidents", "#deployments"],
+    },
+  },
+  {
+    id: "own-platform",
+    schemaId: "builtin:ownership.teams",
+    schemaVersion: "1.0",
+    objectId: "own-platform-team",
+    displayName: "Platform Team Ownership",
+    description: "Ownership mapping for platform services",
+    scope: "ENVIRONMENT",
+    author: "hr-admin",
+    createdAt: ago(75 * d),
+    modifiedAt: ago(8 * d),
+    isModified: false,
+    value: {
+      team: "platform-team",
+      services: [
+        "api-gateway",
+        "auth-service",
+        "rate-limiter",
+      ],
+      contacts: [
+        {
+          type: "email",
+          value: "platform-team@company.com",
+        },
+        {
+          type: "slack",
+          value: "#platform-team",
+        },
+      ],
+    },
+  },
+  {
+    id: "reqattr-custom",
+    schemaId: "builtin:service-api.request-attributes",
+    schemaVersion: "1.0",
+    objectId: "reqattr-custom-001",
+    displayName: "Custom Request Attributes",
+    description: "Extract custom attributes from request headers",
+    scope: "ENTITY",
+    author: "observability-team",
+    createdAt: ago(30 * d),
+    modifiedAt: ago(2 * d),
+    isModified: false,
+    value: {
+      name: "Custom Request Attributes",
+      attributes: [
+        {
+          name: "tenant-id",
+          source: "header",
+          headerName: "X-Tenant-ID",
+          type: "string",
+        },
+        {
+          name: "request-id",
+          source: "header",
+          headerName: "X-Request-ID",
+          type: "string",
+        },
+        {
+          name: "user-id",
+          source: "parameter",
+          parameterName: "userId",
+          type: "long",
+        },
+      ],
+    },
   },
 ];

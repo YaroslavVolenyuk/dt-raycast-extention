@@ -182,6 +182,14 @@
       "icon": "dynatrace-icon.png"
     },
     {
+      "name": "dt-settings",
+      "title": "Settings / Config",
+      "subtitle": "Dynatrace",
+      "description": "Search and view Dynatrace configuration objects (alerting, zones, tags, etc)",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
       "name": "dt-dql-runner",
       "title": "Run DQL Query",
       "subtitle": "Dynatrace",

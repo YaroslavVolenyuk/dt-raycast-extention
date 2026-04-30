@@ -5,6 +5,7 @@ import type { TenantConfig } from "../../lib/auth";
 import { useState } from "react";
 import { MOCK_WORKFLOW_EXECUTIONS } from "../../lib/api/mock";
 import ExecuteWorkflowForm from "./execute-workflow";
+import ExecutionsList from "./executions-list";
 
 interface WorkflowDetailViewProps {
   workflow: Workflow;
@@ -48,6 +49,20 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
                 // No parameters - execute directly
                 handleExecuteWorkflow(workflow, null);
               }
+            }}
+          />
+          <Action
+            title="View Execution History"
+            icon={Icon.Clock}
+            onAction={() => {
+              push(
+                <ExecutionsList
+                  workflowId={workflow.id}
+                  workflowName={workflow.name}
+                  tenant={tenant}
+                  onRefresh={onRefresh}
+                />
+              );
             }}
           />
           <Action
