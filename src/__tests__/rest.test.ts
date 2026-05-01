@@ -174,8 +174,9 @@ describe("dynatraceRest", () => {
     });
 
     const call = (global.fetch as jest.Mock).mock.calls[0];
-    expect(call[1].method).toBe("POST");
-    expect(call[1].body).toBe(JSON.stringify(requestBody));
+    const options = call[1] as Record<string, unknown>;
+    expect(options.method).toBe("POST");
+    expect(options.body).toBe(JSON.stringify(requestBody));
   });
 
   it("should handle network errors gracefully", async () => {

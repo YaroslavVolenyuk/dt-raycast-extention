@@ -233,7 +233,7 @@ function QueryListItem({ query, onRun, onToggleFavorite, onEdit, onDelete }: Que
       actions={
         <ActionPanel>
           <Action title="Run Query" icon={Icon.Play} onAction={onRun} />
-          <Action title="Explain Query" icon={Icon.Lightbulb} onAction={handleExplainQuery} />
+          <Action title="Explain Query" icon={Icon.LightBulb} onAction={handleExplainQuery} />
           <Action.Push title="Edit" icon={Icon.Pencil} target={<EditQueryView queryId={query.id} onSave={onEdit} />} />
           <Action
             title="Toggle Favorite"

@@ -11,7 +11,7 @@ import type { Entity } from "../types/entity";
 import type { SavedQuery } from "../types/savedQuery";
 import type { Workflow, WorkflowExecution, ExecutionTask } from "../types/workflow";
 import type { SettingsObject } from "../types/settings";
-import type { MetricData, DataPoint } from "../types/metric";
+import type { MetricData } from "../types/metric";
 import type { SyntheticMonitorData } from "../types/synthetic";
 import { ExecutionStatus, MonitorType } from "../types/synthetic";
 import type { MaintenanceWindow } from "../types/maintenance";
@@ -515,9 +515,10 @@ export const MOCK_SAVED_QUERIES: SavedQuery[] = [
 
 // Mock Workflow Executions
 export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
+  // wf-remediate-high-latency
   {
     id: "exec-001",
-    workflowId: "wf-remediate-high-latency",
+    workflowId: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
     status: "SUCCEEDED",
     startTime: ago(2 * h),
     endTime: ago(2 * h - 5 * m),
@@ -525,8 +526,46 @@ export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
     triggeredBy: "incident-142",
   },
   {
+    id: "exec-006",
+    workflowId: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
+    status: "SUCCEEDED",
+    startTime: ago(8 * h),
+    endTime: ago(8 * h - 4 * m),
+    durationMs: 240000,
+    triggeredBy: "incident-140",
+  },
+  {
+    id: "exec-005",
+    workflowId: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
+    status: "SUCCEEDED",
+    startTime: ago(24 * h),
+    endTime: ago(24 * h - 3 * m),
+    durationMs: 180000,
+    triggeredBy: "incident-141",
+  },
+  {
+    id: "exec-011",
+    workflowId: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
+    status: "FAILED",
+    startTime: ago(48 * h),
+    endTime: ago(48 * h - 1 * m),
+    durationMs: 60000,
+    triggeredBy: "incident-139",
+  },
+  {
+    id: "exec-012",
+    workflowId: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
+    status: "SUCCEEDED",
+    startTime: ago(72 * h),
+    endTime: ago(72 * h - 5 * m),
+    durationMs: 320000,
+    triggeredBy: "incident-138",
+  },
+
+  // wf-restart-service
+  {
     id: "exec-002",
-    workflowId: "wf-restart-service",
+    workflowId: "a7d8f4b2-e3c1-4a8e-9f2b-5c3d1e7a9b6c",
     status: "RUNNING",
     startTime: ago(5 * m),
     endTime: null,
@@ -534,8 +573,28 @@ export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
     triggeredBy: "manual",
   },
   {
+    id: "exec-007",
+    workflowId: "a7d8f4b2-e3c1-4a8e-9f2b-5c3d1e7a9b6c",
+    status: "SUCCEEDED",
+    startTime: ago(1 * d),
+    endTime: ago(1 * d - 2 * m),
+    durationMs: 120000,
+    triggeredBy: "manual",
+  },
+  {
+    id: "exec-013",
+    workflowId: "a7d8f4b2-e3c1-4a8e-9f2b-5c3d1e7a9b6c",
+    status: "SUCCEEDED",
+    startTime: ago(3 * d),
+    endTime: ago(3 * d - 3 * m),
+    durationMs: 180000,
+    triggeredBy: "manual",
+  },
+
+  // wf-notify-oncall - 3 failures as per your Dynatrace screenshot
+  {
     id: "exec-003",
-    workflowId: "wf-notify-oncall",
+    workflowId: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
     status: "FAILED",
     startTime: ago(1 * h),
     endTime: ago(1 * h - 2 * m),
@@ -543,8 +602,46 @@ export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
     triggeredBy: "problem-incident",
   },
   {
+    id: "exec-008",
+    workflowId: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
+    status: "FAILED",
+    startTime: ago(12 * h),
+    endTime: ago(12 * h - 1 * m),
+    durationMs: 60000,
+    triggeredBy: "incident-alert",
+  },
+  {
+    id: "exec-009",
+    workflowId: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
+    status: "FAILED",
+    startTime: ago(24 * h),
+    endTime: ago(24 * h - 2 * m),
+    durationMs: 120000,
+    triggeredBy: "critical-alert",
+  },
+  {
+    id: "exec-010",
+    workflowId: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
+    status: "SUCCEEDED",
+    startTime: ago(36 * h),
+    endTime: ago(36 * h - 1 * m),
+    durationMs: 80000,
+    triggeredBy: "incident-notification",
+  },
+  {
+    id: "exec-014",
+    workflowId: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
+    status: "SUCCEEDED",
+    startTime: ago(60 * h),
+    endTime: ago(60 * h - 1 * m),
+    durationMs: 90000,
+    triggeredBy: "manual",
+  },
+
+  // wf-scaling-policy
+  {
     id: "exec-004",
-    workflowId: "wf-scaling-policy",
+    workflowId: "8e4b2f7d-a1c9-4e3b-7f5a-2c6d8b1e3a9f",
     status: "SUCCEEDED",
     startTime: ago(4 * h),
     endTime: ago(4 * h - 10 * m),
@@ -552,13 +649,100 @@ export const MOCK_WORKFLOW_EXECUTIONS: WorkflowExecution[] = [
     triggeredBy: "schedule",
   },
   {
-    id: "exec-005",
-    workflowId: "wf-remediate-high-latency",
+    id: "exec-015",
+    workflowId: "8e4b2f7d-a1c9-4e3b-7f5a-2c6d8b1e3a9f",
     status: "SUCCEEDED",
-    startTime: ago(24 * h),
-    endTime: ago(24 * h - 3 * m),
+    startTime: ago(28 * h),
+    endTime: ago(28 * h - 8 * m),
+    durationMs: 480000,
+    triggeredBy: "schedule",
+  },
+  {
+    id: "exec-016",
+    workflowId: "8e4b2f7d-a1c9-4e3b-7f5a-2c6d8b1e3a9f",
+    status: "SUCCEEDED",
+    startTime: ago(52 * h),
+    endTime: ago(52 * h - 9 * m),
+    durationMs: 540000,
+    triggeredBy: "schedule",
+  },
+
+  // wf-backup-database
+  {
+    id: "exec-017",
+    workflowId: "d5f8a3e2-c7b4-4d1f-9e6a-5b2f7c3a1d8e",
+    status: "SUCCEEDED",
+    startTime: ago(48 * h),
+    endTime: ago(48 * h - 15 * m),
+    durationMs: 900000,
+    triggeredBy: "schedule",
+  },
+  {
+    id: "exec-018",
+    workflowId: "d5f8a3e2-c7b4-4d1f-9e6a-5b2f7c3a1d8e",
+    status: "SUCCEEDED",
+    startTime: ago(72 * h),
+    endTime: ago(72 * h - 14 * m),
+    durationMs: 840000,
+    triggeredBy: "schedule",
+  },
+
+  // wf-deploy-canary
+  {
+    id: "exec-019",
+    workflowId: "7a9e1f4c-3b8d-4a5f-2e7c-6b1a9d3f5c8e",
+    status: "SUCCEEDED",
+    startTime: ago(8 * h),
+    endTime: ago(8 * h - 12 * m),
+    durationMs: 720000,
+    triggeredBy: "manual",
+  },
+  {
+    id: "exec-020",
+    workflowId: "7a9e1f4c-3b8d-4a5f-2e7c-6b1a9d3f5c8e",
+    status: "SUCCEEDED",
+    startTime: ago(32 * h),
+    endTime: ago(32 * h - 10 * m),
+    durationMs: 600000,
+    triggeredBy: "manual",
+  },
+  {
+    id: "exec-021",
+    workflowId: "7a9e1f4c-3b8d-4a5f-2e7c-6b1a9d3f5c8e",
+    status: "FAILED",
+    startTime: ago(56 * h),
+    endTime: ago(56 * h - 6 * m),
+    durationMs: 360000,
+    triggeredBy: "manual",
+  },
+
+  // wf-daily-health-check
+  {
+    id: "exec-022",
+    workflowId: "6f2c5e9a-4d3b-1f7e-8a5c-2d6f4b1e3c7a",
+    status: "SUCCEEDED",
+    startTime: ago(12 * h),
+    endTime: ago(12 * h - 3 * m),
     durationMs: 180000,
-    triggeredBy: "incident-141",
+    triggeredBy: "schedule",
+  },
+  {
+    id: "exec-023",
+    workflowId: "6f2c5e9a-4d3b-1f7e-8a5c-2d6f4b1e3c7a",
+    status: "SUCCEEDED",
+    startTime: ago(36 * h),
+    endTime: ago(36 * h - 3 * m),
+    durationMs: 180000,
+    triggeredBy: "schedule",
+  },
+  {
+    id: "exec-024",
+    workflowId: "6f2c5e9a-4d3b-1f7e-8a5c-2d6f4b1e3c7a",
+    status: "SUCCEEDED",
+    startTime: ago(60 * h),
+    endTime: ago(60 * h - 3 * m),
+    durationMs: 180000,
+    triggeredBy: "schedule",
   },
 ];
 
@@ -602,7 +786,7 @@ export const MOCK_EXECUTION_TASKS: ExecutionTask[] = [
 // Mock Workflows
 export const MOCK_WORKFLOWS: Workflow[] = [
   {
-    id: "wf-remediate-high-latency",
+    id: "c09c302a-a5fc-4d96-b10e-0959d42b7f9b",
     name: "Remediate High Latency",
     description: "Automatically investigate and remediate high latency issues in payment service",
     owner: "platform-team",
@@ -621,9 +805,22 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       required: ["service"],
     },
     tags: ["latency", "remediation", "automatic"],
+    steps: [
+      { id: "step-1", name: "Check Service Health", type: "query", description: "Query service metrics", order: 1 },
+      { id: "step-2", name: "Analyze Latency", type: "analysis", description: "Analyze latency patterns", order: 2 },
+      { id: "step-3", name: "Identify Root Cause", type: "condition", description: "Determine root cause", order: 3 },
+      { id: "step-4", name: "Apply Fix", type: "action", description: "Apply automatic remediation", order: 4 },
+      {
+        id: "step-5",
+        name: "Verify Resolution",
+        type: "validation",
+        description: "Verify latency is back to normal",
+        order: 5,
+      },
+    ],
   },
   {
-    id: "wf-restart-service",
+    id: "a7d8f4b2-e3c1-4a8e-9f2b-5c3d1e7a9b6c",
     name: "Restart Service",
     description: "Manual workflow to restart a service",
     owner: "devops-team",
@@ -642,9 +839,28 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       required: ["service"],
     },
     tags: ["restart", "maintenance"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Drain Connections",
+        type: "action",
+        description: "Gracefully drain active connections",
+        order: 1,
+      },
+      { id: "step-2", name: "Stop Service", type: "action", description: "Stop the service process", order: 2 },
+      { id: "step-3", name: "Wait for Shutdown", type: "wait", description: "Wait for graceful shutdown", order: 3 },
+      { id: "step-4", name: "Start Service", type: "action", description: "Start the service again", order: 4 },
+      {
+        id: "step-5",
+        name: "Verify Health",
+        type: "validation",
+        description: "Health check and readiness probe",
+        order: 5,
+      },
+    ],
   },
   {
-    id: "wf-notify-oncall",
+    id: "f2e5a9c3-7b1d-4c6f-8a2e-3f1b5d7c9e4a",
     name: "Notify On-call",
     description: "Send critical alerts to on-call engineer via Slack",
     owner: "platform-team",
@@ -663,9 +879,33 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       required: ["severity", "message"],
     },
     tags: ["notification", "alert"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Get On-call Engineer",
+        type: "query",
+        description: "Fetch current on-call engineer info",
+        order: 1,
+      },
+      {
+        id: "step-2",
+        name: "Format Message",
+        type: "action",
+        description: "Format alert message with details",
+        order: 2,
+      },
+      {
+        id: "step-3",
+        name: "Send Slack Message",
+        type: "notification",
+        description: "Send notification to Slack",
+        order: 3,
+      },
+      { id: "step-4", name: "Log Notification", type: "action", description: "Log event for audit trail", order: 4 },
+    ],
   },
   {
-    id: "wf-scaling-policy",
+    id: "8e4b2f7d-a1c9-4e3b-7f5a-2c6d8b1e3a9f",
     name: "Auto Scaling Policy",
     description: "Automatically scale services based on CPU and memory metrics",
     owner: "infrastructure-team",
@@ -677,9 +917,46 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     lastExecutionTime: ago(4 * h),
     inputParametersSchema: {},
     tags: ["scaling", "infrastructure"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Fetch Metrics",
+        type: "query",
+        description: "Get CPU/Memory metrics for all services",
+        order: 1,
+      },
+      {
+        id: "step-2",
+        name: "Analyze Load",
+        type: "analysis",
+        description: "Analyze current load vs thresholds",
+        order: 2,
+      },
+      {
+        id: "step-3",
+        name: "Make Scale Decision",
+        type: "condition",
+        description: "Determine scale up or down",
+        order: 3,
+      },
+      {
+        id: "step-4",
+        name: "Apply Scaling",
+        type: "action",
+        description: "Apply scaling changes to infrastructure",
+        order: 4,
+      },
+      {
+        id: "step-5",
+        name: "Verify Scaling",
+        type: "validation",
+        description: "Verify resources allocated correctly",
+        order: 5,
+      },
+    ],
   },
   {
-    id: "wf-backup-database",
+    id: "d5f8a3e2-c7b4-4d1f-9e6a-5b2f7c3a1d8e",
     name: "Backup Database",
     description: "Daily database backup with verification",
     owner: "database-team",
@@ -691,9 +968,40 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     lastExecutionTime: ago(48 * h),
     inputParametersSchema: {},
     tags: ["backup", "database"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Start Backup",
+        type: "action",
+        description: "Initialize database backup process",
+        order: 1,
+      },
+      { id: "step-2", name: "Compress Data", type: "action", description: "Compress backup data", order: 2 },
+      {
+        id: "step-3",
+        name: "Upload to Storage",
+        type: "action",
+        description: "Upload backup to cloud storage",
+        order: 3,
+      },
+      {
+        id: "step-4",
+        name: "Verify Backup",
+        type: "validation",
+        description: "Verify backup integrity and completeness",
+        order: 4,
+      },
+      {
+        id: "step-5",
+        name: "Cleanup Old Backups",
+        type: "action",
+        description: "Remove backups older than retention period",
+        order: 5,
+      },
+    ],
   },
   {
-    id: "wf-deploy-canary",
+    id: "7a9e1f4c-3b8d-4a5f-2e7c-6b1a9d3f5c8e",
     name: "Deploy Canary",
     description: "Deploy new version to canary environment with metrics validation",
     owner: "platform-team",
@@ -713,9 +1021,47 @@ export const MOCK_WORKFLOWS: Workflow[] = [
       required: ["version", "service"],
     },
     tags: ["deployment", "canary"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Build Container",
+        type: "action",
+        description: "Build Docker container for new version",
+        order: 1,
+      },
+      { id: "step-2", name: "Deploy to Canary", type: "action", description: "Deploy to canary environment", order: 2 },
+      {
+        id: "step-3",
+        name: "Route Traffic",
+        type: "action",
+        description: "Route percentage of traffic to canary",
+        order: 3,
+      },
+      {
+        id: "step-4",
+        name: "Monitor Metrics",
+        type: "query",
+        description: "Monitor error rate and latency metrics",
+        order: 4,
+      },
+      {
+        id: "step-5",
+        name: "Validate Canary",
+        type: "condition",
+        description: "Check if metrics are within acceptable range",
+        order: 5,
+      },
+      {
+        id: "step-6",
+        name: "Rollout or Rollback",
+        type: "action",
+        description: "Full rollout or rollback based on validation",
+        order: 6,
+      },
+    ],
   },
   {
-    id: "wf-daily-health-check",
+    id: "6f2c5e9a-4d3b-1f7e-8a5c-2d6f4b1e3c7a",
     name: "Daily Health Check",
     description: "Run daily infrastructure health check",
     owner: "infrastructure-team",
@@ -727,6 +1073,38 @@ export const MOCK_WORKFLOWS: Workflow[] = [
     lastExecutionTime: ago(12 * h),
     inputParametersSchema: {},
     tags: ["health-check", "daily"],
+    steps: [
+      {
+        id: "step-1",
+        name: "Check API Endpoints",
+        type: "query",
+        description: "Verify all API endpoints are responsive",
+        order: 1,
+      },
+      {
+        id: "step-2",
+        name: "Check Database",
+        type: "query",
+        description: "Verify database connectivity and performance",
+        order: 2,
+      },
+      {
+        id: "step-3",
+        name: "Check Storage",
+        type: "query",
+        description: "Check storage availability and usage",
+        order: 3,
+      },
+      {
+        id: "step-4",
+        name: "Aggregate Results",
+        type: "analysis",
+        description: "Aggregate health check results",
+        order: 4,
+      },
+      { id: "step-5", name: "Generate Report", type: "action", description: "Generate health check report", order: 5 },
+      { id: "step-6", name: "Send Report", type: "notification", description: "Send report to team", order: 6 },
+    ],
   },
 ];
 
@@ -1052,7 +1430,12 @@ export const MOCK_SYNTHETICS: SyntheticMonitorData[] = [
       status: ExecutionStatus.OK,
       responseTime: 238,
       locationResults: [
-        { location: "North America - US East", status: ExecutionStatus.OK, responseTime: 215, timestamp: Date.now() - 5 * m },
+        {
+          location: "North America - US East",
+          status: ExecutionStatus.OK,
+          responseTime: 215,
+          timestamp: Date.now() - 5 * m,
+        },
         { location: "Europe - Germany", status: ExecutionStatus.OK, responseTime: 245, timestamp: Date.now() - 5 * m },
         { location: "Asia - Singapore", status: ExecutionStatus.OK, responseTime: 275, timestamp: Date.now() - 5 * m },
       ],
@@ -1081,7 +1464,12 @@ export const MOCK_SYNTHETICS: SyntheticMonitorData[] = [
       status: ExecutionStatus.OK,
       responseTime: 175,
       locationResults: [
-        { location: "North America - US East", status: ExecutionStatus.OK, responseTime: 165, timestamp: Date.now() - 10 * m },
+        {
+          location: "North America - US East",
+          status: ExecutionStatus.OK,
+          responseTime: 165,
+          timestamp: Date.now() - 10 * m,
+        },
         { location: "Europe - Germany", status: ExecutionStatus.OK, responseTime: 185, timestamp: Date.now() - 10 * m },
       ],
     },
@@ -1109,7 +1497,12 @@ export const MOCK_SYNTHETICS: SyntheticMonitorData[] = [
       status: ExecutionStatus.FAILED,
       responseTime: 5200,
       locationResults: [
-        { location: "North America - US West", status: ExecutionStatus.OK, responseTime: 3100, timestamp: Date.now() - 15 * m },
+        {
+          location: "North America - US West",
+          status: ExecutionStatus.OK,
+          responseTime: 3100,
+          timestamp: Date.now() - 15 * m,
+        },
         {
           location: "Europe - UK",
           status: ExecutionStatus.FAILED,

@@ -1,9 +1,8 @@
-import { List, showToast, Toast } from "@raycast/api";
+import { List } from "@raycast/api";
 import { useMemo, useState } from "react";
-import { useDynatraceRest } from "../../lib/api/useRest";
-import { MOCK_METRICS } from "../../lib/api/mock.ts";
+import { MOCK_METRICS } from "../../lib/api/mock";
 import { isMockMode } from "../../lib/devMode";
-import { MetricData, TimeframeOptions, TimeframeKey, EntityTypes, EntityType } from "../../lib/types/metric";
+import { TimeframeKey, EntityType } from "../../lib/types/metric";
 import { MetricDetailAction } from "./metric-detail";
 
 /**
@@ -12,8 +11,8 @@ import { MetricDetailAction } from "./metric-detail";
  */
 export default function MetricsCommand() {
   const [searchText, setSearchText] = useState("");
-  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeframeKey>("1h");
-  const [selectedEntity, setSelectedEntity] = useState<EntityType>("service");
+  const [selectedTimeframe] = useState<TimeframeKey>("1h");
+  const [selectedEntity] = useState<EntityType>("service");
 
   // In mock mode, return static data
   const mockMetrics = useMemo(() => {
@@ -25,9 +24,7 @@ export default function MetricsCommand() {
   const filteredMetrics = useMemo(() => {
     const search = searchText.toLowerCase();
     return mockMetrics.filter(
-      (m) =>
-        m.metric.displayName.toLowerCase().includes(search) ||
-        m.metric.metricId.toLowerCase().includes(search)
+      (m) => m.metric.displayName.toLowerCase().includes(search) || m.metric.metricId.toLowerCase().includes(search),
     );
   }, [searchText, mockMetrics]);
 
@@ -60,13 +57,7 @@ export default function MetricsCommand() {
                   tooltip: `Min–Max`,
                 },
               ]}
-              actions={
-                <MetricDetailAction
-                  metric={metric}
-                  timeframe={selectedTimeframe}
-                  entity={selectedEntity}
-                />
-              }
+              actions={<MetricDetailAction metric={metric} timeframe={selectedTimeframe} entity={selectedEntity} />}
             />
           ))
         )}
@@ -76,53 +67,23 @@ export default function MetricsCommand() {
         <List.Item
           title="CPU Usage"
           subtitle="Quick access to common metrics"
-          actions={
-            <MetricDetailAction
-              metric={mockMetrics[0]}
-              timeframe={selectedTimeframe}
-              entity={selectedEntity}
-            />
-          }
+          actions={<MetricDetailAction metric={mockMetrics[0]} timeframe={selectedTimeframe} entity={selectedEntity} />}
         />
         <List.Item
           title="Memory Usage"
-          actions={
-            <MetricDetailAction
-              metric={mockMetrics[1]}
-              timeframe={selectedTimeframe}
-              entity={selectedEntity}
-            />
-          }
+          actions={<MetricDetailAction metric={mockMetrics[1]} timeframe={selectedTimeframe} entity={selectedEntity} />}
         />
         <List.Item
           title="Response Time"
-          actions={
-            <MetricDetailAction
-              metric={mockMetrics[2]}
-              timeframe={selectedTimeframe}
-              entity={selectedEntity}
-            />
-          }
+          actions={<MetricDetailAction metric={mockMetrics[2]} timeframe={selectedTimeframe} entity={selectedEntity} />}
         />
         <List.Item
           title="Error Rate"
-          actions={
-            <MetricDetailAction
-              metric={mockMetrics[3]}
-              timeframe={selectedTimeframe}
-              entity={selectedEntity}
-            />
-          }
+          actions={<MetricDetailAction metric={mockMetrics[3]} timeframe={selectedTimeframe} entity={selectedEntity} />}
         />
         <List.Item
           title="Throughput"
-          actions={
-            <MetricDetailAction
-              metric={mockMetrics[4]}
-              timeframe={selectedTimeframe}
-              entity={selectedEntity}
-            />
-          }
+          actions={<MetricDetailAction metric={mockMetrics[4]} timeframe={selectedTimeframe} entity={selectedEntity} />}
         />
       </List.Section>
     </List>

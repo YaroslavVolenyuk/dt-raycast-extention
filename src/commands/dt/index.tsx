@@ -49,7 +49,7 @@ export default function DtHub() {
     {
       title: "Convert to DQL (NL2DQL)",
       subtitle: "dt-nl2dql · Ask Davis to convert natural language to DQL queries",
-      icon: Icon.MagicWand,
+      icon: Icon.Wand,
       color: Color.Magenta,
       keywords: ["nl2dql", "natural", "language", "davis", "copilot", "dql", "convert", "dt-nl2dql"],
       component: <Nl2DqlCommand />,
@@ -57,7 +57,7 @@ export default function DtHub() {
     {
       title: "Ask Davis",
       subtitle: "dt-ask · Ask Davis AI questions about your environment with follow-ups",
-      icon: Icon.ChatLines,
+      icon: Icon.Bubble,
       color: Color.Purple,
       keywords: ["ask", "davis", "chat", "copilot", "questions", "ai", "diagnostic", "dt-ask"],
       component: <AskDavisCommand />,
@@ -97,7 +97,7 @@ export default function DtHub() {
     {
       title: "Settings / Config",
       subtitle: "dt-settings · Search and configure alerting, zones, tags, ownership",
-      icon: Icon.Sliders,
+      icon: Icon.Gear,
       color: Color.Purple,
       keywords: ["settings", "config", "alerting", "zones", "tags", "configuration", "dt-settings"],
       component: <SettingsCommand />,

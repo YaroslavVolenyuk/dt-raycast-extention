@@ -1,28 +1,13 @@
 import React, { useState, useEffect } from "react";
-import {
-  Detail,
-  Action,
-  ActionPanel,
-  useNavigation,
-  Icon,
-  Keyboard,
-  showToast,
-  Toast,
-} from "@raycast/api";
+import { Detail, Action, ActionPanel, Icon, Keyboard, showToast, Toast } from "@raycast/api";
 import { useTenant } from "../../hooks/useTenant";
 import { dynatraceRest } from "../../lib/api/rest";
-import {
-  Problem,
-  problemSchema,
-} from "../../lib/types/problem";
+import { Problem, problemSchema } from "../../lib/types/problem";
 import { SLO, sloSchema } from "../../lib/types/slo";
-import {
-  ExecutionStatus,
-} from "../../lib/types/synthetic";
+import { ExecutionStatus } from "../../lib/types/synthetic";
 import type { SyntheticMonitorData } from "../../lib/types/synthetic";
 import type { Deployment } from "../../lib/types/deployment";
 import { formatLastChecked, getDashboardSeverity } from "../../lib/types/status";
-import { buildDeepLink } from "../../lib/utils/deepLinks";
 
 interface StatusData {
   problems: Problem[] | null;
@@ -33,7 +18,6 @@ interface StatusData {
 }
 
 export default function StatusCommand() {
-  const { push } = useNavigation();
   const { tenant } = useTenant();
   const [isLoading, setIsLoading] = useState(true);
   const [statusData, setStatusData] = useState<StatusData | null>(null);
@@ -58,26 +42,19 @@ export default function StatusCommand() {
 
       // Load all data in parallel
       const results = await Promise.allSettled([
-        dynatraceRest<{ problems: Problem[] }>(
-          tenant,
-          "/api/v2/problems",
-          { queryParams: { status: "OPEN" }, schema: problemSchema }
-        ).catch(() => ({ data: { problems: [] } } as any)),
-        dynatraceRest<{ slo: SLO[] }>(
-          tenant,
-          "/api/v2/slo",
-          { schema: sloSchema }
-        ).catch(() => ({ data: { slo: [] } } as any)),
-        dynatraceRest<{ monitors: SyntheticMonitorData[] }>(
-          tenant,
-          "/api/v2/synthetic/monitors",
-          {}
-        ).catch(() => ({ data: { monitors: [] } } as any)),
-        dynatraceRest<{ deployments: Deployment[] }>(
-          tenant,
-          "/api/v2/deployments",
-          { queryParams: { pageSize: "3" } }
-        ).catch(() => ({ data: { deployments: [] } } as any)),
+        dynatraceRest<{ problems: Problem[] }>(tenant, "/api/v2/problems", {
+          queryParams: { status: "OPEN" },
+          schema: problemSchema,
+        }).catch((): { data: { problems: Problem[] } } => ({ data: { problems: [] } })),
+        dynatraceRest<{ slo: SLO[] }>(tenant, "/api/v2/slo", { schema: sloSchema }).catch(
+          (): { data: { slo: SLO[] } } => ({ data: { slo: [] } }),
+        ),
+        dynatraceRest<{ monitors: SyntheticMonitorData[] }>(tenant, "/api/v2/synthetic/monitors", {}).catch(
+          (): { data: { monitors: SyntheticMonitorData[] } } => ({ data: { monitors: [] } }),
+        ),
+        dynatraceRest<{ deployments: Deployment[] }>(tenant, "/api/v2/deployments", {
+          queryParams: { pageSize: "3" },
+        }).catch((): { data: { deployments: Deployment[] } } => ({ data: { deployments: [] } })),
       ]);
 
       // Extract data from promises
@@ -88,10 +65,7 @@ export default function StatusCommand() {
           problemsResult.status === "fulfilled" && problemsResult.value?.data?.problems
             ? problemsResult.value.data.problems
             : null,
-        slos:
-          slosResult.status === "fulfilled" && slosResult.value?.data?.slo
-            ? slosResult.value.data.slo
-            : null,
+        slos: slosResult.status === "fulfilled" && slosResult.value?.data?.slo ? slosResult.value.data.slo : null,
         synthetics:
           syntheticsResult.status === "fulfilled" && syntheticsResult.value?.data?.monitors
             ? syntheticsResult.value.data.monitors
@@ -144,9 +118,7 @@ export default function StatusCommand() {
         ? {
             total: statusData.synthetics.length,
             failing: statusData.synthetics.filter(
-              (s) =>
-                s.lastExecution?.status !== ExecutionStatus.OK &&
-                s.lastExecution?.status !== undefined,
+              (s) => s.lastExecution?.status !== ExecutionStatus.OK && s.lastExecution?.status !== undefined,
             ).length,
             items: statusData.synthetics,
           }

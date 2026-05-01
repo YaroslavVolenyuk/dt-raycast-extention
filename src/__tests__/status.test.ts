@@ -6,13 +6,23 @@ import {
   hasIssues,
   formatLastChecked,
 } from "../lib/types/status";
+import type { SyntheticMonitorData } from "../lib/types/synthetic";
 
 describe("Status Dashboard", () => {
   describe("getDashboardSeverity", () => {
     it("should return 'healthy' when no issues", () => {
       const status: StatusDashboard = {
         lastChecked: Date.now(),
-        problems: { total: 0, bySeverity: {}, items: [] },
+        problems: {
+          total: 0,
+          bySeverity: {
+            [ProblemSeverity.CRITICAL]: 0,
+            [ProblemSeverity.MAJOR]: 0,
+            [ProblemSeverity.MINOR]: 0,
+            [ProblemSeverity.WARNING]: 0,
+          },
+          items: [],
+        },
         slos: { total: 0, violated: 0, items: [] },
         synthetics: { total: 0, failing: 0, items: [] },
         deployments: null,
@@ -61,7 +71,16 @@ describe("Status Dashboard", () => {
     it("should return 'warning' when SLOs violated", () => {
       const status: StatusDashboard = {
         lastChecked: Date.now(),
-        problems: { total: 0, bySeverity: {}, items: [] },
+        problems: {
+          total: 0,
+          bySeverity: {
+            [ProblemSeverity.CRITICAL]: 0,
+            [ProblemSeverity.MAJOR]: 0,
+            [ProblemSeverity.MINOR]: 0,
+            [ProblemSeverity.WARNING]: 0,
+          },
+          items: [],
+        },
         slos: {
           total: 2,
           violated: 1,
@@ -88,12 +107,21 @@ describe("Status Dashboard", () => {
     it("should return 'warning' when synthetics failing", () => {
       const status: StatusDashboard = {
         lastChecked: Date.now(),
-        problems: { total: 0, bySeverity: {}, items: [] },
+        problems: {
+          total: 0,
+          bySeverity: {
+            [ProblemSeverity.CRITICAL]: 0,
+            [ProblemSeverity.MAJOR]: 0,
+            [ProblemSeverity.MINOR]: 0,
+            [ProblemSeverity.WARNING]: 0,
+          },
+          items: [],
+        },
         slos: { total: 0, violated: 0, items: [] },
         synthetics: {
           total: 1,
           failing: 1,
-          items: [] as any,
+          items: [] as SyntheticMonitorData[],
         },
         deployments: null,
       };
@@ -106,7 +134,16 @@ describe("Status Dashboard", () => {
     it("should return true when problems exist", () => {
       const status: StatusDashboard = {
         lastChecked: Date.now(),
-        problems: { total: 1, bySeverity: {}, items: [] },
+        problems: {
+          total: 1,
+          bySeverity: {
+            [ProblemSeverity.CRITICAL]: 0,
+            [ProblemSeverity.MAJOR]: 0,
+            [ProblemSeverity.MINOR]: 0,
+            [ProblemSeverity.WARNING]: 0,
+          },
+          items: [],
+        },
         slos: null,
         synthetics: null,
         deployments: null,
@@ -132,7 +169,7 @@ describe("Status Dashboard", () => {
         lastChecked: Date.now(),
         problems: null,
         slos: null,
-        synthetics: { total: 1, failing: 1, items: [] as any },
+        synthetics: { total: 1, failing: 1, items: [] as SyntheticMonitorData[] },
         deployments: null,
       };
 
@@ -142,9 +179,18 @@ describe("Status Dashboard", () => {
     it("should return false when all healthy", () => {
       const status: StatusDashboard = {
         lastChecked: Date.now(),
-        problems: { total: 0, bySeverity: {}, items: [] },
+        problems: {
+          total: 0,
+          bySeverity: {
+            [ProblemSeverity.CRITICAL]: 0,
+            [ProblemSeverity.MAJOR]: 0,
+            [ProblemSeverity.MINOR]: 0,
+            [ProblemSeverity.WARNING]: 0,
+          },
+          items: [],
+        },
         slos: { total: 0, violated: 0, items: [] },
-        synthetics: { total: 0, failing: 0, items: [] as any },
+        synthetics: { total: 0, failing: 0, items: [] as SyntheticMonitorData[] },
         deployments: null,
       };
 
@@ -212,10 +258,7 @@ describe("Status Dashboard", () => {
     });
 
     it("should process fulfilled results even with rejections", async () => {
-      const results = await Promise.allSettled([
-        Promise.resolve("value1"),
-        Promise.reject(new Error("error")),
-      ]);
+      const results = await Promise.allSettled([Promise.resolve("value1"), Promise.reject(new Error("error"))]);
 
       const fulfilled = results
         .filter((r) => r.status === "fulfilled")

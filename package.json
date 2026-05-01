@@ -179,7 +179,7 @@
       "subtitle": "Dynatrace",
       "description": "View and execute Dynatrace workflows with parameter support",
       "mode": "view",
-      "icon": "dynatrace-icon.png"
+      "icon": "workflows-icon.png"
     },
     {
       "name": "dt-settings",

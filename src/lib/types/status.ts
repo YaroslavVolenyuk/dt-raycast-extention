@@ -72,7 +72,7 @@ export function getDashboardSeverity(status: StatusDashboard): "critical" | "war
     return "healthy";
   }
 
-  if (status.problems?.bySeverity[ProblemSeverity.CRITICAL]! > 0) {
+  if ((status.problems?.bySeverity?.[ProblemSeverity.CRITICAL] ?? 0) > 0) {
     return "critical";
   }
 

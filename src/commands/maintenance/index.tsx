@@ -1,15 +1,5 @@
 import React, { useState, useMemo } from "react";
-import {
-  List,
-  Action,
-  ActionPanel,
-  showToast,
-  Toast,
-  useNavigation,
-  Icon,
-  Color,
-  Keyboard,
-} from "@raycast/api";
+import { List, Action, ActionPanel, showToast, Toast, useNavigation, Icon, Color, Keyboard } from "@raycast/api";
 import { useDynatraceRest } from "../../lib/api/useRest";
 import {
   MaintenanceWindow,
@@ -38,21 +28,20 @@ export default function MaintenanceCommand() {
       },
       enabled: !!tenant,
     }),
-    [tenant]
+    [tenant],
   );
 
-  const { data: windows, isLoading, error, revalidate } = useDynatraceRest<MaintenanceWindow[]>(
-    tenant || undefined,
-    "/api/v2/settings/objects",
-    restOptions
-  );
+  const {
+    data: windows,
+    isLoading,
+    error,
+    revalidate,
+  } = useDynatraceRest<MaintenanceWindow[]>(tenant || undefined, "/api/v2/settings/objects", restOptions);
 
   const filteredAndSorted = useMemo(() => {
     if (!windows) return [];
 
-    const filtered = windows.filter((w) =>
-      w.name.toLowerCase().includes(searchText.toLowerCase()),
-    );
+    const filtered = windows.filter((w) => w.name.toLowerCase().includes(searchText.toLowerCase()));
 
     return sortMaintenanceWindows(filtered);
   }, [windows, searchText]);
@@ -65,7 +54,7 @@ export default function MaintenanceCommand() {
       case MaintenanceWindowStatus.SCHEDULED:
         return ["🟡", Color.Yellow];
       case MaintenanceWindowStatus.PAST:
-        return ["⚪", Color.Secondary];
+        return ["⚪", Color.SecondaryText];
     }
   };
 
@@ -93,11 +82,7 @@ export default function MaintenanceCommand() {
   if (error) {
     return (
       <List isLoading={isLoading}>
-        <List.EmptyResult
-          icon="⚠️"
-          title="Failed to load maintenance windows"
-          description={String(error)}
-        />
+        <List.EmptyView icon="⚠️" title="Failed to load maintenance windows" description={String(error)} />
       </List>
     );
   }
@@ -105,7 +90,7 @@ export default function MaintenanceCommand() {
   return (
     <List isLoading={isLoading} searchBarPlaceholder="Search maintenance windows..." onSearchTextChange={setSearchText}>
       {filteredAndSorted.length === 0 ? (
-        <List.EmptyResult
+        <List.EmptyView
           icon="✨"
           title="No maintenance windows"
           description="Click ⌘N to create a new one"
@@ -154,8 +139,7 @@ export default function MaintenanceCommand() {
                       icon={Icon.Plus}
                       shortcut={Keyboard.Shortcut.Common.New}
                     />
-                    {(status === MaintenanceWindowStatus.SCHEDULED ||
-                      status === MaintenanceWindowStatus.PAST) && (
+                    {(status === MaintenanceWindowStatus.SCHEDULED || status === MaintenanceWindowStatus.PAST) && (
                       <Action
                         title="Delete"
                         onAction={() => handleDelete(window)}

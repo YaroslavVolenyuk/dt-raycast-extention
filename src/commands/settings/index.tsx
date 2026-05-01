@@ -26,7 +26,7 @@ export default function SettingsCommand() {
       schema: settingsListSchema,
       enabled: !!tenant,
     }),
-    [tenant]
+    [tenant],
   );
 
   const {

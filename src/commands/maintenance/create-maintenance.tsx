@@ -1,12 +1,5 @@
 import React, { useState } from "react";
-import {
-  Form,
-  Action,
-  ActionPanel,
-  showToast,
-  Toast,
-  useNavigation,
-} from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, useNavigation } from "@raycast/api";
 import { MaintenanceWindowType, MaintenanceScopeType } from "../../lib/types/maintenance";
 import { useTenant } from "../../hooks/useTenant";
 import { dynatraceRest } from "../../lib/api/rest";
@@ -80,15 +73,13 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
       };
 
       // POST request to create maintenance window
-      await dynatraceRest(
-        {
-          tenant,
-          url: "/api/v2/settings/objects",
-          method: "POST",
-          body: JSON.stringify(payload),
-        },
-        null,
-      );
+      if (!tenant) {
+        throw new Error("No tenant configured");
+      }
+      await dynatraceRest(tenant, "/api/v2/settings/objects", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
       await showToast({
         style: Toast.Style.Success,
@@ -150,9 +141,9 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
       <Form.TextField
         id="startDate"
         title="Start Date"
-        type="date"
         value={form.startDate}
         onChange={(startDate) => setForm({ ...form, startDate })}
+        placeholder="YYYY-MM-DD"
       />
 
       <Form.TextField
@@ -166,9 +157,9 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
       <Form.TextField
         id="endDate"
         title="End Date"
-        type="date"
         value={form.endDate}
         onChange={(endDate) => setForm({ ...form, endDate })}
+        placeholder="YYYY-MM-DD"
       />
 
       <Form.TextField

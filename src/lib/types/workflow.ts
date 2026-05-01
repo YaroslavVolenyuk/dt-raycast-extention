@@ -28,24 +28,38 @@ export const workflowExecutionSchema = z.object({
 export type WorkflowExecution = z.infer<typeof workflowExecutionSchema>;
 
 // API workflow format
-const workflowApiSchema = z.object({
+const workflowApiSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(), // API uses 'title'
+    description: z.string().nullable().optional(),
+    owner: z.string().optional(),
+    triggerType: z.string().optional(), // "Manual", "Schedule", etc.
+    isDeployed: z.boolean().optional(),
+    lastExecution: z.unknown().optional(),
+  })
+  .passthrough()
+  .transform((data) => ({
+    id: data.id,
+    name: data.title, // map title -> name
+    description: data.description,
+    owner: data.owner,
+    triggerType: (data.triggerType?.toUpperCase() as TriggerType) || "MANUAL",
+    enabled: data.isDeployed ?? true,
+    lastExecutionStatus: null,
+    lastExecutionTime: null,
+  }));
+
+// Workflow step
+export const workflowStepSchema = z.object({
   id: z.string(),
-  title: z.string(), // API uses 'title'
-  description: z.string().nullable().optional(),
-  owner: z.string().optional(),
-  triggerType: z.string().optional(), // "Manual", "Schedule", etc.
-  isDeployed: z.boolean().optional(),
-  lastExecution: z.unknown().optional(),
-}).passthrough().transform(data => ({
-  id: data.id,
-  name: data.title, // map title -> name
-  description: data.description,
-  owner: data.owner,
-  triggerType: data.triggerType?.toUpperCase() as TriggerType || "MANUAL",
-  enabled: data.isDeployed ?? true,
-  lastExecutionStatus: null,
-  lastExecutionTime: null,
-}));
+  name: z.string(),
+  type: z.string(), // e.g., "action", "condition", "notification", etc.
+  description: z.string().optional(),
+  order: z.number().optional(),
+});
+
+export type WorkflowStep = z.infer<typeof workflowStepSchema>;
 
 // Mock workflow format
 export const workflowSchema = z.object({
@@ -61,6 +75,7 @@ export const workflowSchema = z.object({
   lastExecutionTime: z.string().datetime().nullable().optional(),
   inputParametersSchema: z.object({}).passthrough().optional(),
   tags: z.array(z.string()).optional(),
+  steps: z.array(workflowStepSchema).optional(),
 });
 
 // API response wrapper: { count, results: [...] }
@@ -72,7 +87,7 @@ const workflowApiResponseSchema = z.object({
 // List schema - handles both array (mock) and wrapper object (API)
 export const workflowListSchema = z.union([
   z.array(workflowSchema),
-  workflowApiResponseSchema.transform(r => r.results),
+  workflowApiResponseSchema.transform((r) => r.results),
 ]);
 
 export type Workflow = z.infer<typeof workflowSchema>;

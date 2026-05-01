@@ -75,7 +75,7 @@ export function formatMaintenanceTime(timestamp: number): string {
 /**
  * Get scope display name
  */
-export function getScopeDisplay(scope?: MaintenanceWindow["scope"]): string {
+export function getScopeDisplay(scope?: MaintenanceWindow["scope"] | null): string {
   if (!scope) return "All Environment";
 
   switch (scope.type) {

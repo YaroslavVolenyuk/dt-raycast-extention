@@ -54,7 +54,7 @@ export default function SettingDetailView({ setting, tenant, onRefresh }: Settin
 
   const handleOpenInDynatrace = () => {
     if (tenant) {
-      const deepLinkUrl = `${tenant.url}/ui/apps/dynatrace.settings/configuration/schema/${setting.schemaId}/objects/${setting.objectId}`;
+      const deepLinkUrl = `${tenant.tenantEndpoint}/ui/apps/dynatrace.settings/configuration/schema/${setting.schemaId}/objects/${setting.objectId}`;
       // In real app, use openInBrowser(deepLinkUrl)
       showToast({
         style: Toast.Style.Success,

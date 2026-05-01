@@ -93,7 +93,7 @@ export default function Nl2DqlCommand() {
       isLoading={state.isLoading}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Convert to DQL" onSubmit={handleConvert} icon={Icon.MagicWand} />
+          <Action.SubmitForm title="Convert to DQL" onSubmit={handleConvert} icon={Icon.Wand} />
         </ActionPanel>
       }
     >

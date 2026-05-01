@@ -2,6 +2,7 @@
 import { Form, Action, ActionPanel, showToast, Toast, useNavigation } from "@raycast/api";
 import type { Workflow } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
+import { dynatraceRest } from "../../lib/api/rest";
 import { useState } from "react";
 
 interface ExecuteWorkflowFormProps {
@@ -171,22 +172,23 @@ async function executeWorkflow(
   inputs: Record<string, string | number | boolean | undefined>,
   tenant: TenantConfig | null,
 ): Promise<{ executionId: string }> {
-  // In real app, would POST to /platform/automation/v1/workflows/{id}/run
-  // with body: { input: inputs }
-
   if (!tenant) {
     throw new Error("No tenant selected");
   }
 
-  // Mock implementation
-  const executionId = `exec-${Date.now()}`;
+  try {
+    const response = await dynatraceRest<{ id: string }>(
+      tenant,
+      `/platform/automation/v1/workflows/${workflow.id}/run`,
+      {
+        method: "POST",
+        body: { input: inputs },
+      },
+    );
 
-  // In real app:
-  // const response = await fetch(`${tenant.url}/api/v2/workflows/${workflow.id}/run`, {
-  //   method: "POST",
-  //   headers: { Authorization: `Bearer ${token}` },
-  //   body: JSON.stringify({ input: inputs }),
-  // });
-
-  return { executionId };
+    return { executionId: response.data.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    throw new Error(`Failed to execute workflow: ${message}`);
+  }
 }

@@ -75,7 +75,7 @@ describe("Maintenance Windows", () => {
   describe("getScopeDisplay", () => {
     it("should return 'All Environment' for no scope", () => {
       expect(getScopeDisplay(undefined)).toBe("All Environment");
-      expect(getScopeDisplay(null as any)).toBe("All Environment");
+      expect(getScopeDisplay(null)).toBe("All Environment");
     });
 
     it("should return zone name for MANAGEMENT_ZONE", () => {

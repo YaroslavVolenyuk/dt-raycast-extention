@@ -10,7 +10,7 @@ import { MonitorDetailAction } from "./monitor-detail";
  */
 export default function SyntheticsCommand() {
   const [searchText, setSearchText] = useState("");
-  const [selectedType, setSelectedType] = useState<MonitorType | "ALL">("ALL");
+  const [selectedType] = useState<MonitorType | "ALL">("ALL");
 
   // In mock mode, use static data
   const allMonitors = useMemo(() => {
@@ -21,7 +21,8 @@ export default function SyntheticsCommand() {
   const filteredMonitors = useMemo(() => {
     const search = searchText.toLowerCase();
     return allMonitors.filter((m) => {
-      const matchesSearch = m.monitor.name.toLowerCase().includes(search) || m.monitor.url.toLowerCase().includes(search);
+      const matchesSearch =
+        m.monitor.name.toLowerCase().includes(search) || m.monitor.url.toLowerCase().includes(search);
       const matchesType = selectedType === "ALL" || m.monitor.type === selectedType;
       return matchesSearch && matchesType;
     });

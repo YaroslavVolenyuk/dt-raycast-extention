@@ -1,9 +1,4 @@
-import {
-  generateSparkline,
-  getTrendIndicator,
-  formatMetricValue,
-  calculateAggregations,
-} from "../lib/utils/sparkline";
+import { generateSparkline, getTrendIndicator, formatMetricValue, calculateAggregations } from "../lib/utils/sparkline";
 
 describe("Sparkline utilities", () => {
   describe("generateSparkline", () => {

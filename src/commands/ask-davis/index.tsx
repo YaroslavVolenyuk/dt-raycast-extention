@@ -1,7 +1,7 @@
 // A3: Davis CoPilot — Ask Command
 // Ask Davis questions with conversation history support
 
-import { Form, Action, ActionPanel, showToast, Toast, Detail, Icon } from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, Detail, Icon, useNavigation } from "@raycast/api";
 import { useState } from "react";
 import { getActiveTenant } from "../../lib/tenants";
 import { askDavis } from "../../lib/api/davis";
@@ -239,9 +239,9 @@ function AskDavisAnswerView({
       markdown={markdown}
       actions={
         <ActionPanel>
-          <Action title="Ask Follow-Up Question" icon={Icon.ChatLines} onAction={onContinueConversation} />
+          <Action title="Ask Follow-Up Question" icon={Icon.Message} onAction={onContinueConversation} />
           {answer.sources && answer.sources.length > 0 && (
-            <Action.Submenu title="Open Source" icon={Icon.Link}>
+            <ActionPanel.Submenu title="Open Source" icon={Icon.Link}>
               {answer.sources.map((source, index) => {
                 // Map Davis source types to DeepLinkType
                 const deepLinkTypeMap: Record<string, DeepLinkType> = {
@@ -292,7 +292,7 @@ function AskDavisAnswerView({
                   />
                 );
               })}
-            </Action.Submenu>
+            </ActionPanel.Submenu>
           )}
           <Action title="New Conversation" icon={Icon.RotateClockwise} onAction={onClearConversation} />
           {hasConversationHistory && (

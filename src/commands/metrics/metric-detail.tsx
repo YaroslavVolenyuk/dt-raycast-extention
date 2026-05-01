@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Detail, openInBrowser } from "@raycast/api";
+import { Action, ActionPanel, Detail } from "@raycast/api";
 import { useMemo, useEffect, useState } from "react";
 import { MetricData, TimeframeKey, EntityType, TimeframeOptions } from "../../lib/types/metric";
 import {
@@ -20,7 +20,7 @@ interface MetricDetailActionProps {
 /**
  * Action component that pushes to metric detail view
  */
-export function MetricDetailAction({ metric, timeframe, entity }: MetricDetailActionProps) {
+export function MetricDetailAction({ metric, timeframe }: MetricDetailActionProps) {
   return (
     <ActionPanel>
       <Action.Push title="View Details" target={<MetricDetailView metric={metric} timeframe={timeframe} />} />
@@ -75,19 +75,19 @@ export function MetricDetailView({
 
   const formattedCurrent = useMemo(
     () => formatMetricValue(metric.currentValue || 0, metric.metric.unit),
-    [metric.currentValue, metric.metric.unit]
+    [metric.currentValue, metric.metric.unit],
   );
   const formattedMin = useMemo(
     () => formatMetricValue(aggregations.min, metric.metric.unit),
-    [aggregations.min, metric.metric.unit]
+    [aggregations.min, metric.metric.unit],
   );
   const formattedMax = useMemo(
     () => formatMetricValue(aggregations.max, metric.metric.unit),
-    [aggregations.max, metric.metric.unit]
+    [aggregations.max, metric.metric.unit],
   );
   const formattedAvg = useMemo(
     () => formatMetricValue(aggregations.avg, metric.metric.unit),
-    [aggregations.avg, metric.metric.unit]
+    [aggregations.avg, metric.metric.unit],
   );
 
   const markdown = useMemo(
@@ -131,7 +131,7 @@ ${sparkline}
       metric.metric.description,
       metric.lastUpdated,
       metric.dataPoints?.length,
-    ]
+    ],
   );
 
   return (
@@ -139,21 +139,12 @@ ${sparkline}
       markdown={markdown}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard
-            title="Copy Metric ID"
-            content={metric.metric.metricId}
-          />
-          <Action.CopyToClipboard
-            title="Copy Current Value"
-            content={formattedCurrent}
-          />
+          <Action.CopyToClipboard title="Copy Metric ID" content={metric.metric.metricId} />
+          <Action.CopyToClipboard title="Copy Current Value" content={formattedCurrent} />
           {tenant && (
-            <Action
+            <Action.OpenInBrowser
               title="Open in Dynatrace"
-              onAction={() => {
-                const url = buildDeepLink("entity", metric.metric.metricId, tenant);
-                openInBrowser(url);
-              }}
+              url={buildDeepLink("entity", metric.metric.metricId, tenant)}
             />
           )}
         </ActionPanel>

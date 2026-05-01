@@ -1,14 +1,5 @@
 import React from "react";
-import {
-  Detail,
-  Action,
-  ActionPanel,
-  showToast,
-  Toast,
-  useNavigation,
-  Icon,
-  Keyboard,
-} from "@raycast/api";
+import { Detail, Action, ActionPanel, showToast, Toast, useNavigation, Icon, Keyboard } from "@raycast/api";
 import {
   MaintenanceWindow,
   getMaintenanceStatus,
@@ -104,12 +95,11 @@ ${window.createdBy ? `\n## Metadata\n\n- **Created by:** ${window.createdBy}\n- 
             shortcut={Keyboard.Shortcut.Common.Copy}
           />
           <Action.OpenInBrowser
-            url={buildDeepLink("maintenance-window", window.id, tenant.url)}
+            url={buildDeepLink("maintenance-window", window.id, tenant.tenantEndpoint)}
             icon={Icon.Globe}
             shortcut={Keyboard.Shortcut.Common.Open}
           />
-          {(status === MaintenanceWindowStatus.SCHEDULED ||
-            status === MaintenanceWindowStatus.PAST) && (
+          {(status === MaintenanceWindowStatus.SCHEDULED || status === MaintenanceWindowStatus.PAST) && (
             <Action
               title="Delete"
               onAction={handleConfirmDelete}

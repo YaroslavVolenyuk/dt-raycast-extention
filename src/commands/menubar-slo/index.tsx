@@ -1,7 +1,6 @@
 import { MenuBarExtra, Icon, Color, showToast, Toast } from "@raycast/api";
 import { useMemo, useEffect, useState } from "react";
 import { getActiveTenant } from "../../lib/tenants";
-import type { TenantConfig } from "../../lib/auth";
 import type { SLO } from "../../lib/types/slo";
 
 // Mock SLO data
@@ -79,8 +78,6 @@ const MOCK_SLOS: SLO[] = [
  */
 export default function MenubarSloCommand() {
   const [slos, setSlos] = useState<SLO[]>([]);
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Load data on mount
   useEffect(() => {
@@ -88,16 +85,13 @@ export default function MenubarSloCommand() {
       try {
         // In real mode, would fetch from API
         setSlos(MOCK_SLOS);
-        const activeTenant = await getActiveTenant();
-        setTenant(activeTenant);
+        await getActiveTenant();
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,
           title: "Failed to load SLOs",
           message: String(error),
         });
-      } finally {
-        setIsLoading(false);
       }
     };
 
@@ -169,9 +163,7 @@ export default function MenubarSloCommand() {
               icon={{ source: Icon.XMarkCircle, tintColor: Color.Red }}
             />
           ))}
-          {violatedSlos.length > 5 && (
-            <MenuBarExtra.Item title={`+${violatedSlos.length - 5} more`} />
-          )}
+          {violatedSlos.length > 5 && <MenuBarExtra.Item title={`+${violatedSlos.length - 5} more`} />}
         </MenuBarExtra.Section>
       )}
 
@@ -185,9 +177,7 @@ export default function MenubarSloCommand() {
               icon={{ source: Icon.ExclamationMark, tintColor: Color.Yellow }}
             />
           ))}
-          {warningSlos.length > 5 && (
-            <MenuBarExtra.Item title={`+${warningSlos.length - 5} more`} />
-          )}
+          {warningSlos.length > 5 && <MenuBarExtra.Item title={`+${warningSlos.length - 5} more`} />}
         </MenuBarExtra.Section>
       )}
 
@@ -221,10 +211,8 @@ export default function MenubarSloCommand() {
           icon={Icon.ArrowClockwise}
           onAction={() => {
             // Manually refresh
-            setIsLoading(true);
             setTimeout(() => {
               setSlos(MOCK_SLOS);
-              setIsLoading(false);
             }, 500);
           }}
         />

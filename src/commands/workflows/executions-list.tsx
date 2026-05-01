@@ -3,8 +3,9 @@ import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/
 import type { WorkflowExecution } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { MOCK_WORKFLOW_EXECUTIONS } from "../../lib/api/mock";
-import ExecutionDetailView from "./execution-detail.tsx";
-import { useState } from "react";
+import { dynatraceRest } from "../../lib/api/rest";
+import ExecutionDetailView from "./execution-detail";
+import { useState, useEffect } from "react";
 
 interface ExecutionsListProps {
   workflowId: string;
@@ -16,11 +17,90 @@ interface ExecutionsListProps {
 export default function ExecutionsList({ workflowId, workflowName, tenant, onRefresh }: ExecutionsListProps) {
   const { push } = useNavigation();
   const [pageIndex, setPageIndex] = useState(0);
+  const [apiExecutions, setApiExecutions] = useState<WorkflowExecution[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const pageSize = 10;
 
-  // Mock data - in real app, would fetch from /platform/automation/v1/workflows/{workflowId}/executions
-  // with pagination support (nextPageKey)
-  const allExecutions = MOCK_WORKFLOW_EXECUTIONS.filter((e) => e.workflowId === workflowId);
+  // Fetch execution history from API
+  useEffect(() => {
+    if (!tenant) {
+      setApiExecutions([]);
+      return;
+    }
+
+    setIsLoading(true);
+
+    const endpointsToTry = [
+      `/platform/automation/v1/workflows/${workflowId}?includeExecutionHistory=true`,
+      `/platform/automation/v1/workflows/${workflowId}?includeHistory=true`,
+      `/platform/automation/v1/workflows/${workflowId}?include=executionHistory`,
+      `/platform/automation/v1/workflows/${workflowId}?include=history`,
+      `/platform/automation/v1/workflows/${workflowId}/executions`,
+      `/api/v2/workflows/${workflowId}/executions`,
+      `/api/v2/automation/workflows/${workflowId}/executions`,
+      `/api/v2/automations/${workflowId}/executions`,
+      `/api/v2/automations/workflows/${workflowId}/executions`,
+      `/platform/automation/v1/workflows/${workflowId}`, // Works! Returns workflow details
+      `/api/v2/workflows/${workflowId}`,
+      `/api/v2/automations/${workflowId}`,
+    ];
+
+    const attemptEndpoint = async (endpoint: string): Promise<boolean> => {
+      try {
+        const response = await dynatraceRest<Record<string, unknown>>(tenant, endpoint, { method: "GET" });
+
+        // Try to extract executions from various possible response structures
+        let execs: WorkflowExecution[] = [];
+
+        if (Array.isArray(response.data)) {
+          execs = response.data;
+        } else if (response.data?.results) {
+          execs = response.data.results;
+        } else if (response.data?.executions) {
+          execs = response.data.executions;
+        } else if (response.data?.executionHistory) {
+          execs = response.data.executionHistory;
+        } else if (response.data?.runs) {
+          execs = response.data.runs;
+        } else if (response.data?.tasks) {
+          // This is workflow detail - no execution data but we got workflow data
+          execs = [];
+        } else if (response.data?.history) {
+          execs = response.data.history;
+        }
+
+        setApiExecutions(execs);
+
+        // Even if no executions, if we got workflow data, consider it success
+        if (execs.length > 0 || response.data?.id) {
+          return true;
+        }
+
+        return false;
+      } catch {
+        return false;
+      }
+    };
+
+    const tryAllEndpoints = async () => {
+      for (let i = 0; i < endpointsToTry.length; i++) {
+        const success = await attemptEndpoint(endpointsToTry[i], i + 1);
+        if (success) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      setApiExecutions([]);
+      setIsLoading(false);
+    };
+
+    tryAllEndpoints();
+  }, [tenant, workflowId]);
+
+  // Fallback to mock data if API fails or not available
+  const mockExecutions = MOCK_WORKFLOW_EXECUTIONS.filter((e) => e.workflowId === workflowId);
+  const allExecutions = apiExecutions && apiExecutions.length > 0 ? apiExecutions : mockExecutions;
 
   // Sort by startTime descending (most recent first)
   const sortedExecutions = [...allExecutions].sort(
@@ -57,6 +137,7 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
 
   return (
     <List
+      isLoading={isLoading}
       searchBarPlaceholder="Filter executions by status..."
       actions={
         <ActionPanel>

@@ -114,10 +114,7 @@ export interface TrendResult {
   label: string;
 }
 
-export function getTrendIndicator(
-  values: number[],
-  threshold: number = 5
-): TrendResult {
+export function getTrendIndicator(values: number[], threshold: number = 5): TrendResult {
   if (!values || values.length < 2) {
     return {
       indicator: "→",

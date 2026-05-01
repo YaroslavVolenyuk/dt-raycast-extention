@@ -1,4 +1,4 @@
-import { Action, ActionPanel, Detail, Icon, openInBrowser } from "@raycast/api";
+import { Action, ActionPanel, Detail, Icon } from "@raycast/api";
 import { useMemo, useEffect, useState } from "react";
 import { SyntheticMonitorData, ExecutionStatus, LocationResult } from "../../lib/types/synthetic";
 import { buildDeepLink } from "../../lib/utils/deepLinks";
@@ -60,12 +60,14 @@ export function MonitorDetailView({ monitor }: { monitor: SyntheticMonitorData }
 
 | Location | Status | Response Time | Error |
 |----------|--------|---------------|-------|
-${exec.locationResults.map((loc: LocationResult) => {
-  const statusIcon = getLocationStatusIcon(loc.status);
-  const responseTime = loc.responseTime ? `${loc.responseTime}ms` : "—";
-  const error = loc.errorMessage ? `${loc.errorMessage}` : "—";
-  return `| ${loc.location} | ${statusIcon} ${loc.status} | ${responseTime} | ${error} |`;
-}).join("\n")}
+${exec.locationResults
+  .map((loc: LocationResult) => {
+    const statusIcon = getLocationStatusIcon(loc.status);
+    const responseTime = loc.responseTime ? `${loc.responseTime}ms` : "—";
+    const error = loc.errorMessage ? `${loc.errorMessage}` : "—";
+    return `| ${loc.location} | ${statusIcon} ${loc.status} | ${responseTime} | ${error} |`;
+  })
+  .join("\n")}
 `;
     }
 
@@ -107,13 +109,10 @@ ${exec?.errorMessage ? `- **Last Error:** ${exec.errorMessage}` : ""}
           <Action.CopyToClipboard title="Copy Monitor ID" content={monitor.monitor.monitorId} />
           <Action.CopyToClipboard title="Copy URL" content={monitor.monitor.url} />
           {tenant && (
-            <Action
+            <Action.OpenInBrowser
               title="Open in Dynatrace"
               icon={Icon.Globe}
-              onAction={() => {
-                const url = buildDeepLink("synthetic", monitor.monitor.monitorId, tenant);
-                openInBrowser(url);
-              }}
+              url={buildDeepLink("synthetic", monitor.monitor.monitorId, tenant)}
             />
           )}
         </ActionPanel>

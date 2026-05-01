@@ -106,7 +106,7 @@ export default function ExecutionDetailView({
           {execution.status === "RUNNING" && (
             <Action
               title="Cancel Execution"
-              icon={Icon.XMark}
+              icon={Icon.Xmark}
               style={Action.Style.Destructive}
               onAction={handleCancel}
             />
@@ -160,7 +160,7 @@ function buildExecutionDetail(execution: WorkflowExecution, tasks: ExecutionTask
       const task = tasks[i];
       const statusEmoji = getStatusEmoji(task.status);
       const duration = task.durationMs ? `${(task.durationMs / 1000).toFixed(1)}s` : "—";
-      const notes = task.errorMessage ? `⚠️ ${task.errorMessage}` : "—";
+      const notes = task.errorMessage ? `[ERROR] ${task.errorMessage}` : "—";
 
       md += `| ${i + 1} | **${task.name}** | ${statusEmoji} ${task.status} | ${duration} | ${notes} |\n`;
     }
@@ -192,17 +192,17 @@ function buildExecutionDetail(execution: WorkflowExecution, tasks: ExecutionTask
 function getStatusEmoji(status: string): string {
   switch (status) {
     case "SUCCEEDED":
-      return "✅";
+      return "✓";
     case "FAILED":
-      return "❌";
+      return "✗";
     case "RUNNING":
-      return "⏳";
+      return "◆";
     case "PAUSED":
       return "⏸";
     case "SKIPPED":
-      return "⊘";
+      return "—";
     default:
-      return "❓";
+      return "?";
   }
 }
 
@@ -249,9 +249,6 @@ async function cancelExecution(executionId: string, tenant: TenantConfig | null)
   //     body: JSON.stringify({ state: "CANCELLED" }),
   //   }
   // );
-
-  // Mock success
-  console.log(`Cancelled execution: ${executionId}`);
 }
 
 async function reRunExecution(
@@ -275,7 +272,6 @@ async function reRunExecution(
 
   // Mock - generate new execution ID
   const newExecutionId = `exec-${Date.now()}`;
-  console.log(`Re-ran execution: ${workflowId} -> ${newExecutionId}`);
 
   return newExecutionId;
 }

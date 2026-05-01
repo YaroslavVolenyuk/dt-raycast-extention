@@ -98,7 +98,7 @@ export default function SloCommand() {
       schema: sloListSchema,
       enabled: !!tenant,
     }),
-    [tenant]
+    [tenant],
   );
 
   const {

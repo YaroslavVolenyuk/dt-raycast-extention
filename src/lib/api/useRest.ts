@@ -36,7 +36,7 @@ function errorToString(error: unknown): string {
 
   if (error instanceof ValidationError) {
     const firstError = error.zodError?.errors?.[0];
-    const msg = typeof firstError === 'object' ? firstError?.message : String(firstError);
+    const msg = typeof firstError === "object" ? firstError?.message : String(firstError);
     return `Invalid response format: ${msg || "validation failed"}`;
   }
 
@@ -82,7 +82,7 @@ function errorToString(error: unknown): string {
  * );
  */
 export function useDynatraceRest<T = unknown>(
-  tenant: TenantConfig,
+  tenant: TenantConfig | undefined,
   path: string,
   options: UseRestOptions<T> = {},
 ): UseRestState<T> {
@@ -95,8 +95,8 @@ export function useDynatraceRest<T = unknown>(
   const intervalRef = useRef<NodeJS.Timer | null>(null);
 
   const fetchData = useCallback(async () => {
-    if (!enabled) {
-      devLog("useDynatraceRest: hook is disabled");
+    if (!enabled || !tenant) {
+      devLog("useDynatraceRest: hook is disabled or no tenant");
       setIsLoading(false);
       return;
     }

@@ -1,10 +1,11 @@
-// B1-2: Workflow detail view with execution history
+// B1-2: Workflow detail view
 import { Detail, Action, ActionPanel, Icon, useNavigation } from "@raycast/api";
 import type { Workflow, WorkflowExecution } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
-import { MOCK_WORKFLOW_EXECUTIONS } from "../../lib/api/mock";
+import { dynatraceRest } from "../../lib/api/rest";
 import ExecuteWorkflowForm from "./execute-workflow";
 import ExecutionsList from "./executions-list";
+import { useEffect, useState } from "react";
 
 interface WorkflowDetailViewProps {
   workflow: Workflow;
@@ -14,16 +15,95 @@ interface WorkflowDetailViewProps {
 
 export default function WorkflowDetailView({ workflow, tenant, onRefresh }: WorkflowDetailViewProps) {
   const { push } = useNavigation();
+  const [workflowTasks, setWorkflowTasks] = useState<WorkflowExecution[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRealData, setIsRealData] = useState(false);
+  const [apiWorkflowData, setApiWorkflowData] = useState<Record<string, unknown> | null>(null);
 
-  // Mock execution history - in real app, would fetch from API
-  const executionHistory: WorkflowExecution[] = MOCK_WORKFLOW_EXECUTIONS.filter((e) => e.workflowId === workflow.id);
+  // Fetch workflow details from API (only if tenant is available)
+  useEffect(() => {
+    if (!tenant) {
+      return;
+    }
 
-  // Build markdown detail view
-  const markdown = buildWorkflowDetail(workflow, executionHistory);
+    // Try various endpoint patterns
+    const endpointsToTry = [
+      `/platform/automation/v1/workflows/${workflow.id}?includeExecutionHistory=true`,
+      `/platform/automation/v1/workflows/${workflow.id}?includeHistory=true`,
+      `/platform/automation/v1/workflows/${workflow.id}?include=executionHistory`,
+      `/platform/automation/v1/workflows/${workflow.id}?include=history`,
+      `/platform/automation/v1/workflows/${workflow.id}/executions`,
+      `/api/v2/workflows/${workflow.id}/executions`,
+      `/api/v2/automation/workflows/${workflow.id}/executions`,
+      `/api/v2/automations/${workflow.id}/executions`,
+      `/api/v2/automations/workflows/${workflow.id}/executions`,
+      `/platform/automation/v1/workflows/${workflow.id}`, // Works! Returns workflow details
+      `/api/v2/workflows/${workflow.id}`,
+      `/api/v2/automations/${workflow.id}`,
+    ];
+
+    setIsLoading(true);
+
+    const attemptEndpoint = async (endpoint: string): Promise<boolean> => {
+      try {
+        const response = await dynatraceRest<Record<string, unknown>>(tenant, endpoint, { method: "GET" });
+
+        // Try to extract tasks from various possible response structures
+        let tasks: WorkflowExecution[] = [];
+
+        const tasksObj = (response.data as Record<string, unknown>)?.tasks;
+        if (tasksObj && typeof tasksObj === "object" && tasksObj !== null) {
+          tasks = Object.entries(tasksObj).map(([key, value]: [string, unknown]) => {
+            const val = value as Record<string, unknown>;
+            return {
+              id: key,
+              name: (val?.name as string) || key,
+              type: (val?.type as string) || "action",
+              description: (val?.description as string) || "",
+              order: 0,
+              ...val, // Include all original fields
+            } as WorkflowExecution;
+          });
+        }
+
+        // If we got workflow details with tasks, consider it a success
+        if (endpoint.includes("workflows/") && (tasks.length > 0 || response.data?.id)) {
+          setWorkflowTasks(tasks);
+          setApiWorkflowData(response.data);
+          setIsRealData(true);
+          return true;
+        }
+
+        return false;
+      } catch {
+        return false;
+      }
+    };
+
+    const tryAllEndpoints = async () => {
+      for (let i = 0; i < endpointsToTry.length; i++) {
+        const success = await attemptEndpoint(endpointsToTry[i]);
+        if (success) {
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Show empty if all endpoints fail
+      setIsRealData(false);
+      setIsLoading(false);
+    };
+
+    tryAllEndpoints();
+  }, [tenant, workflow.id]);
+
+  // Build markdown detail view - use API data if available, otherwise fall back to workflow prop
+  const markdown = buildWorkflowDetail(workflow, isRealData, apiWorkflowData, workflowTasks);
 
   return (
     <Detail
       markdown={markdown}
+      isLoading={isLoading}
       actions={
         <ActionPanel>
           <Action
@@ -43,7 +123,7 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
                 );
               } else {
                 // No parameters - execute directly
-                handleExecuteWorkflow(workflow, null);
+                handleExecuteWorkflow(workflow, null, tenant);
               }
             }}
           />
@@ -83,12 +163,35 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
   );
 }
 
-function buildWorkflowDetail(workflow: Workflow, executionHistory: WorkflowExecution[]): string {
-  let md = `# ${workflow.name}\n\n`;
+function buildWorkflowDetail(
+  workflow: Workflow,
+  isRealData: boolean = false,
+  apiData: Record<string, unknown> | null = null,
+  apiTasks: WorkflowExecution[] = [],
+): string {
+  // Use API data if available, otherwise use workflow prop
+  const title = apiData?.title || workflow.name;
+  const description = apiData?.description || workflow.description;
+  const owner = apiData?.owner || workflow.owner;
+  const triggerType = apiData?.triggerType || workflow.triggerType;
+  const isDeployed = apiData?.isDeployed !== undefined ? apiData.isDeployed : workflow.enabled;
+  const createdDate = apiData?.modificationInfo?.createdTime;
+  const modifiedDate = apiData?.modificationInfo?.lastModifiedTime;
+
+  let md = `# ${title}`;
+
+  // Add indicator for real vs mock data
+  if (isRealData) {
+    md += ` [Live]`;
+  } else {
+    md += ` [Mock Data]`;
+  }
+
+  md += `\n\n`;
 
   // Description
-  if (workflow.description) {
-    md += `${workflow.description}\n\n`;
+  if (description) {
+    md += `${description}\n\n`;
   }
 
   // Basic info
@@ -96,11 +199,11 @@ function buildWorkflowDetail(workflow: Workflow, executionHistory: WorkflowExecu
   md += `| Property | Value |\n`;
   md += `|----------|-------|\n`;
   md += `| **ID** | \`${workflow.id}\` |\n`;
-  md += `| **Owner** | ${workflow.owner || "Unknown"} |\n`;
-  md += `| **Status** | ${workflow.enabled ? "🟢 Enabled" : "⚫ Disabled"} |\n`;
-  md += `| **Trigger Type** | ${getTriggerTypeLabel(workflow.triggerType)} |\n`;
-  md += `| **Created** | ${formatDate(workflow.createdAt)} |\n`;
-  md += `| **Modified** | ${formatDate(workflow.modifiedAt)} |\n\n`;
+  md += `| **Owner** | ${owner || "Unknown"} |\n`;
+  md += `| **Status** | ${isDeployed ? "Deployed" : "Not Deployed"} |\n`;
+  md += `| **Trigger Type** | ${getTriggerTypeLabel(triggerType)} |\n`;
+  md += `| **Created** | ${formatDate(createdDate || workflow.createdAt)} |\n`;
+  md += `| **Modified** | ${formatDate(modifiedDate || workflow.modifiedAt)} |\n\n`;
 
   // Trigger configuration
   if (workflow.triggerType === "SCHEDULE") {
@@ -131,23 +234,19 @@ function buildWorkflowDetail(workflow: Workflow, executionHistory: WorkflowExecu
     md += `\n`;
   }
 
-  // Execution history
-  md += `## Recent Executions\n\n`;
+  // Workflow steps/tasks - use API data if available
+  const stepsToDisplay = apiTasks.length > 0 ? apiTasks : workflow.steps || [];
 
-  if (executionHistory.length === 0) {
-    md += `No executions yet.\n\n`;
-  } else {
-    // Show last 5 executions
-    const recentExecutions = executionHistory.slice(0, 5);
-    md += `| Status | Started | Duration | Triggered By |\n`;
-    md += `|--------|---------|----------|---------------|\n`;
+  if (stepsToDisplay.length > 0) {
+    md += `## Workflow Steps\n\n`;
+    md += `| # | Step | Type | Description |\n`;
+    md += `|---|------|:----:|-------------|\n`;
 
-    for (const exec of recentExecutions) {
-      const statusEmoji = getStatusEmoji(exec.status);
-      const duration = exec.durationMs ? `${(exec.durationMs / 1000).toFixed(1)}s` : "N/A";
-      const startTime = formatDate(exec.startTime);
-
-      md += `| ${statusEmoji} ${exec.status} | ${startTime} | ${duration} | ${exec.triggeredBy || "unknown"} |\n`;
+    const sortedSteps = [...stepsToDisplay].sort((a, b) => (a.order || 0) - (b.order || 0));
+    for (let i = 0; i < sortedSteps.length; i++) {
+      const step = sortedSteps[i];
+      const stepNum = i + 1;
+      md += `| ${stepNum} | **${step.name}** | \`${step.type}\` | ${step.description || ""} |\n`;
     }
     md += `\n`;
   }
@@ -158,30 +257,13 @@ function buildWorkflowDetail(workflow: Workflow, executionHistory: WorkflowExecu
 function getTriggerTypeLabel(type: string): string {
   switch (type) {
     case "SCHEDULE":
-      return "🕐 Scheduled";
+      return "Scheduled";
     case "EVENT":
-      return "⚡ Event-triggered";
+      return "Event-triggered";
     case "MANUAL":
-      return "👆 Manual";
+      return "Manual";
     default:
       return type;
-  }
-}
-
-function getStatusEmoji(status: string): string {
-  switch (status) {
-    case "SUCCEEDED":
-      return "✅";
-    case "FAILED":
-      return "❌";
-    case "RUNNING":
-      return "⏳";
-    case "PAUSED":
-      return "⏸";
-    case "SKIPPED":
-      return "⊘";
-    default:
-      return "❓";
   }
 }
 
@@ -204,17 +286,18 @@ function formatDate(date?: string): string {
 async function handleExecuteWorkflow(
   workflow: Workflow,
   inputs: Record<string, string | number | boolean | undefined> | null,
+  tenant: TenantConfig | null,
 ) {
   try {
-    // In real app, would POST to /platform/automation/v1/workflows/{id}/run
-    console.log(`Executing workflow ${workflow.id}`, inputs);
+    if (!tenant) {
+      throw new Error("No tenant selected");
+    }
 
-    // Mock: create fake execution ID
-    const executionId = `exec-${Date.now()}`;
-    console.log(`Started execution: ${executionId}`);
-
-    // In real app, would show HUD with executionId and start polling
-  } catch (error) {
-    console.error("Failed to execute workflow:", error);
+    await dynatraceRest<{ id: string }>(tenant, `/platform/automation/v1/workflows/${workflow.id}/run`, {
+      method: "POST",
+      body: { input: inputs || {} },
+    });
+  } catch {
+    // Error handling in parent component
   }
 }
