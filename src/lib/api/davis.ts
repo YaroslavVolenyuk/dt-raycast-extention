@@ -170,7 +170,11 @@ export async function askDavis(
   context?: DavisContext,
   conversationHistory?: ConversationMessage[],
 ): Promise<DavisAnswer> {
+  console.log(`[Davis] askDavis called`);
+  console.log(`[Davis] Mock mode: ${isMockMode()}`);
+
   if (isMockMode()) {
+    console.log(`[Davis] Using mock mode`);
     // Look for matching mock answer
     const lowerMessage = message.toLowerCase();
     for (const [question, answer] of Object.entries(MOCK_ASK_ANSWERS)) {
@@ -192,12 +196,20 @@ export async function askDavis(
     conversationHistory: conversationHistory || [],
   };
 
+  console.log(`[Davis] Payload:`, {
+    messageLength: message.length,
+    hasContext: !!context,
+    historyLength: (conversationHistory || []).length,
+  });
+
+  console.log(`[Davis] Calling /davis/v1/copilot/ask endpoint...`);
   const response = await dynatraceRest<DavisAnswer>(tenant, "/davis/v1/copilot/ask", {
     method: "POST",
     body: payload,
     schema: davisAnswerSchema,
   });
 
+  console.log(`[Davis] Got response from API`);
   return response.data;
 }
 

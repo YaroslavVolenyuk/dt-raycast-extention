@@ -37,6 +37,9 @@ export default function AskDavisCommand() {
       return;
     }
 
+    console.log(`[AskDavis] Starting ask request...`);
+    console.log(`[AskDavis] Question: ${question.substring(0, 100)}`);
+
     setState({ ...state, isLoading: true, error: null, answer: null });
 
     try {
@@ -44,6 +47,16 @@ export default function AskDavisCommand() {
       if (!tenant) {
         throw new Error("No active tenant configured");
       }
+
+      console.log(`[AskDavis] Using tenant: ${tenant.name}`);
+      console.log(`[AskDavis] Tenant endpoint: ${tenant.tenantEndpoint}`);
+      console.log(`[AskDavis] Scopes count: ${tenant.scopes.length}`);
+      console.log(`[AskDavis] Scopes:`);
+      tenant.scopes.forEach((scope, idx) => {
+        if (scope.includes("davis") || scope.includes("copilot")) {
+          console.log(`[AskDavis]   ${idx + 1}. ${scope} ✓`);
+        }
+      });
 
       // Parse entity context if provided
       const context = values.entityContext
@@ -54,7 +67,9 @@ export default function AskDavisCommand() {
         : undefined;
 
       // Ask Davis with conversation history
+      console.log(`[AskDavis] Calling askDavis API...`);
       const result = await askDavis(tenant, question, context, state.conversationHistory);
+      console.log(`[AskDavis] Success, got answer`);
 
       // Add this exchange to conversation history
       const newHistory: ConversationMessage[] = [
@@ -77,7 +92,20 @@ export default function AskDavisCommand() {
         message: "Got answer from Davis",
       });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unknown error";
+      let errorMessage = "Unknown error";
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        console.error(`[AskDavis] Error: ${err.name} - ${err.message}`);
+        console.error(`[AskDavis] Stack:`, err.stack?.substring(0, 300));
+      } else if (typeof err === "string") {
+        errorMessage = err;
+        console.error(`[AskDavis] String error:`, err);
+      } else if (err && typeof err === "object") {
+        errorMessage = JSON.stringify(err);
+        console.error(`[AskDavis] Object error:`, err);
+      }
+
+      console.error(`[AskDavis] Final error message:`, errorMessage);
 
       setState({
         isLoading: false,
