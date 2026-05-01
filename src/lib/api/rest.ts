@@ -355,7 +355,7 @@ export async function dynatraceRestPaginated<T = unknown>(
   let currentPath = path;
 
   while (pageCount < maxPages) {
-    const response = await dynatraceRest<PaginatedResponse | unknown[]>(tenant, currentPath, restOptions);
+    const response = await dynatraceRest<PaginatedResponse | unknown[]>(tenant, currentPath, restOptions as RestClientOptions<PaginatedResponse | unknown[]>);
 
     const responseData = response.data;
 
@@ -375,7 +375,7 @@ export async function dynatraceRestPaginated<T = unknown>(
       }
 
       // Check for next page key
-      pageKey = obj[pageField];
+      pageKey = obj[pageField] as string | number | undefined;
       if (!pageKey) {
         break; // No more pages
       }

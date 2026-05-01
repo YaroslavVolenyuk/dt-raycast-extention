@@ -51,7 +51,7 @@ export default function SettingsCommand() {
   }
 
   // Filter by schema type
-  let filteredSettings = settings;
+  let filteredSettings: SettingsObject[] = settings ?? [];
   if (filterSchemaId) {
     filteredSettings = filteredSettings.filter((s) => s.schemaId === filterSchemaId);
   }

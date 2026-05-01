@@ -50,7 +50,7 @@ export default function WorkflowsCommand() {
   }
 
   // Filter workflows
-  let filteredWorkflows = workflows;
+  let filteredWorkflows: Workflow[] = workflows ?? [];
   if (filterTrigger) {
     filteredWorkflows = filteredWorkflows.filter((w) => w.triggerType === filterTrigger);
   }

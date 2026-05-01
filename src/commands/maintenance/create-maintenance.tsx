@@ -30,7 +30,7 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
   const handleSubmit = async () => {
     if (!form.name.trim()) {
       await showToast({
-        style: Toast.Style.Error,
+        style: Toast.Style.Failure,
         title: "Name is required",
       });
       return;
@@ -45,7 +45,7 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
 
       if (startDateTime >= endDateTime) {
         await showToast({
-          style: Toast.Style.Error,
+          style: Toast.Style.Failure,
           title: "End time must be after start time",
         });
         return;
@@ -91,7 +91,7 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
       pop();
     } catch (err) {
       await showToast({
-        style: Toast.Style.Error,
+        style: Toast.Style.Failure,
         title: "Failed to create",
         message: String(err),
       });

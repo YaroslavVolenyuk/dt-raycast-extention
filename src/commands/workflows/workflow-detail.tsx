@@ -1,6 +1,6 @@
 // B1-2: Workflow detail view
 import { Detail, Action, ActionPanel, Icon, useNavigation } from "@raycast/api";
-import type { Workflow, WorkflowExecution } from "../../lib/types/workflow";
+import type { Workflow, WorkflowExecution, WorkflowStep } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { dynatraceRest } from "../../lib/api/rest";
 import ExecuteWorkflowForm from "./execute-workflow";
@@ -15,7 +15,7 @@ interface WorkflowDetailViewProps {
 
 export default function WorkflowDetailView({ workflow, tenant, onRefresh }: WorkflowDetailViewProps) {
   const { push } = useNavigation();
-  const [workflowTasks, setWorkflowTasks] = useState<WorkflowExecution[]>([]);
+  const [workflowTasks, setWorkflowTasks] = useState<WorkflowStep[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRealData, setIsRealData] = useState(false);
   const [apiWorkflowData, setApiWorkflowData] = useState<Record<string, unknown> | null>(null);
@@ -49,7 +49,7 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
         const response = await dynatraceRest<Record<string, unknown>>(tenant, endpoint, { method: "GET" });
 
         // Try to extract tasks from various possible response structures
-        let tasks: WorkflowExecution[] = [];
+        let tasks: WorkflowStep[] = [];
 
         const tasksObj = (response.data as Record<string, unknown>)?.tasks;
         if (tasksObj && typeof tasksObj === "object" && tasksObj !== null) {
@@ -61,8 +61,7 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
               type: (val?.type as string) || "action",
               description: (val?.description as string) || "",
               order: 0,
-              ...val, // Include all original fields
-            } as WorkflowExecution;
+            } as WorkflowStep;
           });
         }
 
@@ -167,16 +166,17 @@ function buildWorkflowDetail(
   workflow: Workflow,
   isRealData: boolean = false,
   apiData: Record<string, unknown> | null = null,
-  apiTasks: WorkflowExecution[] = [],
+  apiTasks: WorkflowStep[] = [],
 ): string {
   // Use API data if available, otherwise use workflow prop
   const title = apiData?.title || workflow.name;
   const description = apiData?.description || workflow.description;
   const owner = apiData?.owner || workflow.owner;
-  const triggerType = apiData?.triggerType || workflow.triggerType;
+  const triggerType = (apiData?.triggerType as string | undefined) || workflow.triggerType;
   const isDeployed = apiData?.isDeployed !== undefined ? apiData.isDeployed : workflow.enabled;
-  const createdDate = apiData?.modificationInfo?.createdTime;
-  const modifiedDate = apiData?.modificationInfo?.lastModifiedTime;
+  const modificationInfo = apiData?.modificationInfo as Record<string, unknown> | undefined;
+  const createdDate = modificationInfo?.createdTime as string | undefined;
+  const modifiedDate = modificationInfo?.lastModifiedTime as string | undefined;
 
   let md = `# ${title}`;
 

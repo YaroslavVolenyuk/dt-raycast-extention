@@ -7,6 +7,7 @@ import { isMockMode } from "../devMode";
 import {
   DavisContext,
   DavisAnswer,
+  DavisSource,
   NL2DQLResponse,
   DQL2NLResponse,
   ConversationMessage,

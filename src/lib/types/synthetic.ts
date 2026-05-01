@@ -53,7 +53,7 @@ export const SyntheticMonitorSchema = z.object({
   owner: z.string().optional(),
   createdAt: z.number(),
   modifiedAt: z.number(),
-  tags: z.record(z.string()).optional(),
+  tags: z.record(z.string(), z.string()).optional(),
 });
 
 export type SyntheticMonitor = z.infer<typeof SyntheticMonitorSchema>;

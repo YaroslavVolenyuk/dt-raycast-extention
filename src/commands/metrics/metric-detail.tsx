@@ -98,7 +98,7 @@ export function MetricDetailView({
 ## Trend
 ${trend.symbol} ${trend.indicator} ${Math.abs(trend.change)}% (${trend.label})
 
-## Sparkline (Last ${TimeframeOptions[timeframe[0]].label.replace("Last ", "").toLowerCase()})
+## Sparkline (Last ${TimeframeOptions[timeframe[0] as TimeframeKey].label.replace("Last ", "").toLowerCase()})
 \`\`\`
 ${sparkline}
 \`\`\`

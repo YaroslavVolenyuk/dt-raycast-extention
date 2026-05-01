@@ -53,20 +53,20 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
         let execs: WorkflowExecution[] = [];
 
         if (Array.isArray(response.data)) {
-          execs = response.data;
+          execs = response.data as WorkflowExecution[];
         } else if (response.data?.results) {
-          execs = response.data.results;
+          execs = response.data.results as WorkflowExecution[];
         } else if (response.data?.executions) {
-          execs = response.data.executions;
+          execs = response.data.executions as WorkflowExecution[];
         } else if (response.data?.executionHistory) {
-          execs = response.data.executionHistory;
+          execs = response.data.executionHistory as WorkflowExecution[];
         } else if (response.data?.runs) {
-          execs = response.data.runs;
+          execs = response.data.runs as WorkflowExecution[];
         } else if (response.data?.tasks) {
           // This is workflow detail - no execution data but we got workflow data
           execs = [];
         } else if (response.data?.history) {
-          execs = response.data.history;
+          execs = response.data.history as WorkflowExecution[];
         }
 
         setApiExecutions(execs);
@@ -84,7 +84,7 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
 
     const tryAllEndpoints = async () => {
       for (let i = 0; i < endpointsToTry.length; i++) {
-        const success = await attemptEndpoint(endpointsToTry[i], i + 1);
+        const success = await attemptEndpoint(endpointsToTry[i]);
         if (success) {
           setIsLoading(false);
           return;

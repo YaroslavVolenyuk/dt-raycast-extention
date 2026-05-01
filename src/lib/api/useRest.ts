@@ -35,7 +35,7 @@ function errorToString(error: unknown): string {
   }
 
   if (error instanceof ValidationError) {
-    const firstError = error.zodError?.errors?.[0];
+    const firstError = error.zodError?.issues?.[0];
     const msg = typeof firstError === "object" ? firstError?.message : String(firstError);
     return `Invalid response format: ${msg || "validation failed"}`;
   }
@@ -92,7 +92,7 @@ export function useDynatraceRest<T = unknown>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-  const intervalRef = useRef<NodeJS.Timer | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!enabled || !tenant) {

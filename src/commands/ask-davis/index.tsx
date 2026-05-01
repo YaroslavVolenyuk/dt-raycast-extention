@@ -254,7 +254,7 @@ function AskDavisAnswerView({
                   LOG: "log-query",
                 };
 
-                const deepLinkType: DeepLinkType = deepLinkTypeMap[source.type] || "entity";
+                const deepLinkType: DeepLinkType = deepLinkTypeMap[source.type ?? ""] || "entity";
 
                 return (
                   <Action

@@ -84,7 +84,7 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
               id={param.name}
               title={param.name}
               placeholder={param.description || ""}
-              value={formValues[param.name] || ""}
+              value={formValues[param.name]?.toString() || ""}
               onChange={(value) => setFormValues({ ...formValues, [param.name]: value ? Number(value) : undefined })}
               error={isRequired && !formValues[param.name] ? "This field is required" : undefined}
             />
@@ -106,7 +106,7 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
               key={param.name}
               id={param.name}
               title={param.name}
-              value={formValues[param.name] || ""}
+              value={formValues[param.name]?.toString() || ""}
               onChange={(value) => setFormValues({ ...formValues, [param.name]: value })}
             >
               {param.enum.map((option) => (
@@ -122,7 +122,7 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
               id={param.name}
               title={param.name}
               placeholder={param.description || ""}
-              value={formValues[param.name] || ""}
+              value={formValues[param.name]?.toString() || ""}
               onChange={(value) => setFormValues({ ...formValues, [param.name]: value })}
               error={isRequired && !formValues[param.name] ? "This field is required" : undefined}
             />

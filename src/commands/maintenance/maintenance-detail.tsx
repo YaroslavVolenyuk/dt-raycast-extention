@@ -76,7 +76,7 @@ ${window.createdBy ? `\n## Metadata\n\n- **Created by:** ${window.createdBy}\n- 
       });
     } catch (err) {
       await showToast({
-        style: Toast.Style.Error,
+        style: Toast.Style.Failure,
         title: "Failed to copy",
         message: String(err),
       });
@@ -94,11 +94,13 @@ ${window.createdBy ? `\n## Metadata\n\n- **Created by:** ${window.createdBy}\n- 
             icon={Icon.Clipboard}
             shortcut={Keyboard.Shortcut.Common.Copy}
           />
-          <Action.OpenInBrowser
-            url={buildDeepLink("maintenance-window", window.id, tenant.tenantEndpoint)}
-            icon={Icon.Globe}
-            shortcut={Keyboard.Shortcut.Common.Open}
-          />
+          {tenant && (
+            <Action.OpenInBrowser
+              url={buildDeepLink("maintenance-window", window.id, tenant)}
+              icon={Icon.Globe}
+              shortcut={Keyboard.Shortcut.Common.Open}
+            />
+          )}
           {(status === MaintenanceWindowStatus.SCHEDULED || status === MaintenanceWindowStatus.PAST) && (
             <Action
               title="Delete"

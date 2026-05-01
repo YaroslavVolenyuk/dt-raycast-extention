@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Detail, Action, ActionPanel, Icon, Keyboard, showToast, Toast } from "@raycast/api";
 import { useTenant } from "../../hooks/useTenant";
 import { dynatraceRest } from "../../lib/api/rest";
-import { Problem, problemSchema } from "../../lib/types/problem";
-import { SLO, sloSchema } from "../../lib/types/slo";
+import { Problem } from "../../lib/types/problem";
+import { SLO } from "../../lib/types/slo";
 import { ExecutionStatus } from "../../lib/types/synthetic";
 import type { SyntheticMonitorData } from "../../lib/types/synthetic";
 import type { Deployment } from "../../lib/types/deployment";
@@ -44,9 +44,8 @@ export default function StatusCommand() {
       const results = await Promise.allSettled([
         dynatraceRest<{ problems: Problem[] }>(tenant, "/api/v2/problems", {
           queryParams: { status: "OPEN" },
-          schema: problemSchema,
         }).catch((): { data: { problems: Problem[] } } => ({ data: { problems: [] } })),
-        dynatraceRest<{ slo: SLO[] }>(tenant, "/api/v2/slo", { schema: sloSchema }).catch(
+        dynatraceRest<{ slo: SLO[] }>(tenant, "/api/v2/slo", {}).catch(
           (): { data: { slo: SLO[] } } => ({ data: { slo: [] } }),
         ),
         dynatraceRest<{ monitors: SyntheticMonitorData[] }>(tenant, "/api/v2/synthetic/monitors", {}).catch(
@@ -81,7 +80,7 @@ export default function StatusCommand() {
     } catch (err) {
       setError(String(err));
       await showToast({
-        style: Toast.Style.Error,
+        style: Toast.Style.Failure,
         title: "Failed to load status",
         message: String(err),
       });
@@ -99,10 +98,10 @@ export default function StatusCommand() {
         ? {
             total: statusData.problems.length,
             bySeverity: {
-              CRITICAL: statusData.problems.filter((p) => p.severity === "CRITICAL").length,
-              MAJOR: statusData.problems.filter((p) => p.severity === "MAJOR").length,
-              MINOR: statusData.problems.filter((p) => p.severity === "MINOR").length,
-              WARNING: statusData.problems.filter((p) => p.severity === "WARNING").length,
+              CRITICAL: statusData.problems.filter((p) => p["event.severity"] === "AVAILABILITY").length,
+              MAJOR: statusData.problems.filter((p) => p["event.severity"] === "ERROR").length,
+              MINOR: statusData.problems.filter((p) => p["event.severity"] === "PERFORMANCE").length,
+              WARNING: statusData.problems.filter((p) => p["event.severity"] === "RESOURCE_CONTENTION").length,
             },
             items: statusData.problems,
           }
@@ -137,8 +136,8 @@ export default function StatusCommand() {
 
     // Problems section
     if (statusData.problems !== null) {
-      const critical = statusData.problems.filter((p) => p.severity === "CRITICAL").length;
-      const major = statusData.problems.filter((p) => p.severity === "MAJOR").length;
+      const critical = statusData.problems.filter((p) => p["event.severity"] === "AVAILABILITY").length;
+      const major = statusData.problems.filter((p) => p["event.severity"] === "ERROR").length;
       const total = statusData.problems.length;
 
       markdown += `## 🚨 Problems\n\n`;
@@ -147,8 +146,9 @@ export default function StatusCommand() {
       } else {
         markdown += `${critical} critical • ${major} major • ${total} total\n\n`;
         statusData.problems.slice(0, 5).forEach((p) => {
-          const icon = p.severity === "CRITICAL" ? "🔴" : p.severity === "MAJOR" ? "🟠" : "🟡";
-          markdown += `${icon} **${p.title}** (${p.status})\n`;
+          const sev = p["event.severity"];
+          const icon = sev === "AVAILABILITY" ? "🔴" : sev === "ERROR" ? "🟠" : "🟡";
+          markdown += `${icon} **${p["event.name"]}** (${p["event.status"]})\n`;
         });
         if (total > 5) markdown += `\n_+ ${total - 5} more problems_\n`;
       }
@@ -209,9 +209,9 @@ export default function StatusCommand() {
     if (statusData.deployments !== null && statusData.deployments.length > 0) {
       markdown += `## 🚀 Recent Deployments\n\n`;
       statusData.deployments.slice(0, 3).forEach((d) => {
-        const icon = d.status === "success" ? "✅" : "❌";
-        const time = new Date(d.timestamp).toLocaleString();
-        markdown += `${icon} **${d.service}** v${d.version} (${time})\n`;
+        const icon = d["event.type"] === "CUSTOM_DEPLOYMENT" ? "✅" : "🚀";
+        const time = new Date(d["event.start"]).toLocaleString();
+        markdown += `${icon} **${d["event.name"]}** v${d["deployment.version"] ?? "?"} (${time})\n`;
       });
     }
 

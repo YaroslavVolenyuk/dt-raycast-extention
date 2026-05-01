@@ -72,7 +72,7 @@ export default function MaintenanceCommand() {
       revalidate();
     } catch (err) {
       await showToast({
-        style: Toast.Style.Error,
+        style: Toast.Style.Failure,
         title: "Failed to delete",
         message: String(err),
       });

@@ -18,7 +18,7 @@ export const MetricSchema = z.object({
   unit: z.string().describe("Unit of measurement (ms, %, bytes, etc)"),
   aggregationType: z.enum(["AVG", "SUM", "MIN", "MAX", "COUNT"]).optional(),
   dimensions: z.array(z.string()).optional().describe("Available dimensions"),
-  tags: z.record(z.string()).optional().describe("Metric tags"),
+  tags: z.record(z.string(), z.string()).optional().describe("Metric tags"),
 });
 
 export type Metric = z.infer<typeof MetricSchema>;
