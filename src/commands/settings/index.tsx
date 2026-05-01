@@ -6,7 +6,7 @@ import type { TenantConfig } from "../../lib/auth";
 import { settingsListSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
 import type { SettingsObject, SettingsType } from "../../lib/types/settings";
 import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MOCK_SETTINGS } from "../../lib/api/mock";
 import SettingDetailView from "./setting-detail";
 
@@ -20,15 +20,21 @@ export default function SettingsCommand() {
     getActiveTenant().then(setTenant);
   }, []);
 
+  // Memoize options to prevent infinite re-fetch cycles
+  const restOptions = useMemo(
+    () => ({
+      schema: settingsListSchema,
+      enabled: !!tenant,
+    }),
+    [tenant]
+  );
+
   const {
     data: settings = [],
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<SettingsObject[]>(tenant || undefined, "/api/v2/settings/objects", {
-    schema: settingsListSchema,
-    enabled: !!tenant,
-  });
+  } = useDynatraceRest<SettingsObject[]>(tenant || undefined, "/api/v2/settings/objects", restOptions);
 
   const { push } = useNavigation();
 

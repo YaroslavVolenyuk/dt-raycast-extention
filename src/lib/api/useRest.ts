@@ -35,10 +35,16 @@ function errorToString(error: unknown): string {
   }
 
   if (error instanceof ValidationError) {
-    return `Invalid response format: ${error.zodError.errors[0]?.message || "validation failed"}`;
+    const firstError = error.zodError?.errors?.[0];
+    const msg = typeof firstError === 'object' ? firstError?.message : String(firstError);
+    return `Invalid response format: ${msg || "validation failed"}`;
   }
 
+  // Handle AbortError when request is cancelled
   if (error instanceof Error) {
+    if (error.name === "AbortError") {
+      return "Request was cancelled";
+    }
     return error.message;
   }
 
@@ -113,6 +119,17 @@ export function useDynatraceRest<T = unknown>(
       setData(response.data);
       setError(null);
     } catch (err) {
+      // Ignore AbortError and wrapped RestError from cancelled requests
+      if (err instanceof Error && err.name === "AbortError") {
+        devLog(`useDynatraceRest: request cancelled for ${path}`);
+        return;
+      }
+
+      if (err instanceof RestError && err.statusCode === 0 && err.message.includes("abort")) {
+        devLog(`useDynatraceRest: request aborted for ${path}`);
+        return;
+      }
+
       const errorMessage = errorToString(err);
       setError(errorMessage);
 
@@ -130,7 +147,7 @@ export function useDynatraceRest<T = unknown>(
     } finally {
       setIsLoading(false);
     }
-  }, [tenant, path, restOptions, enabled, showErrorToast, onError]);
+  }, [tenant, path, enabled, showErrorToast, onError]);
 
   // Initial fetch and polling setup
   useEffect(() => {

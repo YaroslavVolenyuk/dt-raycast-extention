@@ -6,7 +6,7 @@ import type { TenantConfig } from "../../lib/auth";
 import { workflowListSchema } from "../../lib/types/workflow";
 import type { Workflow } from "../../lib/types/workflow";
 import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { MOCK_WORKFLOWS } from "../../lib/api/mock";
 import WorkflowDetailView from "./workflow-detail";
 
@@ -21,15 +21,21 @@ export default function WorkflowsCommand() {
     getActiveTenant().then(setTenant);
   }, []);
 
+  // Memoize options to prevent infinite re-fetch cycles
+  const restOptions = useMemo(
+    () => ({
+      schema: workflowListSchema,
+      enabled: !!tenant,
+    }),
+    [tenant]
+  );
+
   const {
     data: workflows = [],
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<Workflow[]>(tenant || undefined, "/platform/automation/v1/workflows", {
-    schema: workflowListSchema,
-    enabled: !!tenant,
-  });
+  } = useDynatraceRest<Workflow[]>(tenant || undefined, "/platform/automation/v1/workflows", restOptions);
 
   const { push } = useNavigation();
 

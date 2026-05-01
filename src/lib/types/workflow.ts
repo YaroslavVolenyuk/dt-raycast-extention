@@ -27,23 +27,53 @@ export const workflowExecutionSchema = z.object({
 
 export type WorkflowExecution = z.infer<typeof workflowExecutionSchema>;
 
-// Workflow type
+// API workflow format
+const workflowApiSchema = z.object({
+  id: z.string(),
+  title: z.string(), // API uses 'title'
+  description: z.string().nullable().optional(),
+  owner: z.string().optional(),
+  triggerType: z.string().optional(), // "Manual", "Schedule", etc.
+  isDeployed: z.boolean().optional(),
+  lastExecution: z.unknown().optional(),
+}).passthrough().transform(data => ({
+  id: data.id,
+  name: data.title, // map title -> name
+  description: data.description,
+  owner: data.owner,
+  triggerType: data.triggerType?.toUpperCase() as TriggerType || "MANUAL",
+  enabled: data.isDeployed ?? true,
+  lastExecutionStatus: null,
+  lastExecutionTime: null,
+}));
+
+// Mock workflow format
 export const workflowSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable().optional(),
   owner: z.string().optional(),
-  triggerType: triggerTypeSchema, // SCHEDULE, EVENT, MANUAL
+  triggerType: triggerTypeSchema,
   enabled: z.boolean().default(true),
   createdAt: z.string().datetime().optional(),
   modifiedAt: z.string().datetime().optional(),
   lastExecutionStatus: executionStatusSchema.nullable().optional(),
   lastExecutionTime: z.string().datetime().nullable().optional(),
-  inputParametersSchema: z.object({}).passthrough().optional(), // JSON Schema
+  inputParametersSchema: z.object({}).passthrough().optional(),
   tags: z.array(z.string()).optional(),
 });
 
-export const workflowListSchema = z.array(workflowSchema);
+// API response wrapper: { count, results: [...] }
+const workflowApiResponseSchema = z.object({
+  count: z.number(),
+  results: z.array(workflowApiSchema),
+});
+
+// List schema - handles both array (mock) and wrapper object (API)
+export const workflowListSchema = z.union([
+  z.array(workflowSchema),
+  workflowApiResponseSchema.transform(r => r.results),
+]);
 
 export type Workflow = z.infer<typeof workflowSchema>;
 

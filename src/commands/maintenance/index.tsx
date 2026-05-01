@@ -28,16 +28,23 @@ export default function MaintenanceCommand() {
   const { push } = useNavigation();
   const [searchText, setSearchText] = useState("");
 
-  const { data: windows, isLoading, error, revalidate } = useDynatraceRest<MaintenanceWindow[]>(
-    {
-      tenant,
-      url: "/api/v2/settings/objects",
+  // Memoize options to prevent infinite re-fetch cycles
+  const restOptions = useMemo(
+    () => ({
+      schema: MaintenanceWindowListSchema,
       queryParams: {
         schemaIds: "builtin:alerting.maintenance-window",
         pageSize: "100",
       },
-    },
-    MaintenanceWindowListSchema,
+      enabled: !!tenant,
+    }),
+    [tenant]
+  );
+
+  const { data: windows, isLoading, error, revalidate } = useDynatraceRest<MaintenanceWindow[]>(
+    tenant || undefined,
+    "/api/v2/settings/objects",
+    restOptions
   );
 
   const filteredAndSorted = useMemo(() => {

@@ -40,46 +40,44 @@ export default function StatusCommand() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadStatusData();
-  }, []);
+    if (tenant) {
+      loadStatusData();
+    }
+  }, [tenant]);
 
   const loadStatusData = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
+      if (!tenant) {
+        setError("No active tenant configured");
+        setIsLoading(false);
+        return;
+      }
+
       // Load all data in parallel
       const results = await Promise.allSettled([
-        dynatraceRest(
-          {
-            tenant,
-            url: "/api/v2/problems",
-            queryParams: { status: "OPEN" },
-          },
-          null,
-        ).catch(() => ({ problems: [] })),
-        dynatraceRest(
-          {
-            tenant,
-            url: "/api/v2/slo",
-          },
-          null,
-        ).catch(() => ({ slos: [] })),
-        dynatraceRest(
-          {
-            tenant,
-            url: "/api/v2/synthetic/monitors",
-          },
-          null,
-        ).catch(() => ({ synthetics: [] })),
-        dynatraceRest(
-          {
-            tenant,
-            url: "/api/v2/deployments",
-            queryParams: { pageSize: "3" },
-          },
-          null,
-        ).catch(() => ({ deployments: [] })),
+        dynatraceRest<{ problems: Problem[] }>(
+          tenant,
+          "/api/v2/problems",
+          { queryParams: { status: "OPEN" }, schema: problemSchema }
+        ).catch(() => ({ data: { problems: [] } } as any)),
+        dynatraceRest<{ slo: SLO[] }>(
+          tenant,
+          "/api/v2/slo",
+          { schema: sloSchema }
+        ).catch(() => ({ data: { slo: [] } } as any)),
+        dynatraceRest<{ monitors: SyntheticMonitorData[] }>(
+          tenant,
+          "/api/v2/synthetic/monitors",
+          {}
+        ).catch(() => ({ data: { monitors: [] } } as any)),
+        dynatraceRest<{ deployments: Deployment[] }>(
+          tenant,
+          "/api/v2/deployments",
+          { queryParams: { pageSize: "3" } }
+        ).catch(() => ({ data: { deployments: [] } } as any)),
       ]);
 
       // Extract data from promises
@@ -87,20 +85,20 @@ export default function StatusCommand() {
 
       const data: StatusData = {
         problems:
-          problemsResult.status === "fulfilled" && problemsResult.value?.problems
-            ? problemsResult.value.problems
+          problemsResult.status === "fulfilled" && problemsResult.value?.data?.problems
+            ? problemsResult.value.data.problems
             : null,
         slos:
-          slosResult.status === "fulfilled" && slosResult.value?.slos
-            ? slosResult.value.slos
+          slosResult.status === "fulfilled" && slosResult.value?.data?.slo
+            ? slosResult.value.data.slo
             : null,
         synthetics:
-          syntheticsResult.status === "fulfilled" && syntheticsResult.value?.synthetics
-            ? syntheticsResult.value.synthetics
+          syntheticsResult.status === "fulfilled" && syntheticsResult.value?.data?.monitors
+            ? syntheticsResult.value.data.monitors
             : null,
         deployments:
-          deploymentsResult.status === "fulfilled" && deploymentsResult.value?.deployments
-            ? deploymentsResult.value.deployments
+          deploymentsResult.status === "fulfilled" && deploymentsResult.value?.data?.deployments
+            ? deploymentsResult.value.data.deployments
             : null,
         lastChecked: Date.now(),
       };

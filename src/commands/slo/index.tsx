@@ -6,7 +6,7 @@ import type { TenantConfig } from "../../lib/auth";
 import { sloListSchema } from "../../lib/types/slo";
 import type { SLO } from "../../lib/types/slo";
 import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import SloDetailView from "./slo-detail";
 
 // Mock SLO data for development/testing
@@ -92,15 +92,21 @@ export default function SloCommand() {
     getActiveTenant().then(setTenant);
   }, []);
 
+  // Memoize options to prevent infinite re-fetch cycles
+  const restOptions = useMemo(
+    () => ({
+      schema: sloListSchema,
+      enabled: !!tenant,
+    }),
+    [tenant]
+  );
+
   const {
     data: slos = [],
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<SLO[]>(tenant || undefined, "/api/v2/slo", {
-    schema: sloListSchema,
-    enabled: !!tenant,
-  });
+  } = useDynatraceRest<SLO[]>(tenant || undefined, "/api/v2/slo", restOptions);
 
   const { push } = useNavigation();
 
