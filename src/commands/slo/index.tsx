@@ -89,7 +89,14 @@ export default function SloCommand() {
   useEffect(() => {
     // Register mock data for SLOs
     registerMock("/api/v2/slo", MOCK_SLOS);
-    getActiveTenant().then(setTenant);
+    getActiveTenant().then((t) => {
+      console.log("[SLO] Active tenant loaded:", {
+        tenantId: t?.id,
+        tenantName: t?.name,
+        endpoint: t?.tenantEndpoint,
+      });
+      setTenant(t);
+    });
   }, []);
 
   // Memoize options to prevent infinite re-fetch cycles

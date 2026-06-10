@@ -9,13 +9,18 @@ Use this before changing OAuth, tenants, Grail queries, DQL builders, mock mode,
 | `src/lib/auth.ts` | OAuth 2.0 client credentials flow, token cache, credential validation |
 | `src/lib/tenants.ts` | Tenant CRUD and active tenant selection via Raycast LocalStorage |
 | `src/lib/query.ts` | `useDynatraceQuery<T>()` — single hook for all Grail DQL execution |
-| `src/lib/api/mock.ts` | Mock datasets: MOCK_LOGS, MOCK_PROBLEMS, MOCK_DEPLOYMENTS, MOCK_SPANS, MOCK_ENTITIES |
+| `src/lib/api/rest.ts` | Generic REST client for Classic/Platform APIs, Zod validation, retries, pagination, mock registry |
+| `src/lib/api/useRest.ts` | React hook around `dynatraceRest()` for REST-backed commands |
+| `src/lib/api/davis.ts` | Davis CoPilot helpers: NL2DQL, DQL explanation, Ask Davis |
+| `src/lib/api/mock.ts` | Mock datasets: logs, problems, deployments, spans, entities, workflows, settings, metrics, synthetics, maintenance |
 | `src/lib/integrations/jira.ts` | Jira issue creation via REST API |
 | `src/lib/types/grail.ts` | Canonical Zod schemas: `grailResponseSchema`, `logRecordSchema`, `grailRecordSchema` |
-| `src/lib/types/*.ts` | Domain types: problem, deployment, entity, span, log, savedQuery |
+| `src/lib/types/*.ts` | Domain types and schemas: problem, deployment, entity, span, log, savedQuery, slo, workflow, metric, synthetic, maintenance, status |
 | `src/lib/utils/buildDqlQuery.ts` | DQL query builder with injection-safe `escapeDqlString()` |
 
 ## Data Flow
+
+### Grail/DQL
 
 ```
 User action in command
@@ -26,6 +31,19 @@ User action in command
     → grailResponseSchema.parse(response)   // Zod — throws on shape mismatch
     → setData({ records: T[] })
   → React re-render with typed records
+```
+
+### Classic/Platform REST
+
+```
+User action in command
+  → useDynatraceRest<T>(tenant, path, { schema, queryParams })
+    → dynatraceRest<T>()
+    → isMockMode() ? registered mock data : real API
+    → getAccessToken(tenant)
+    → fetch {tenantEndpoint}{path}
+    → schema.parse(response)
+  → React re-render with typed data
 ```
 
 ## Contract Rules

@@ -97,6 +97,7 @@ export function useDynatraceRest<T = unknown>(
   const fetchData = useCallback(async () => {
     if (!enabled || !tenant) {
       devLog("useDynatraceRest: hook is disabled or no tenant");
+      console.warn("[SLO] Hook disabled or no tenant:", { enabled, hasTenant: !!tenant });
       setIsLoading(false);
       return;
     }
@@ -109,6 +110,7 @@ export function useDynatraceRest<T = unknown>(
     setError(null);
 
     try {
+      console.log(`[SLO] Fetching ${path}`, { tenantId: tenant.id, endpoint: tenant.tenantEndpoint });
       devLog(`useDynatraceRest: fetching ${path}`, { interval, enabled });
 
       const response = await dynatraceRest<T>(tenant, path, {
@@ -116,6 +118,7 @@ export function useDynatraceRest<T = unknown>(
         signal: abortRef.current.signal,
       });
 
+      console.log(`[SLO] Success: ${path}`, { dataLength: response.data ? String(response.data).length : 0 });
       setData(response.data);
       setError(null);
     } catch (err) {
@@ -131,6 +134,12 @@ export function useDynatraceRest<T = unknown>(
       }
 
       const errorMessage = errorToString(err);
+      console.error(`[SLO] API Error for ${path}:`, {
+        error: errorMessage,
+        statusCode: err instanceof RestError ? err.statusCode : "unknown",
+        path,
+        tenantId: tenant.id,
+      });
       setError(errorMessage);
 
       if (showErrorToast) {

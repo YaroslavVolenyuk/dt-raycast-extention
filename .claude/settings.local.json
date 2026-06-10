@@ -11,7 +11,8 @@
       "Bash(git add *)",
       "Bash(GIT_EDITOR=true git rebase --continue)",
       "Bash(git rebase *)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(git config *)"
     ]
   }
 }

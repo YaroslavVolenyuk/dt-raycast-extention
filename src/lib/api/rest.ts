@@ -261,6 +261,15 @@ export async function dynatraceRest<T = unknown>(
       throw new DavisCopilotUnavailableError();
     }
 
+    // Special case: 403 Forbidden (likely missing scopes)
+    if (response.status === 403) {
+      console.error(`[REST] 403 Forbidden - likely missing OAuth scopes`, {
+        path,
+        endpoint: `${tenant.tenantEndpoint}${path}`,
+        suggestion: "Check OAuth token scopes: slo:slos:read, slo:slos:write, environment-api:slo:read, environment-api:slo:write",
+      });
+    }
+
     // Rate limiting
     if (response.status === 429) {
       const retryAfter = response.headers.get("Retry-After");
