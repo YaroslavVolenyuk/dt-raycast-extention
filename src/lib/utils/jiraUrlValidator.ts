@@ -133,8 +133,8 @@ export function extractCloudId(jiraUrl: string | undefined): string | undefined 
  * @returns Full scoped token URL
  *
  * @example
- * buildScopedTokenUrl("e6f310ff-605a-4f7c-b043-5d591d075292")
- * // Returns: "https://api.atlassian.com/ex/jira/e6f310ff-605a-4f7c-b043-5d591d075292"
+ * buildScopedTokenUrl("00000000-0000-0000-0000-000000000000")
+ * // Returns: "https://api.atlassian.com/ex/jira/00000000-0000-0000-0000-000000000000"
  */
 export function buildScopedTokenUrl(cloudId: string): string {
   if (!cloudId || cloudId.trim().length === 0) {
@@ -168,7 +168,7 @@ export function buildJiraUrlFromCloudId(cloudId: string | undefined): {
   if (!trimmedId.match(/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i)) {
     return {
       isValid: false,
-      message: `Invalid Cloud ID format. Expected UUID like: e6f310ff-605a-4f7c-b043-5d591d075292`,
+      message: `Invalid Cloud ID format. Expected UUID like: 00000000-0000-0000-0000-000000000000`,
     };
   }
 

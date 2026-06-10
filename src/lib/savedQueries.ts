@@ -3,7 +3,6 @@
 // Stored in LocalStorage (non-synced for privacy).
 
 import { LocalStorage } from "@raycast/api";
-import { z } from "zod";
 import { SavedQuery, savedQuerySchema } from "./types/savedQuery";
 
 const STORAGE_KEY = "saved-queries:v1";
@@ -17,10 +16,16 @@ export async function listSavedQueries(tenantId?: string): Promise<SavedQuery[]>
 
   try {
     const parsed = JSON.parse(raw);
-    const queries = z.array(savedQuerySchema).parse(parsed);
+    // Per-item safeParse: one corrupted entry does not discard the rest
+    const queries: SavedQuery[] = [];
+    for (const item of Array.isArray(parsed) ? parsed : []) {
+      const result = savedQuerySchema.safeParse(item);
+      if (result.success) queries.push(result.data);
+    }
     return tenantId ? queries.filter((q) => !q.tenantId || q.tenantId === tenantId) : queries;
   } catch {
-    return [];
+    // JSON parse itself failed — throw so callers don't silently overwrite
+    throw new Error("Saved queries storage is corrupted. Please reset.");
   }
 }
 

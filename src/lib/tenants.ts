@@ -1,8 +1,8 @@
 // src/lib/tenants.ts
 // CRUD operations for Dynatrace tenant configurations.
-// Data is stored in Raycast LocalStorage (non-synced — safe for secrets like clientSecret).
-// Note: Raycast LocalStorage does NOT sync across devices via iCloud/CloudSync,
-// which is intentional here to keep OAuth credentials local to each machine.
+// Data is stored in Raycast LocalStorage (non-synced, plaintext on disk — NOT encrypted).
+// clientSecret stored here is accessible to anyone with filesystem access to the machine.
+// Access tokens are held in-memory only (see auth.ts) and never written to disk.
 
 import { LocalStorage } from "@raycast/api";
 import { z } from "zod";
@@ -64,21 +64,23 @@ export const tenantConfigSchema = z.object({
 async function readAll(): Promise<TenantConfig[]> {
   const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
   if (!raw) {
-    // If no tenants and mock mode is enabled, return mock data for development
-    if (isMockMode()) {
-      return MOCK_TENANTS;
-    }
+    if (isMockMode()) return MOCK_TENANTS;
     return [];
   }
   try {
     const parsed = JSON.parse(raw);
-    return z.array(tenantConfigSchema).parse(parsed);
-  } catch {
-    // If parsing fails and mock mode is enabled, return mock data
-    if (isMockMode()) {
-      return MOCK_TENANTS;
+    // Per-item safeParse: one corrupted entry does not wipe the rest
+    const items: TenantConfig[] = [];
+    for (const item of Array.isArray(parsed) ? parsed : []) {
+      const result = tenantConfigSchema.safeParse(item);
+      if (result.success) items.push(result.data);
     }
-    return [];
+    return items;
+  } catch {
+    if (isMockMode()) return MOCK_TENANTS;
+    // Raw key exists but can't be parsed at all — do NOT silently return []
+    // (returning [] would cause the next saveTenant to overwrite all data)
+    throw new Error("Tenant storage is corrupted. Please reset via Manage Tenants.");
   }
 }
 
@@ -93,6 +95,7 @@ export async function listTenants(): Promise<TenantConfig[]> {
 }
 
 export async function saveTenant(tenant: TenantConfig): Promise<void> {
+  // readAll throws if storage is corrupted — do NOT overwrite in that case
   const tenants = await readAll();
   const idx = tenants.findIndex((t) => t.id === tenant.id);
   if (idx >= 0) {
@@ -128,10 +131,18 @@ export async function getActiveTenant(): Promise<TenantConfig | null> {
   if (activeId) {
     const found = tenants.find((t) => t.id === activeId);
     if (found) return found;
+    // Active ID points to a deleted tenant — clean up dangling ref
+    await LocalStorage.removeItem(ACTIVE_KEY);
   }
 
-  // Fall back to first tenant if no activeId or not found
-  return tenants[0];
+  // Exactly one tenant: auto-select it without silently switching in multi-tenant setups
+  if (tenants.length === 1) {
+    await LocalStorage.setItem(ACTIVE_KEY, tenants[0].id);
+    return tenants[0];
+  }
+
+  // Multiple tenants and no active selection — require explicit choice
+  return null;
 }
 
 export async function setActiveTenant(id: string): Promise<void> {

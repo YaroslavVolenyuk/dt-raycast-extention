@@ -134,7 +134,7 @@ export default function MenuBarProblems() {
                 }}
                 onAction={async () => {
                   if (tenant) {
-                    const url = `${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]}`;
+                    const url = `${tenant.tenantEndpoint}/ui/problems/${encodeURIComponent(String(problem["event.id"] ?? ""))}`;
                     await open(url);
                   }
                 }}

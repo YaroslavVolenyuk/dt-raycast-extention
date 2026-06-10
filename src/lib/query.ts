@@ -1,16 +1,14 @@
 // src/lib/query.ts
 // Dynatrace Grail query hook — executes DQL queries against the Grail API.
 
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { showToast, Toast } from "@raycast/api";
 import { MOCK_LOGS, MOCK_PROBLEMS, MOCK_DEPLOYMENTS, MOCK_SPANS, MOCK_ENTITIES } from "./api/mock";
 import { LogRecord } from "./types/log";
 import { grailResponseSchema } from "./types/grail";
-import { getAccessToken, OAuthError, TenantConfig } from "./auth";
+import { getAccessToken, invalidateToken, OAuthError, TenantConfig } from "./auth";
 import { isMockMode, devLog, simulateNetworkDelay } from "./devMode";
 import { ZodError } from "zod";
-
-// Extension preferences interface removed — use getPreferenceValues directly
 
 interface QueryPayload {
   query: string;
@@ -30,7 +28,6 @@ interface QueryPayload {
   timezone?: string;
 }
 
-// Default payload — matches working Postman example
 const DEFAULT_PAYLOAD: Omit<QueryPayload, "query"> = {
   defaultSamplingRatio: 1,
   defaultScanLimitGbytes: 100,
@@ -51,27 +48,35 @@ export function useDynatraceQuery<T = unknown>() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
+
+  // Abort any in-flight request on unmount to prevent setState on dead component
+  // and avoid wasting Grail scan quota.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const execute = useCallback(
     async (query: string, timeframe?: { start: string; end: string }, tenant?: TenantConfig) => {
-      // Abort previous request to prevent race conditions
       abortRef.current?.abort();
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
 
-      setIsLoading(true);
-      setError(null);
+      if (mountedRef.current) {
+        setIsLoading(true);
+        setError(null);
+      }
 
       // ── Mock mode (Development) ───────────────────────────────────────────────
       if (isMockMode()) {
         devLog("Executing query in mock mode", { query, timeframe });
-
-        // Simulate network latency
         await simulateNetworkDelay(100, 400);
 
-        // Select appropriate mock data based on query content
         let mockData: unknown[] = [];
-
         if (query.includes("dt.davis.problems")) {
           mockData = MOCK_PROBLEMS as unknown[];
           devLog("Returning MOCK_PROBLEMS");
@@ -84,19 +89,17 @@ export function useDynatraceQuery<T = unknown>() {
         } else if (query.includes("entity")) {
           mockData = MOCK_ENTITIES as unknown[];
           devLog("Returning MOCK_ENTITIES");
-        } else if (query.includes("dt.entity")) {
-          mockData = MOCK_ENTITIES as unknown[];
-          devLog("Returning MOCK_ENTITIES");
         } else {
-          // Default to logs with optional filtering
           const levelMatch = query.match(/loglevel\s*==\s*"([^"]+)"/i);
           const filterLevel = levelMatch ? levelMatch[1].toUpperCase() : null;
           mockData = filterLevel ? MOCK_LOGS.filter((r: LogRecord) => r.loglevel === filterLevel) : MOCK_LOGS;
           devLog("Returning MOCK_LOGS", { filtered: !!filterLevel, level: filterLevel });
         }
 
-        setData({ records: mockData as T[] });
-        setIsLoading(false);
+        if (mountedRef.current) {
+          setData({ records: mockData as T[] });
+          setIsLoading(false);
+        }
         return mockData;
       }
 
@@ -104,17 +107,42 @@ export function useDynatraceQuery<T = unknown>() {
 
       if (!tenant) {
         const message = "No active tenant configured. Please add a tenant via Manage Tenants.";
-        setError(message);
+        if (mountedRef.current) {
+          setError(message);
+          setIsLoading(false);
+        }
         await showToast({ style: Toast.Style.Failure, title: "No Tenant", message });
-        setIsLoading(false);
         return null;
       }
 
       try {
-        // Obtain access token (cached, proactively refreshed)
+        return await executeOnce(query, timeframe, tenant, signal, false);
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return null;
+        }
+        const message = err instanceof Error ? err.message : "Unknown error";
+        if (mountedRef.current) {
+          setError(message);
+        }
+        await showToast({ style: Toast.Style.Failure, title: "Dynatrace Query Failed", message });
+        return null;
+      } finally {
+        if (mountedRef.current) {
+          setIsLoading(false);
+        }
+      }
+
+      async function executeOnce(
+        q: string,
+        tf: typeof timeframe,
+        t: TenantConfig,
+        sig: AbortSignal,
+        isRetry: boolean,
+      ): Promise<T[] | null> {
         let accessToken: string;
         try {
-          accessToken = await getAccessToken(tenant);
+          accessToken = await getAccessToken(t);
         } catch (authErr) {
           if (authErr instanceof OAuthError) {
             throw new Error(`OAuth error: check client_id / client_secret in Manage Tenants (${authErr.statusCode})`);
@@ -124,35 +152,52 @@ export function useDynatraceQuery<T = unknown>() {
 
         const payload: QueryPayload = {
           ...DEFAULT_PAYLOAD,
-          query,
-          ...(timeframe && {
-            defaultTimeframeStart: timeframe.start,
-            defaultTimeframeEnd: timeframe.end,
-          }),
+          query: q,
+          ...(tf && { defaultTimeframeStart: tf.start, defaultTimeframeEnd: tf.end }),
         };
 
-        const endpoint = `${tenant.tenantEndpoint.replace(/\/$/, "")}/platform/storage/query/v1/query:execute`;
+        const endpoint = `${t.tenantEndpoint.replace(/\/$/, "")}/platform/storage/query/v1/query:execute`;
 
         const response = await fetch(endpoint, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
           body: JSON.stringify(payload),
-          signal,
+          signal: sig,
         });
 
         const rawText = await response.text();
 
+        // On 401 invalidate cached token and retry once
+        if (response.status === 401 && !isRetry) {
+          invalidateToken(t.id);
+          return executeOnce(q, tf, t, sig, true);
+        }
+
+        if (response.status === 401) {
+          throw new Error("Authentication failed — token rejected by Dynatrace. Check credentials in Manage Tenants.");
+        }
+        if (response.status === 403) {
+          throw new Error(
+            "Access denied — OAuth client is missing required scopes (storage:*:read, entity:read). Check Manage Tenants.",
+          );
+        }
+
         if (!response.ok) {
+          // Try to surface structured Grail error first
+          try {
+            const errBody = JSON.parse(rawText);
+            if (errBody?.error?.message) {
+              throw new Error(`Dynatrace: ${errBody.error.message} (code ${errBody.error.code})`);
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message.startsWith("Dynatrace:")) throw parseErr;
+          }
           const preview = rawText.startsWith("<")
             ? `Server returned HTML (status ${response.status}). Check your tenant endpoint URL.`
             : `HTTP ${response.status}: ${rawText.slice(0, 300)}`;
           throw new Error(preview);
         }
 
-        // Guard against HTML responses with 200 status (e.g. auth redirect pages)
         if (rawText.trimStart().startsWith("<")) {
           throw new Error(
             "Server returned an HTML page instead of JSON.\n" +
@@ -161,7 +206,6 @@ export function useDynatraceQuery<T = unknown>() {
           );
         }
 
-        // Validate response shape with Zod — throws a readable error for unexpected JSON
         let parsedResponse;
         try {
           const parsed = JSON.parse(rawText);
@@ -178,24 +222,17 @@ export function useDynatraceQuery<T = unknown>() {
           throw zodErr;
         }
 
-        // Postman confirmed that records are nested under result.records
-        const records = (parsedResponse.result?.records ?? []) as T[];
-        setData({ records });
-        return records;
-      } catch (err) {
-        // Silently ignore AbortError — request was cancelled intentionally
-        if (err instanceof Error && err.name === "AbortError") {
-          return null;
+        if (parsedResponse.state === "RUNNING") {
+          throw new Error("Query still running — narrow the timeframe or reduce data volume");
         }
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setError(message);
-        await showToast({ style: Toast.Style.Failure, title: "Dynatrace Query Failed", message });
-        return null;
-      } finally {
-        setIsLoading(false);
+
+        const records = (parsedResponse.result?.records ?? []) as T[];
+        if (mountedRef.current) {
+          setData({ records });
+        }
+        return records;
       }
     },
-    // Empty deps array is safe: isMockMode() and getAccessToken() read from preferences/refs at call-time, not at closure-time
     [],
   );
 

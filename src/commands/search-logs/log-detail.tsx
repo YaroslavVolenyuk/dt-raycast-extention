@@ -7,8 +7,6 @@ import {
   Color,
   useNavigation,
   Icon,
-  AI,
-  environment,
   showToast,
   Toast,
   LocalStorage,
@@ -21,7 +19,6 @@ import { JiraIssueForm } from "../../components/JiraIssueForm";
 import { JiraIssueResult } from "../../components/JiraIssueResult";
 
 interface ExtensionPrefs {
-  dynatraceEndpoint: string;
   jiraUrl?: string;
   jiraEmail?: string;
   jiraApiToken?: string;
@@ -161,30 +158,12 @@ function levelColor(level: string | undefined, status: string | undefined): Colo
   }
 }
 
-/**
- * Simple detail view to display AI analysis result
- */
-function AIAnalysisDetail({ content }: { content: string }) {
-  return (
-    <Detail
-      markdown={content}
-      navigationTitle="AI Analysis"
-      actions={
-        <ActionPanel>
-          <Action.CopyToClipboard title="Copy Analysis" content={content} />
-        </ActionPanel>
-      }
-    />
-  );
-}
-
 export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?: TenantConfig }) {
   try {
     const { push } = useNavigation();
     const prefs = getPreferenceValues<ExtensionPrefs>();
 
-    // Use tenant endpoint if available, fall back to preferences
-    const baseUrl = (tenant?.tenantEndpoint || prefs.dynatraceEndpoint)?.replace(/\/$/, "") ?? "";
+    const baseUrl = tenant?.tenantEndpoint?.replace(/\/$/, "") ?? "";
     const logsUrl = buildLogsUrl(baseUrl);
     const hasJiraConfig = !!(prefs.jiraUrl && prefs.jiraEmail && prefs.jiraApiToken && prefs.jiraProjectKey);
 
@@ -378,64 +357,6 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
                 />
               )}
             </ActionPanel.Section>
-
-            {/* AI Analysis section — only if Raycast AI is available */}
-            {environment.canAccess(AI) && log.content && (
-              <ActionPanel.Section title="AI Analysis">
-                <Action
-                  title="Explain This Error"
-                  icon={Icon.LightBulb}
-                  onAction={async () => {
-                    const toast = await showToast({
-                      style: Toast.Style.Animated,
-                      title: "Analyzing error with AI...",
-                    });
-
-                    try {
-                      const explanation = await AI.ask(
-                        `Please analyze and explain the following error or log entry. Provide possible causes and suggested fixes:\n\n${log.content}`,
-                        { creativity: "low" },
-                      );
-
-                      toast.hide();
-                      push(<AIAnalysisDetail content={explanation} />);
-                    } catch (error) {
-                      toast.style = Toast.Style.Failure;
-                      toast.title = "AI Analysis Failed";
-                      toast.message = error instanceof Error ? error.message : "Unknown error";
-                    }
-                  }}
-                />
-                {serviceName && (
-                  <Action
-                    title="Summarize Last 10 Errors for This Service"
-                    icon={Icon.TextDocument}
-                    onAction={async () => {
-                      const toast = await showToast({
-                        style: Toast.Style.Animated,
-                        title: "Analyzing service errors with AI...",
-                      });
-
-                      try {
-                        // In a real implementation, you would fetch the last 10 ERROR records for this service
-                        // For now, we'll provide a summary prompt based on the current log
-                        const summary = await AI.ask(
-                          `Please provide a summary of common error patterns and root causes for the service "${serviceName}" based on recent error logs. Include:\n1. Top 3 most common error types\n2. Suggested mitigation strategies\n3. Recommended monitoring enhancements\n\nContext: This service recently had the following error:\n${log.content}`,
-                          { creativity: "low" },
-                        );
-
-                        toast.hide();
-                        push(<AIAnalysisDetail content={`## Error Summary for ${serviceName}\n\n${summary}`} />);
-                      } catch (error) {
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Analysis Failed";
-                        toast.message = error instanceof Error ? error.message : "Unknown error";
-                      }
-                    }}
-                  />
-                )}
-              </ActionPanel.Section>
-            )}
 
             {/* Jira Integration section */}
             {hasJiraConfig && log.content && (

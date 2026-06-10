@@ -161,7 +161,7 @@ export default function TenantForm({ existing, onSave }: Props) {
       <Form.TextField
         id="scopes"
         title="Scopes"
-        placeholder="storage:logs:read storage:problems:read entity:read"
+        placeholder="storage:logs:read storage:problems:read storage:events:read storage:spans:read entity:read"
         defaultValue={existing?.scopes.join(" ")}
         info="Space-separated list of OAuth scopes"
       />

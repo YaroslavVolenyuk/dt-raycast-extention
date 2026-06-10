@@ -6,37 +6,14 @@ import { z } from "zod";
 // ── Grail response schema ─────────────────────────────────────────────────────
 
 export const grailResponseSchema = z.object({
-  state: z.enum(["SUCCEEDED", "RUNNING", "FAILED"]),
+  // Known values typed; unknown future values accepted as plain string
+  state: z.enum(["SUCCEEDED", "RUNNING", "FAILED"]).or(z.string()),
   progress: z.number().optional(),
   result: z
     .object({
-      records: z.array(z.record(z.string(), z.unknown())),
-      types: z.array(
-        z.object({
-          indexRange: z.array(z.number()).length(2),
-          mappings: z.record(z.string(), z.unknown()), // Dynatrace returns objects, not strings
-        }),
-      ),
-      metadata: z
-        .object({
-          grail: z
-            .object({
-              query: z.string(),
-              timezone: z.string(),
-              locale: z.string(),
-              analysisTimeframe: z
-                .object({
-                  start: z.string(),
-                  end: z.string(),
-                })
-                .optional(),
-            })
-            .optional(),
-          scannedBytes: z.number().optional(),
-          scannedRecords: z.number().optional(),
-          executionTimeMillis: z.number().optional(),
-        })
-        .optional(),
+      records: z.array(z.record(z.string(), z.unknown())), // the only field code actually uses
+      types: z.array(z.unknown()).optional(), // not consumed — keep loose
+      metadata: z.unknown().optional(), // not consumed — keep loose
     })
     .optional(),
   error: z
