@@ -2,10 +2,10 @@ import { List, ActionPanel, Action, Icon } from "@raycast/api";
 import { useEffect, useState, useMemo } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Entity, buildEntityQuery } from "../../lib/types/entity";
-import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
+import { setActiveTenant, listTenants } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 
 const TYPE_ICONS: Record<string, Icon> = {
   SERVICE: Icon.Globe,
@@ -22,22 +22,21 @@ export default function EntitiesCommand() {
   const [entityType, setEntityType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedQuery, setDebouncedQuery] = useState<string>("");
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
-  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
+  const [localTenant, setLocalTenant] = useState<TenantConfig | null>(null);
+
+  const { tenant: activeTenant, tenants: allTenants, isLoading: tenantLoading } = useActiveTenant();
+
+  // Sync hook tenant into local state for tenant-switching
+  useEffect(() => {
+    if (activeTenant && !localTenant) {
+      setLocalTenant(activeTenant);
+    }
+  }, [activeTenant, localTenant]);
+
+  const tenant = localTenant ?? activeTenant;
+  const tenantChecked = !tenantLoading;
 
   const { data, isLoading, execute } = useDynatraceQuery<Entity>();
-
-  // Load active tenant and all tenants once on mount
-  useEffect(() => {
-    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
-      setTenant(activeTenant);
-      setAllTenants(tenants);
-      setTenantChecked(true);
-      setFiltersLoaded(true);
-    });
-  }, []);
 
   // Debounce search query (400ms)
   useEffect(() => {
@@ -47,19 +46,18 @@ export default function EntitiesCommand() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Execute query when filters are loaded
+  // Execute query when tenant available or filters change
   useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
-
+    if (!tenant) return;
     const dql = buildEntityQuery(entityType, debouncedQuery);
     execute(dql, undefined, tenant);
-  }, [entityType, debouncedQuery, filtersLoaded, tenant, execute]);
+  }, [entityType, debouncedQuery, tenant, execute]);
 
   const handleTenantChange = async (id: string) => {
     await setActiveTenant(id);
     const all = await listTenants();
     const next = all.find((t) => t.id === id) ?? null;
-    setTenant(next);
+    setLocalTenant(next);
   };
 
   const entities = data?.records ?? [];

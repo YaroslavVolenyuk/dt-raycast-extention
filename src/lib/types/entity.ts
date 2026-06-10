@@ -1,6 +1,6 @@
 // src/lib/types/entity.ts
 import { z } from "zod";
-import { escapeDqlString } from "../utils/buildDqlQuery";
+import { escapeDqlString } from "../dql/escape";
 
 export const entitySchema = z.object({
   "entity.id": z.string(),

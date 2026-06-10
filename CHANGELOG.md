@@ -20,7 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - 🖥 Menu Bar Problems counter with 5-minute auto-refresh (ambient monitoring)
 - 🔄 Pagination support in Search Logs with "Load more" action
 - ⏱ Timeframe presets (15m, 1h, 4h, 24h, 7d) with LocalStorage persistence
-- 📋 Export functionality — copy as JSON/CSV, save to file
+- 📋 Export functionality — copy as JSON/CSV or save to file in extension support path
 - 🧪 Comprehensive unit tests for utilities (buildDqlQuery, parseTimeframe, formatLogContent)
 - ✅ GitHub Actions CI pipeline (lint + build + test on every PR)
 

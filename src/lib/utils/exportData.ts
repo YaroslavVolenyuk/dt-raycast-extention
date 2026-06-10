@@ -1,5 +1,9 @@
 // P2-S4: Export utilities — convert data to JSON and CSV formats
 
+import { environment } from "@raycast/api";
+import * as fs from "fs";
+import * as path from "path";
+
 /**
  * Convert records to JSON string
  */
@@ -57,4 +61,29 @@ export function getExportTimestamp(): string {
 export function getExportFilename(basename: string, format: "json" | "csv"): string {
   const timestamp = getExportTimestamp();
   return `${basename}-${timestamp}.${format}`;
+}
+
+/**
+ * Export records to a file in `environment.supportPath`.
+ * Returns the absolute path of the written file.
+ *
+ * @param records  - array of records to export
+ * @param basename - filename prefix (no extension), e.g. "problems"
+ * @param format   - "json" or "csv"
+ */
+export async function exportToFile(
+  records: Record<string, unknown>[],
+  basename: string,
+  format: "json" | "csv",
+): Promise<string> {
+  const filename = getExportFilename(basename, format);
+  const filePath = path.join(environment.supportPath, filename);
+
+  // Ensure support directory exists
+  await fs.promises.mkdir(environment.supportPath, { recursive: true });
+
+  const content = format === "json" ? toJson(records) : toCsv(records);
+  await fs.promises.writeFile(filePath, content, "utf-8");
+
+  return filePath;
 }

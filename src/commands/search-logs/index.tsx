@@ -20,7 +20,7 @@ import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import type { TenantConfig } from "../../lib/auth";
-import { toJson, toCsv } from "../../lib/utils/exportData";
+import { toJson, toCsv, exportToFile } from "../../lib/utils/exportData";
 
 import { StorageKeys } from "../../lib/storageKeys";
 
@@ -244,6 +244,46 @@ export default function Command(props: CommandProps) {
     }
   };
 
+  const handleSaveJsonFile = async () => {
+    try {
+      const filePath = await exportToFile(allRecords as Record<string, unknown>[], "logs", "json");
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Saved",
+        message: filePath,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleSaveCsvFile = async () => {
+    try {
+      const rows = allRecords.map((r) => ({
+        timestamp: r.timestamp,
+        service: (r["service.name"] ?? r["dt.app.name"] ?? "") as string,
+        level: r.loglevel,
+        content: r.content,
+      }));
+      const filePath = await exportToFile(rows as Record<string, unknown>[], "logs", "csv");
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Saved",
+        message: filePath,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
   // Collect unique service names from current results
   const serviceOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -303,6 +343,8 @@ export default function Command(props: CommandProps) {
         <ActionPanel.Section title="Export">
           <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleExportJson} />
           <Action title="Copy All as CSV" icon={Icon.Clipboard} onAction={handleExportCsv} />
+          <Action title="Save as JSON File" icon={Icon.Document} onAction={handleSaveJsonFile} />
+          <Action title="Save as CSV File" icon={Icon.Document} onAction={handleSaveCsvFile} />
         </ActionPanel.Section>
       )}
     </>

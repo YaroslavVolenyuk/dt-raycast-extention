@@ -14,6 +14,7 @@ import {
 } from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
 import type { TenantConfig } from "../../lib/auth";
+import { buildLogContextQuery } from "../../lib/dql/builders";
 import { formatLogContent } from "../../lib/utils/formatLogContent";
 import { JiraIssueForm } from "../../components/JiraIssueForm";
 import { JiraIssueResult } from "../../components/JiraIssueResult";
@@ -46,43 +47,6 @@ function buildLogsUrl(baseUrl: string): string {
 
   // Use 24h timeframe for context
   return `${url}/ui/apps/dynatrace.logs?gtf=last_24h`;
-}
-
-/**
- * Builds a ready-to-paste DQL query that finds related logs.
- * Does NOT include timestamp filters — user should set timeframe in the DQL runner form.
- * Filters by service, app, or process name only.
- */
-function buildDqlFilter(log: LogRecord): string {
-  const conditions: string[] = [];
-
-  // Add service/app/process filter - try in order of preference
-  const service = log["service.name"] ? String(log["service.name"]) : undefined;
-  if (service) {
-    conditions.push(`service.name == "${service}"`);
-  } else {
-    const appName = log["dt.app.name"] ? String(log["dt.app.name"]) : undefined;
-    if (appName) {
-      conditions.push(`dt.app.name == "${appName}"`);
-    } else {
-      // Fall back to process name if available
-      const processName = log["dt.process.name"]
-        ? String(log["dt.process.name"])
-        : log["dt.process_group.detected_name"]
-          ? String(log["dt.process_group.detected_name"])
-          : undefined;
-      if (processName) {
-        conditions.push(`dt.process.name == "${processName}"`);
-      }
-    }
-  }
-
-  // If we have conditions, add them; otherwise just fetch all logs
-  if (conditions.length > 0) {
-    return `fetch logs\n| filter ${conditions.join("\n    and ")}\n| limit 100`;
-  } else {
-    return `fetch logs\n| limit 100`;
-  }
 }
 
 /**
@@ -212,7 +176,7 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
     const traceUrl = traceId ? buildTraceUrl(baseUrl, traceId, spanId, log.timestamp) : undefined;
 
     // DQL filter — used in markdown preview and Copy action
-    const dqlFilter = buildDqlFilter(log);
+    const dqlFilter = buildLogContextQuery(log);
 
     const hasServiceInfo = !!(
       serviceName ||

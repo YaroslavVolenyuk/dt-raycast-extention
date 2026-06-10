@@ -27,7 +27,13 @@ export function useDynatraceQuery<T = unknown>() {
   }, []);
 
   const execute = useCallback(
-    async (query: string, timeframe?: { start: string; end: string }, tenant?: TenantConfig) => {
+    async (
+      query: string,
+      timeframe?: { start: string; end: string },
+      tenant?: TenantConfig,
+      /** Explicit mock dataset — preferred over query-sniffing when provided. */
+      mockDataOverride?: unknown[],
+    ) => {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
       const signal = abortRef.current.signal;
@@ -42,8 +48,12 @@ export function useDynatraceQuery<T = unknown>() {
         devLog("Executing query in mock mode", { query, timeframe });
         await simulateNetworkDelay(100, 400);
 
-        let mockData: unknown[] = [];
-        if (query.includes("dt.davis.problems")) {
+        let mockData: unknown[];
+        if (mockDataOverride !== undefined) {
+          // Caller-provided dataset — skip query sniffing
+          mockData = mockDataOverride;
+          devLog("Returning caller-provided mock data", { count: mockData.length });
+        } else if (query.includes("dt.davis.problems")) {
           mockData = MOCK_PROBLEMS as unknown[];
           devLog("Returning MOCK_PROBLEMS");
         } else if (query.includes("events") && (query.includes("DEPLOYMENT") || query.includes("deployment"))) {

@@ -3,6 +3,7 @@ import { MenuBarExtra, Icon, Color, open, launchCommand, LaunchType, showToast, 
 import { useDynatraceQuery } from "../../lib/query";
 import { getActiveTenant } from "../../lib/tenants";
 import type { Problem } from "../../lib/types/problem";
+import { buildProblemsQuery } from "../../lib/types/problem";
 import type { TenantConfig } from "../../lib/auth";
 import { useCachedPromise } from "@raycast/utils";
 import { useState } from "react";
@@ -26,10 +27,7 @@ export default function MenuBarProblems() {
     }
 
     // Fetch top 6 to detect if there are more than 5
-    const dql = `fetch dt.davis.problems
-      | filter event.status == "OPEN"
-      | sort event.severity asc, event.start desc
-      | limit 6`;
+    const dql = buildProblemsQuery("OPEN", 6);
 
     const results = await execute(dql, undefined, activeTenant);
     // null means API error (execute already showed a toast); distinguish from empty []

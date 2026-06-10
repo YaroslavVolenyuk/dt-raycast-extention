@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { escapeDqlString } from "../utils/buildDqlQuery";
+import { escapeDqlString } from "../dql/escape";
 
 /**
  * Zod schema for distributed trace span data from Dynatrace

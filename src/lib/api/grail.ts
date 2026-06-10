@@ -4,7 +4,7 @@
 
 import { getAccessToken, invalidateToken, OAuthError, TenantConfig } from "../auth";
 import { grailResponseSchema } from "../types/grail";
-import { ZodError } from "zod";
+import { ZodError, z } from "zod";
 
 export type { GrailResponse, GrailRecord } from "../types/grail";
 
@@ -163,4 +163,29 @@ export async function executeDqlQuery<T = Record<string, unknown>>(
   }
 
   return (parsedResponse.result?.records ?? []) as T[];
+}
+
+/**
+ * Like executeDqlQuery but validates each record against a Zod schema.
+ * Records that fail validation are silently skipped; caller receives a count of skipped records.
+ * Use this when you need strong typing on individual records and can tolerate partial results.
+ */
+export async function executeDqlQueryValidated<T>(
+  tenant: TenantConfig,
+  query: string,
+  schema: z.ZodType<T>,
+  options?: GrailQueryOptions,
+): Promise<{ records: T[]; skipped: number }> {
+  const raw = await executeDqlQuery<Record<string, unknown>>(tenant, query, options);
+  let skipped = 0;
+  const records: T[] = [];
+  for (const item of raw) {
+    const result = schema.safeParse(item);
+    if (result.success) {
+      records.push(result.data);
+    } else {
+      skipped++;
+    }
+  }
+  return { records, skipped };
 }

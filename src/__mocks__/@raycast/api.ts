@@ -13,6 +13,9 @@ export const Cache = jest.fn().mockImplementation(() => {
 });
 
 export const getPreferenceValues = jest.fn(() => ({ useMockData: false }));
+export const environment = {
+  supportPath: "/tmp/raycast-test-support",
+};
 export const openExtensionPreferences = jest.fn();
 export const showToast = jest.fn();
 export const LocalStorage = {
