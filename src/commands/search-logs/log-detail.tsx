@@ -9,8 +9,8 @@ import {
   Icon,
   showToast,
   Toast,
-  LocalStorage,
-  open,
+  launchCommand,
+  LaunchType,
 } from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
 import type { TenantConfig } from "../../lib/auth";
@@ -280,11 +280,12 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
           timeframePreset: "custom",
         };
 
-        // Store DQL and timeframe in localStorage so dql-runner can pick it up
-        await LocalStorage.setItem("dql-runner-preset", JSON.stringify(preset));
-
-        // Open DQL runner command
-        await open("raycast://extensions/one-developer-corporation/dynatrace-connector/dt-dql-runner");
+        // Pass preset via launchContext — avoids hardcoded author/extension path
+        await launchCommand({
+          name: "dt-dql-runner",
+          type: LaunchType.UserInitiated,
+          context: { preset },
+        });
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,

@@ -1,7 +1,7 @@
 // src/components/EmptyTenantState.tsx
 // Shown when no tenants are configured — prompts the user to add one.
 
-import { List, ActionPanel, Action, Icon, open } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, launchCommand, LaunchType, showToast, Toast } from "@raycast/api";
 
 export default function EmptyTenantState() {
   return (
@@ -14,7 +14,13 @@ export default function EmptyTenantState() {
           <Action
             title="Open Manage Tenants"
             icon={Icon.Gear}
-            onAction={() => open("raycast://extensions/one-developer-corporation/dynatrace-connector/dt-tenants")}
+            onAction={async () => {
+              try {
+                await launchCommand({ name: "dt-tenants", type: LaunchType.UserInitiated });
+              } catch {
+                await showToast({ style: Toast.Style.Failure, title: "Cannot open Manage Tenants" });
+              }
+            }}
           />
         </ActionPanel>
       }

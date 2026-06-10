@@ -75,11 +75,25 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
     params.set("resource", tenant.accountUrn);
   }
 
-  const res = await fetch(tenant.ssoEndpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params.toString(),
-  });
+  const ssoTimeout = new AbortController();
+  const ssoTimer = setTimeout(() => ssoTimeout.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(tenant.ssoEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+      signal: ssoTimeout.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(ssoTimer);
+    if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+      throw new OAuthError(0, "SSO endpoint is not responding (15s timeout)");
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(ssoTimer);
+  }
 
   const body = await res.text();
 

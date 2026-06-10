@@ -18,14 +18,15 @@ import { LogRecord } from "../../lib/types/log";
 import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
 import { getActiveTenantOrMock } from "../../lib/mockTenant";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import type { TenantConfig } from "../../lib/auth";
 import { toJson, toCsv } from "../../lib/utils/exportData";
 
-// ── Persistence keys ───────────────────────────────────────────────────────
-const KEY_TIMEFRAME = "dt_last_timeframe";
-const KEY_LOG_LEVEL = "dt_last_log_level";
-const KEY_TIMEFRAME_PRESET = "dt_timeframe_preset";
+import { StorageKeys } from "../../lib/storageKeys";
+
+const KEY_TIMEFRAME = StorageKeys.logTimeframe;
+const KEY_LOG_LEVEL = StorageKeys.logLevel;
+const KEY_TIMEFRAME_PRESET = StorageKeys.logTimeframePreset;
 
 // Timeframe presets
 const TIMEFRAME_PRESETS = [
@@ -79,7 +80,7 @@ export default function Command(props: CommandProps) {
   // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
   const [timeframePreset, setTimeframePreset] = useState<string | null>(null);
-  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(props.arguments.query ?? "error");
+  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(props.arguments.query ?? "all");
   const [selectedService, setSelectedService] = useState<string>("all");
   const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
@@ -89,6 +90,9 @@ export default function Command(props: CommandProps) {
   // Pagination state
   const [allRecords, setAllRecords] = useState<LogRecord[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // Explicit flag: true when the next data batch is a "load more" continuation, not a fresh query.
+  // Avoids false-positive detection based on matching timestamps.
+  const isLoadMoreRef = useRef(false);
 
   // Debounce timer for content search
   const [debouncedContent, setDebouncedContent] = useState<string>("");
@@ -109,7 +113,7 @@ export default function Command(props: CommandProps) {
     ]).then(([tf, savedLevel, preset, activeTenant]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       if (preset) setTimeframePreset(preset);
-      // Restore log level: CLI arg takes priority, then saved, then default "error"
+      // Restore log level: CLI arg takes priority, then saved, then default "all"
       if (!props.arguments.query && savedLevel) {
         setSelectedLogLevel(savedLevel as LogLevel);
       }
@@ -146,21 +150,21 @@ export default function Command(props: CommandProps) {
     LocalStorage.setItem(KEY_LOG_LEVEL, selectedLogLevel);
 
     // Reset pagination when query changes
+    isLoadMoreRef.current = false;
     setAllRecords([]);
   }, [timeframe, selectedLogLevel, selectedService, debouncedContent, filtersLoaded, tenant, extraFilter]);
 
   // Update data when new results come in (append for "load more", replace on new query)
   useEffect(() => {
     if (data?.records) {
-      // If oldest record from last batch exists in new data, we're loading more
-      const isLoadMore =
-        allRecords.length > 0 && data.records.some((r) => r.timestamp === allRecords[allRecords.length - 1]?.timestamp);
-
-      if (isLoadMore) {
-        setAllRecords((prev) => [
-          ...prev,
-          ...data.records.filter((r) => !prev.some((p) => p.timestamp === r.timestamp)),
-        ]);
+      if (isLoadMoreRef.current) {
+        isLoadMoreRef.current = false;
+        // Dedup by timestamp+content to handle same-millisecond records correctly
+        setAllRecords((prev) => {
+          const existingKeys = new Set(prev.map((r) => `${r.timestamp}::${r.content}`));
+          const newRecords = data.records.filter((r) => !existingKeys.has(`${r.timestamp}::${r.content}`));
+          return [...prev, ...newRecords];
+        });
         setIsLoadingMore(false);
       } else {
         setAllRecords(data.records);
@@ -181,11 +185,11 @@ export default function Command(props: CommandProps) {
   const handleLoadMore = useCallback(async () => {
     if (allRecords.length === 0 || !tenant) return;
     setIsLoadingMore(true);
+    isLoadMoreRef.current = true;
 
     const oldestRecord = allRecords[allRecords.length - 1];
     const timeRange = parseTimeframe(timeframe);
 
-    // Build query with "before" cursor for pagination
     const dql = buildDqlQuery({
       logLevel: selectedLogLevel,
       serviceName: selectedService !== "all" ? selectedService : undefined,
@@ -336,6 +340,7 @@ export default function Command(props: CommandProps) {
                     logLevel: selectedLogLevel,
                     serviceName: selectedService !== "all" ? selectedService : undefined,
                     contentFilter: debouncedContent || undefined,
+                    extraFilter: extraFilter ? `filter ${extraFilter}` : undefined,
                   });
                   execute(dql, timeRange, tenant);
                 }}

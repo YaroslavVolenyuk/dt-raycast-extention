@@ -10,6 +10,7 @@
 
 import { getPreferenceValues } from "@raycast/api";
 import { parseJiraUrl } from "../utils/jiraUrlValidator";
+import { assertHttps } from "../utils/urlSafety";
 
 // Safe logger — never pass apiToken, authHeader, authString, email, request/response bodies.
 function jiraLog(message: string, meta?: Record<string, string | number | boolean>) {
@@ -113,6 +114,7 @@ export async function createJiraIssue(
   if (!parsed.isValid) {
     throw new Error(parsed.error ?? "Invalid Jira URL");
   }
+  assertHttps(jiraUrl, "Jira URL");
 
   const tokenType = isScopedTokenUrl(jiraUrl) ? "scoped" : "unscoped";
   const endpoint = getJiraApiEndpoint(jiraUrl);
