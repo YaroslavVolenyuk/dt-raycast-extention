@@ -3,6 +3,7 @@
  */
 
 import { OAuthError } from "../lib/auth";
+import { createJiraIssue } from "../lib/integrations/jira";
 
 describe("Security — Secret Redaction", () => {
   describe("OAuthError", () => {
@@ -66,6 +67,55 @@ describe("Security — Secret Redaction", () => {
       expect(logCalls).toContain("OAuth authentication succeeded");
 
       spy.mockRestore();
+    });
+  });
+
+  describe("createJiraIssue — token never leaks into errors", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("errors never contain the API token or its base64 encoding", async () => {
+      const SECRET_TOKEN = "SECRET_TOKEN_123";
+      const email = "user@example.com";
+      const base64Auth = Buffer.from(`${email}:${SECRET_TOKEN}`).toString("base64");
+
+      // First call: getProjectIssueTypes (resolveIssueTypeId) — returns issue types so we reach createIssue
+      // Second call: createIssue — returns 401
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify([
+              { id: "10011", name: "Bug" },
+              { id: "10003", name: "Task" },
+            ]),
+        } as unknown as Response)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          text: async () => JSON.stringify({ errorMessages: ["Unauthorized"] }),
+        } as unknown as Response);
+
+      let caughtError: Error | null = null;
+      try {
+        await createJiraIssue("https://test.atlassian.net", email, SECRET_TOKEN, {
+          summary: "Test issue",
+          description: "desc",
+          issueType: "Bug",
+          projectKey: "TEST_UNIQUE_KEY",
+          priority: "Medium",
+        });
+      } catch (err) {
+        caughtError = err as Error;
+      }
+
+      expect(caughtError).not.toBeNull();
+      const msg = caughtError!.message;
+      expect(msg).not.toContain(SECRET_TOKEN);
+      expect(msg).not.toContain(base64Auth);
     });
   });
 

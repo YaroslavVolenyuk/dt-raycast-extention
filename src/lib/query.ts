@@ -15,6 +15,8 @@ export function useDynatraceQuery<T = unknown>() {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef(true);
+  // Stale-while-revalidate: data is never cleared when a new execute starts,
+  // so callers see the previous result while isLoading=true (keepPreviousData behavior).
 
   // Abort any in-flight request on unmount to prevent setState on dead component
   // and avoid wasting Grail scan quota.
@@ -39,6 +41,8 @@ export function useDynatraceQuery<T = unknown>() {
       const signal = abortRef.current.signal;
 
       if (mountedRef.current) {
+        // Note: data state is intentionally NOT cleared here — previous records
+        // remain visible while the new query is in flight (stale-while-revalidate).
         setIsLoading(true);
         setError(null);
       }

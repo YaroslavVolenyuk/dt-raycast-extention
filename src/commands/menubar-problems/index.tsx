@@ -1,12 +1,10 @@
 // Menu Bar Problems — show open problem count in macOS menu bar
 import { MenuBarExtra, Icon, Color, open, launchCommand, LaunchType, showToast, Toast } from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
-import { getActiveTenant } from "../../lib/tenants";
 import type { Problem } from "../../lib/types/problem";
 import { buildProblemsQuery } from "../../lib/types/problem";
-import type { TenantConfig } from "../../lib/auth";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { useCachedPromise } from "@raycast/utils";
-import { useState } from "react";
 
 interface ProblemsResult {
   count: number | string;
@@ -15,13 +13,10 @@ interface ProblemsResult {
 }
 
 export default function MenuBarProblems() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const { tenant, isLoading: tenantLoading } = useActiveTenant();
   const { execute } = useDynatraceQuery<Problem>();
 
-  const fetchOpenProblems = async (): Promise<ProblemsResult> => {
-    const activeTenant = await getActiveTenant();
-    setTenant(activeTenant);
-
+  const fetchOpenProblems = async (activeTenant: typeof tenant): Promise<ProblemsResult> => {
     if (!activeTenant) {
       return { count: 0, problems: [], hasError: false };
     }
@@ -39,7 +34,10 @@ export default function MenuBarProblems() {
     return { count, problems: problems as Problem[], hasError: false };
   };
 
-  const { data, isLoading, revalidate } = useCachedPromise(fetchOpenProblems, [], { keepPreviousData: true });
+  const { data, isLoading, revalidate } = useCachedPromise(fetchOpenProblems, [tenant], {
+    keepPreviousData: true,
+    execute: !tenantLoading,
+  });
 
   const count = data?.count ?? 0;
   const problems = data?.problems ?? [];

@@ -2,9 +2,8 @@
 import { Form, Action, ActionPanel, showToast, Toast, LocalStorage } from "@raycast/api";
 import type { LaunchProps } from "@raycast/api";
 import { useState, useEffect } from "react";
-import { getActiveTenant, listTenants } from "../../lib/tenants";
 import { saveSavedQuery } from "../../lib/savedQueries";
-import type { TenantConfig } from "../../lib/auth";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { StorageKeys } from "../../lib/storageKeys";
 import QueryResultsView from "./query-results";
 
@@ -32,7 +31,7 @@ interface FormState {
 }
 
 export default function DqlRunnerCommand(props: LaunchProps) {
-  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
+  const { tenant: activeTenantObj, tenants: allTenants } = useActiveTenant();
   const [activeTenant, setActiveTenantState] = useState<string>("");
   // Controlled DQL value — required so async preset actually populates the field
   const [dqlValue, setDqlValue] = useState<string>("");
@@ -43,36 +42,38 @@ export default function DqlRunnerCommand(props: LaunchProps) {
     timeframe?: { start: string; end: string };
   } | null>(null);
 
+  // Sync active tenant selection when hook resolves
+  useEffect(() => {
+    if (activeTenantObj && !activeTenant) {
+      setActiveTenantState(activeTenantObj.id);
+    }
+  }, [activeTenantObj, activeTenant]);
+
   useEffect(() => {
     // Prefer preset from launchContext (B2 fix); fall back to LocalStorage for backward compat
     const contextPreset = (props.launchContext?.preset as DqlPreset | undefined) ?? null;
 
-    Promise.all([getActiveTenant(), listTenants(), LocalStorage.getItem(StorageKeys.dqlRunnerPreset)]).then(
-      async ([active, tenants, storedPreset]) => {
-        setAllTenants(tenants);
-        if (active) setActiveTenantState(active.id);
+    LocalStorage.getItem(StorageKeys.dqlRunnerPreset).then(async (storedPreset) => {
+      const preset: DqlPreset | null = contextPreset
+        ? contextPreset
+        : storedPreset
+          ? (() => {
+              try {
+                return JSON.parse(String(storedPreset)) as DqlPreset;
+              } catch {
+                return null;
+              }
+            })()
+          : null;
 
-        const preset: DqlPreset | null = contextPreset
-          ? contextPreset
-          : storedPreset
-            ? (() => {
-                try {
-                  return JSON.parse(String(storedPreset)) as DqlPreset;
-                } catch {
-                  return null;
-                }
-              })()
-            : null;
-
-        if (preset) {
-          setDqlValue(preset.dql || "");
-          const timeframe = preset.timeframePreset || "1h";
-          setFormState((prev) => ({ ...prev, timeframePreset: timeframe }));
-          // Clean up LocalStorage preset after loading
-          if (storedPreset) await LocalStorage.removeItem(StorageKeys.dqlRunnerPreset);
-        }
-      },
-    );
+      if (preset) {
+        setDqlValue(preset.dql || "");
+        const timeframe = preset.timeframePreset || "1h";
+        setFormState((prev) => ({ ...prev, timeframePreset: timeframe }));
+        // Clean up LocalStorage preset after loading
+        if (storedPreset) await LocalStorage.removeItem(StorageKeys.dqlRunnerPreset);
+      }
+    });
   }, []);
 
   const handleSubmit = async (values: FormValues) => {

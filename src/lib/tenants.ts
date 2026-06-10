@@ -7,44 +7,13 @@
 import { LocalStorage } from "@raycast/api";
 import { z } from "zod";
 import { isMockMode } from "./devMode";
+import { MOCK_TENANTS } from "./mockTenant";
 import type { TenantConfig } from "./auth";
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "tenants:v1";
 const ACTIVE_KEY = "tenants:active";
-
-// ── Mock data for development ──────────────────────────────────────────────────
-
-const MOCK_TENANTS: TenantConfig[] = [
-  {
-    id: "mock-prod",
-    name: "Production (Mock)",
-    tenantEndpoint: "https://prod.live.dynatrace.com",
-    clientId: "dt0s02.MOCK_PROD_ID",
-    clientSecret: "dt0s02.MOCK_PROD_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
-    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
-  },
-  {
-    id: "mock-dev",
-    name: "Development (Mock)",
-    tenantEndpoint: "https://dev.live.dynatrace.com",
-    clientId: "dt0s02.MOCK_DEV_ID",
-    clientSecret: "dt0s02.MOCK_DEV_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
-    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
-  },
-  {
-    id: "mock-staging",
-    name: "Staging (Mock)",
-    tenantEndpoint: "https://staging.live.dynatrace.com",
-    clientId: "dt0s02.MOCK_STAGING_ID",
-    clientSecret: "dt0s02.MOCK_STAGING_SECRET.XXXXXXXXXXXXXXXXXXXXXXXX",
-    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
-    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
-  },
-];
 
 // ── Zod schema ────────────────────────────────────────────────────────────────
 
@@ -63,10 +32,7 @@ export const tenantConfigSchema = z.object({
 
 async function readAll(): Promise<TenantConfig[]> {
   const raw = await LocalStorage.getItem<string>(STORAGE_KEY);
-  if (!raw) {
-    if (isMockMode()) return MOCK_TENANTS;
-    return [];
-  }
+  if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
     // Per-item safeParse: one corrupted entry does not wipe the rest
@@ -77,7 +43,6 @@ async function readAll(): Promise<TenantConfig[]> {
     }
     return items;
   } catch {
-    if (isMockMode()) return MOCK_TENANTS;
     // Raw key exists but can't be parsed at all — do NOT silently return []
     // (returning [] would cause the next saveTenant to overwrite all data)
     throw new Error("Tenant storage is corrupted. Please reset via Manage Tenants.");
@@ -91,7 +56,10 @@ async function writeAll(tenants: TenantConfig[]): Promise<void> {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function listTenants(): Promise<TenantConfig[]> {
-  return readAll();
+  const stored = await readAll();
+  // In mock mode with no real tenants stored, return the built-in mock list
+  if (isMockMode() && stored.length === 0) return MOCK_TENANTS;
+  return stored;
 }
 
 export async function saveTenant(tenant: TenantConfig): Promise<void> {
@@ -118,7 +86,7 @@ export async function deleteTenant(id: string): Promise<void> {
 }
 
 export async function getActiveTenant(): Promise<TenantConfig | null> {
-  const tenants = await readAll();
+  const tenants = await listTenants();
   if (tenants.length === 0) return null;
 
   // In mock mode, prefer "Production (Mock)" if available

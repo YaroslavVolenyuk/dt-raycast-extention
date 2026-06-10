@@ -1,13 +1,11 @@
 import { List, Icon, Color, useNavigation, ActionPanel, Action } from "@raycast/api";
 import { useState, useEffect } from "react";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import { useDynatraceQuery } from "../../lib/query";
-import { getActiveTenant } from "../../lib/tenants";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { buildSpansQuery, formatDuration, Span } from "../../lib/types/span";
 import { TraceDetail } from "./trace-detail";
 import { FilterAccessory } from "./filter-accessory";
-import type { TenantConfig } from "../../lib/auth";
 import SearchLogsView from "../search-logs/index";
 
 type StatusFilter = "ALL" | "OK" | "ERROR";
@@ -15,24 +13,15 @@ type DurationFilter = "any" | "100ms" | "500ms" | "1s" | "5s";
 
 export default function SearchTraces() {
   const { push } = useNavigation();
+  const { tenant, isLoading: tenantLoading } = useActiveTenant();
+  const tenantChecked = !tenantLoading;
+
   const [serviceName, setServiceName] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [durationFilter, setDurationFilter] = useState<DurationFilter>("any");
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
   const [debouncedServiceName, setDebouncedServiceName] = useState(serviceName);
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Span>();
-
-  // Load active tenant on mount
-  useEffect(() => {
-    getActiveTenantOrMock(() => getActiveTenant()).then((activeTenant) => {
-      setTenant(activeTenant);
-      setTenantChecked(true);
-      setFiltersLoaded(true);
-    });
-  }, []);
 
   // Debounce service name input (400ms)
   useEffect(() => {
@@ -42,7 +31,7 @@ export default function SearchTraces() {
 
   // Execute query when filters change
   useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
+    if (tenantLoading || !tenant) return;
 
     // Parse duration filter to milliseconds
     const minDurationMs =
@@ -65,7 +54,7 @@ export default function SearchTraces() {
     });
 
     execute(dqlQuery, undefined, tenant);
-  }, [debouncedServiceName, statusFilter, durationFilter, filtersLoaded, tenant, execute]);
+  }, [debouncedServiceName, statusFilter, durationFilter, tenantLoading, tenant, execute]);
 
   const spans = data?.records ?? [];
 

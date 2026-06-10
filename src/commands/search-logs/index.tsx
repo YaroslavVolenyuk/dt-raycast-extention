@@ -15,11 +15,9 @@ import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
 import { buildDqlQuery, LogLevel } from "../../lib/utils/buildDqlQuery";
 import { LogRecord } from "../../lib/types/log";
-import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import type { TenantConfig } from "../../lib/auth";
 import { toJson, toCsv, exportToFile } from "../../lib/utils/exportData";
 
 import { StorageKeys } from "../../lib/storageKeys";
@@ -77,6 +75,9 @@ export default function Command(props: CommandProps) {
   const extraFilter = props._extraFilter;
   const { push } = useNavigation();
 
+  const { tenant, isLoading: tenantLoading } = useActiveTenant();
+  const tenantChecked = !tenantLoading;
+
   // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
   const [timeframePreset, setTimeframePreset] = useState<string | null>(null);
@@ -84,8 +85,6 @@ export default function Command(props: CommandProps) {
   const [selectedService, setSelectedService] = useState<string>("all");
   const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
 
   // Pagination state
   const [allRecords, setAllRecords] = useState<LogRecord[]>([]);
@@ -103,22 +102,19 @@ export default function Command(props: CommandProps) {
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
-  // Load persisted filters and active tenant once on mount
+  // Load persisted filters once on mount
   useEffect(() => {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
-      getActiveTenantOrMock(() => getActiveTenant()),
-    ]).then(([tf, savedLevel, preset, activeTenant]) => {
+    ]).then(([tf, savedLevel, preset]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       if (preset) setTimeframePreset(preset);
       // Restore log level: CLI arg takes priority, then saved, then default "all"
       if (!props.arguments.query && savedLevel) {
         setSelectedLogLevel(savedLevel as LogLevel);
       }
-      setTenant(activeTenant);
-      setTenantChecked(true);
       setFiltersLoaded(true);
     });
   }, []);
@@ -131,9 +127,9 @@ export default function Command(props: CommandProps) {
     return () => clearTimeout(timer);
   }, [contentSearch]);
 
-  // Execute query after filters are loaded; re-run when any filter changes
+  // Execute query after filters and tenant are loaded; re-run when any filter changes
   useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
+    if (!filtersLoaded || tenantLoading || !tenant) return;
 
     const timeRange = parseTimeframe(timeframe);
     const dql = buildDqlQuery({
@@ -152,7 +148,16 @@ export default function Command(props: CommandProps) {
     // Reset pagination when query changes
     isLoadMoreRef.current = false;
     setAllRecords([]);
-  }, [timeframe, selectedLogLevel, selectedService, debouncedContent, filtersLoaded, tenant, extraFilter]);
+  }, [
+    timeframe,
+    selectedLogLevel,
+    selectedService,
+    debouncedContent,
+    filtersLoaded,
+    tenantLoading,
+    tenant,
+    extraFilter,
+  ]);
 
   // Update data when new results come in (append for "load more", replace on new query)
   useEffect(() => {
