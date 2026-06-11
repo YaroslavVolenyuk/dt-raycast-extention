@@ -11,7 +11,6 @@ import DeploymentsCommand from "../deployments/index";
 import EntitiesCommand from "../entities/index";
 import Nl2DqlCommand from "../nl2dql/index";
 import AskDavisCommand from "../ask-davis/index";
-import SloCommand from "../slo/index";
 import DqlRunnerCommand from "../dql-runner/index";
 import SavedQueriesCommand from "../saved-queries/index";
 import TenantsCommand from "../tenants/index";
@@ -64,14 +63,6 @@ export default function DtHub() {
       color: Color.Purple,
       keywords: ["ask", "davis", "chat", "copilot", "questions", "ai", "diagnostic", "dt-ask"],
       component: <AskDavisCommand />,
-    },
-    {
-      title: "SLO Dashboard",
-      subtitle: "dt-slo · View all SLOs with compliance status and error budget",
-      icon: Icon.Binoculars,
-      color: Color.Green,
-      keywords: ["slo", "objectives", "compliance", "error budget", "status", "dt-slo"],
-      component: <SloCommand />,
     },
     {
       title: "Metrics Explorer",
@@ -160,6 +151,30 @@ export default function DtHub() {
       color: Color.SecondaryText,
       keywords: ["tenants", "tenant", "manage", "oauth", "credentials", "dt-tenants"],
       component: <TenantsCommand />,
+    },
+    {
+      title: "System Status",
+      subtitle: "dt-status · Quick health check — problems, SLOs, synthetics, deployments",
+      icon: Icon.Heartbeat,
+      color: Color.Green,
+      keywords: ["status", "health", "dashboard", "overview", "dt-status"],
+      component: <StatusCommand />,
+    },
+    {
+      title: "Maintenance Windows",
+      subtitle: "dt-maintenance · Manage scheduled maintenance and suppression settings",
+      icon: Icon.Calendar,
+      color: Color.Orange,
+      keywords: ["maintenance", "windows", "schedule", "suppression", "dt-maintenance"],
+      component: <MaintenanceCommand />,
+    },
+    {
+      title: "Test Connection",
+      subtitle: "dt-test-connection · Test tenant connectivity and view config details",
+      icon: Icon.Plug,
+      color: Color.SecondaryText,
+      keywords: ["test", "connection", "config", "tenant", "diagnostics", "dt-test-connection"],
+      component: <TestConnectionCommand />,
     },
   ];
 

@@ -106,6 +106,7 @@ export async function dynatraceRest<T = unknown>(
   path: string,
   options: RestClientOptions<T> = {},
   _isRetry: boolean = false,
+  _skipClassicProxy: boolean = false,
 ): Promise<RestResponse<T>> {
   const { method = "GET", body, schema, queryParams, signal, headers: customHeaders } = options;
 
@@ -158,7 +159,7 @@ export async function dynatraceRest<T = unknown>(
   }
 
   // Build URL — rewrite /api/v2/* to classic proxy path for OAuth compatibility
-  const resolvedPath = resolvePath(path, tenant);
+  const resolvedPath = _skipClassicProxy ? path : resolvePath(path, tenant);
   const baseUrl = `${tenant.tenantEndpoint}${resolvedPath}`;
   let url = baseUrl;
 
@@ -230,8 +231,10 @@ export async function dynatraceRest<T = unknown>(
 
     // Build meaningful error message
     let message = `API error ${response.status}`;
+    let parsedBody: unknown;
     try {
-      const json = JSON.parse(errorBody);
+      parsedBody = JSON.parse(errorBody);
+      const json = parsedBody as Record<string, unknown>;
       if (json.error) {
         message = typeof json.error === "string" ? json.error : JSON.stringify(json.error);
       } else if (json.message) {
@@ -239,6 +242,23 @@ export async function dynatraceRest<T = unknown>(
       }
     } catch {
       message = errorBody.slice(0, 200);
+    }
+
+    // Classic proxy errors — retry once directly against /api/v2/* without the proxy rewrite.
+    // Covers two cases:
+    //   404 "REST endpoint is not available for this environment" — proxy path not supported
+    //   400 "Invalid app context" — env-level OAuth client can't use platform classic proxy
+    const isClassicProxyError =
+      !_skipClassicProxy &&
+      tenant.useClassicProxy !== false &&
+      resolvedPath !== path &&
+      typeof message === "string" &&
+      ((response.status === 404 && message.toLowerCase().includes("not available for this environment")) ||
+        (response.status === 400 && message.toLowerCase().includes("invalid app context")));
+
+    if (isClassicProxyError) {
+      devLog(`Classic proxy error ${response.status} on ${resolvedPath}, retrying without proxy`);
+      return dynatraceRest(tenant, path, options, _isRetry, true);
     }
 
     throw new RestError(response.status, response.statusText, message);

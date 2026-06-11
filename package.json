@@ -166,14 +166,6 @@
       "icon": "dynatrace-icon.png"
     },
     {
-      "name": "dt-slo",
-      "title": "SLO Dashboard",
-      "subtitle": "Dynatrace",
-      "description": "View all Service Level Objectives with compliance status and error budget",
-      "mode": "view",
-      "icon": "dynatrace-icon.png"
-    },
-    {
       "name": "dt-workflows",
       "title": "Workflows",
       "subtitle": "Dynatrace",
@@ -262,15 +254,6 @@
       "description": "View synthetic monitors with availability, response times, and per-location breakdown",
       "mode": "view",
       "icon": "dynatrace-icon.png"
-    },
-    {
-      "name": "dt-menubar-slo",
-      "title": "SLO Menubar",
-      "subtitle": "Dynatrace",
-      "description": "Monitor SLO violations in macOS menubar with 5-minute refresh",
-      "mode": "menu-bar",
-      "icon": "dynatrace-icon.png",
-      "interval": "5m"
     },
     {
       "name": "dt-status",

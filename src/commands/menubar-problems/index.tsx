@@ -1,49 +1,53 @@
-// Menu Bar Problems — show open problem count in macOS menu bar
-import { MenuBarExtra, Icon, Color, open, launchCommand, LaunchType, showToast, Toast } from "@raycast/api";
+// P2-S3: Menu Bar Problems — show open problem count in macOS menu bar
+import { MenuBarExtra, Icon, Color, open } from "@raycast/api";
 import { useDynatraceQuery } from "../../lib/query";
+import { getActiveTenant } from "../../lib/tenants";
 import type { Problem } from "../../lib/types/problem";
-import { buildProblemsQuery } from "../../lib/types/problem";
-import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
+import { getProblemsTimeframe } from "../../lib/types/problem";
+import type { TenantConfig } from "../../lib/auth";
 import { useCachedPromise } from "@raycast/utils";
-
-interface ProblemsResult {
-  count: number | string;
-  problems: Problem[];
-  hasError: boolean;
-}
+import { useState } from "react";
 
 export default function MenuBarProblems() {
-  const { tenant, isLoading: tenantLoading } = useActiveTenant();
+  const [tenant, setTenant] = useState<TenantConfig | null>(null);
   const { execute } = useDynatraceQuery<Problem>();
 
-  const fetchOpenProblems = async (activeTenant: typeof tenant): Promise<ProblemsResult> => {
+  const fetchOpenProblems = async (): Promise<{
+    count: number | string;
+    problems: Problem[];
+  }> => {
+    const activeTenant = await getActiveTenant();
+    setTenant(activeTenant);
+
     if (!activeTenant) {
-      return { count: 0, problems: [], hasError: false };
+      return { count: 0, problems: [] };
     }
 
     // Fetch top 6 to detect if there are more than 5
-    const dql = buildProblemsQuery("OPEN", 6);
+    const dql = `fetch dt.davis.problems
+      | filter event.status == "OPEN"
+      | sort event.severity asc, event.start desc
+      | limit 6`;
 
-    const results = await execute(dql, undefined, activeTenant);
-    // null means API error (execute already showed a toast); distinguish from empty []
-    if (results === null) return { count: "?", problems: [], hasError: true };
+    const results = await execute(dql, getProblemsTimeframe(), activeTenant);
+    if (!results) return { count: 0, problems: [] };
 
+    // Slice to top 5 for display, show "5+" if there are more
     const problems = results.slice(0, 5);
     const count = results.length > 5 ? "5+" : results.length;
 
-    return { count, problems: problems as Problem[], hasError: false };
+    return {
+      count,
+      problems: (problems as Problem[]) || [],
+    };
   };
 
-  const { data, isLoading, revalidate } = useCachedPromise(fetchOpenProblems, [tenant], {
-    keepPreviousData: true,
-    execute: !tenantLoading,
-  });
+  const { data, isLoading, revalidate } = useCachedPromise(fetchOpenProblems, [], { keepPreviousData: true });
 
   const count = data?.count ?? 0;
   const problems = data?.problems ?? [];
-  const hasError = data?.hasError ?? false;
   const countNum = typeof count === "string" ? 5 : (count as number);
-  const countDisplay = typeof count === "string" ? String(count) : String(count);
+  const countDisplay = typeof count === "string" ? count : String(count);
 
   const getSeverityIcon = (severity: string) => {
     switch (severity) {
@@ -75,7 +79,7 @@ export default function MenuBarProblems() {
     }
   };
 
-  if (!tenant && !isLoading && countNum === 0 && !hasError) {
+  if (!tenant && !isLoading && countNum === 0) {
     return (
       <MenuBarExtra icon={{ source: "assets/dynatrace-icon.png" }} tooltip="No tenant configured">
         <MenuBarExtra.Item
@@ -83,9 +87,9 @@ export default function MenuBarProblems() {
           icon={Icon.Gear}
           onAction={async () => {
             try {
-              await launchCommand({ name: "dt-tenants", type: LaunchType.UserInitiated });
+              await open("raycast://extensions/yaroslav_volenyuk/dynatrace-connector/dt-tenants");
             } catch {
-              await showToast({ style: Toast.Style.Failure, title: "Cannot open Manage Tenants" });
+              // Fallback
             }
           }}
         />
@@ -93,41 +97,31 @@ export default function MenuBarProblems() {
     );
   }
 
+  // Choose icon and tint based on problem count
   const getMenuBarIcon = () => {
-    if (hasError) {
-      return { source: Icon.Warning, tintColor: Color.Yellow };
-    }
     if (countNum > 0) {
-      return { source: Icon.Warning, tintColor: Color.Red };
+      // Problems exist - use warning icon with red tint
+      return {
+        source: Icon.Warning,
+        tintColor: Color.Red,
+      };
+    } else {
+      // No problems - use checkmark icon with gray tint
+      return {
+        source: Icon.Checkmark,
+        tintColor: Color.SecondaryText,
+      };
     }
-    return { source: Icon.Checkmark, tintColor: Color.SecondaryText };
   };
-
-  const tooltipText = hasError ? "Can't reach Dynatrace — check Manage Tenants" : `${countDisplay} open problems`;
 
   return (
     <MenuBarExtra
       icon={getMenuBarIcon()}
-      title={!hasError && countNum > 0 ? countDisplay : undefined}
-      tooltip={tooltipText}
+      title={countNum > 0 ? countDisplay : undefined}
+      tooltip={`${countDisplay} open problems`}
       isLoading={isLoading}
     >
-      {hasError && (
-        <MenuBarExtra.Item
-          title="Can't reach Dynatrace"
-          subtitle="Check Manage Tenants"
-          icon={{ source: Icon.Warning, tintColor: Color.Yellow }}
-          onAction={async () => {
-            try {
-              await launchCommand({ name: "dt-tenants", type: LaunchType.UserInitiated });
-            } catch {
-              await showToast({ style: Toast.Style.Failure, title: "Cannot open Manage Tenants" });
-            }
-          }}
-        />
-      )}
-
-      {!hasError && problems.length > 0 && (
+      {problems.length > 0 && (
         <>
           <MenuBarExtra.Section title="Top Problems">
             {problems.map((problem, index) => (
@@ -141,7 +135,7 @@ export default function MenuBarProblems() {
                 }}
                 onAction={async () => {
                   if (tenant) {
-                    const url = `${tenant.tenantEndpoint}/ui/problems/${encodeURIComponent(String(problem["event.id"] ?? ""))}`;
+                    const url = `${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]}`;
                     await open(url);
                   }
                 }}
@@ -159,11 +153,7 @@ export default function MenuBarProblems() {
         title="Open Active Problems"
         icon={Icon.ArrowRight}
         onAction={async () => {
-          try {
-            await launchCommand({ name: "dt-problems", type: LaunchType.UserInitiated });
-          } catch {
-            await showToast({ style: Toast.Style.Failure, title: "Cannot open Problems" });
-          }
+          await open("raycast://extensions/yaroslav_volenyuk/dynatrace-connector/dt-problems");
         }}
       />
 

@@ -16,6 +16,7 @@ export interface TenantConfig {
   useClassicProxy?: boolean; // default true; set false if /platform/classic/ returns 404
 }
 
+
 interface CachedToken {
   access_token: string;
   exp: number; // Date.now() + expires_in * 1000
