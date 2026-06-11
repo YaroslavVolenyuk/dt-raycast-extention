@@ -198,26 +198,24 @@ export async function createJiraIssue(
 }
 
 /**
- * Generate Jira issue URL from the "self" URL returned by API
+ * Generate Jira issue browse URL from the "self" URL returned by API.
+ * Pass siteUrl (e.g. https://yourcompany.atlassian.net) when using scoped tokens
+ * so the browse link resolves correctly.
  */
-export function buildJiraIssueUrl(selfUrl: string, issueKey: string): string {
+export function buildJiraIssueUrl(selfUrl: string, issueKey: string, siteUrl?: string): string {
   try {
     const url = new URL(selfUrl);
 
     if (url.hostname === "api.atlassian.com") {
-      return `https://yourorganization.atlassian.net/browse/${issueKey}`;
+      if (siteUrl) return `${siteUrl.replace(/\/$/, "")}/browse/${issueKey}`;
+      return selfUrl; // last resort: link to the API resource rather than a fake domain
     }
-
-    const baseUrl = `${url.protocol}//${url.hostname}`;
-    return `${baseUrl}/browse/${issueKey}`;
+    return `${url.protocol}//${url.hostname}/browse/${issueKey}`;
   } catch {
-    return `https://atlassian.net/browse/${issueKey}`;
+    return selfUrl;
   }
 }
 
-/**
- * Validate and diagnose Jira configuration
- */
 export function validateJiraConfig(
   jiraUrl: string | undefined,
   email: string | undefined,
@@ -309,8 +307,6 @@ export async function getProjectIssueTypes(
       },
     });
 
-    const responseText = await response.text();
-
     if (!response.ok) {
       jiraLog("getProjectIssueTypes failed", { status: response.status });
       return {
@@ -319,7 +315,7 @@ export async function getProjectIssueTypes(
       };
     }
 
-    const data = JSON.parse(responseText);
+    const data = JSON.parse(await response.text());
     const issueTypes = data.map((type: { id: string; name: string }) => ({
       id: type.id,
       name: type.name,

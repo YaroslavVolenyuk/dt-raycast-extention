@@ -150,6 +150,38 @@
       "icon": "dynatrace-icon.png"
     },
     {
+      "name": "dt-nl2dql",
+      "title": "Convert to DQL (NL2DQL)",
+      "subtitle": "Dynatrace",
+      "description": "Convert natural language questions to DQL queries using Davis CoPilot",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-ask",
+      "title": "Ask Davis",
+      "subtitle": "Dynatrace",
+      "description": "Ask Davis AI questions about your environment with conversation history",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-workflows",
+      "title": "Workflows",
+      "subtitle": "Dynatrace",
+      "description": "View and execute Dynatrace workflows with parameter support",
+      "mode": "view",
+      "icon": "workflows-icon.png"
+    },
+    {
+      "name": "dt-settings",
+      "title": "Settings / Config",
+      "subtitle": "Dynatrace",
+      "description": "Search and view Dynatrace configuration objects (alerting, zones, tags, etc)",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
       "name": "dt-dql-runner",
       "title": "Run DQL Query",
       "subtitle": "Dynatrace",
@@ -206,6 +238,38 @@
       "description": "Test tenant connection and view configuration details",
       "mode": "view",
       "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-metrics",
+      "title": "Metrics Explorer",
+      "subtitle": "Dynatrace",
+      "description": "Search and view metrics with trends, aggregations, and sparklines",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-synthetics",
+      "title": "Synthetic Monitors",
+      "subtitle": "Dynatrace",
+      "description": "View synthetic monitors with availability, response times, and per-location breakdown",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-status",
+      "title": "System Status",
+      "subtitle": "Dynatrace",
+      "description": "Quick health check dashboard with problems, SLOs, synthetics, and recent deployments",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
+    },
+    {
+      "name": "dt-maintenance",
+      "title": "Maintenance Windows",
+      "subtitle": "Dynatrace",
+      "description": "Manage scheduled maintenance windows and suppression settings",
+      "mode": "view",
+      "icon": "dynatrace-icon.png"
     }
   ],
   "engines": {
@@ -230,10 +294,10 @@
   },
   "scripts": {
     "build": "ray build",
-    "dev": "NODE_NO_WARNINGS=1 ray develop",
+    "dev": "ray develop",
     "fix-lint": "ray lint --fix",
     "lint": "ray lint",
-    "test": "NODE_NO_WARNINGS=1 jest",
+    "test": "jest",
     "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
     "publish": "npx @raycast/api@latest publish"
   }

@@ -26,6 +26,9 @@ jobs:
       - name: Lint
         run: npx ray lint
 
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Build
         run: npx ray build
 

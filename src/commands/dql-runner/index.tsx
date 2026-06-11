@@ -30,7 +30,7 @@ interface FormState {
   customTo?: Date;
 }
 
-export default function DqlRunnerCommand(props: LaunchProps) {
+export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
   const { tenant: activeTenantObj, tenants: allTenants } = useActiveTenant();
   const [activeTenant, setActiveTenantState] = useState<string>("");
   // Controlled DQL value — required so async preset actually populates the field
@@ -93,6 +93,8 @@ export default function DqlRunnerCommand(props: LaunchProps) {
           name: values.templateName.trim(),
           dql: values.dql,
           tenantId: values.tenantId || undefined,
+          timeframe: values.timeframePreset ?? "",
+          isFavorite: false,
         });
         await showToast({ style: Toast.Style.Success, title: "Template saved", message: values.templateName.trim() });
       }

@@ -53,8 +53,16 @@ export default function SearchTraces() {
       minDurationMs,
     });
 
-    execute(dqlQuery, undefined, tenant);
-  }, [debouncedServiceName, statusFilter, durationFilter, tenantLoading, tenant, execute]);
+    // Default to last 2 hours so Grail always has a concrete timeframe
+    const now = new Date();
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const timeframe = {
+      start: twoHoursAgo.toISOString(),
+      end: now.toISOString(),
+    };
+
+    execute(dqlQuery, timeframe, tenant);
+  }, [debouncedServiceName, statusFilter, durationFilter, tenant, execute]);
 
   const spans = data?.records ?? [];
 
@@ -108,7 +116,9 @@ export default function SearchTraces() {
                     statusCode: statusFilter,
                     minDurationMs,
                   });
-                  execute(dqlQuery, undefined, tenant);
+                  const now = new Date();
+                  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+                  execute(dqlQuery, { start: twoHoursAgo.toISOString(), end: now.toISOString() }, tenant);
                 }}
               />
             </ActionPanel>
@@ -120,7 +130,11 @@ export default function SearchTraces() {
         <List.EmptyView
           icon={Icon.MagnifyingGlass}
           title="No Traces Found"
-          description="Try adjusting your filters or service name"
+          description={
+            debouncedServiceName
+              ? `No spans for "${debouncedServiceName}" in the last 2 hours. Try a different name or remove filters.`
+              : "No spans found in the last 2 hours. Try adjusting filters or check your Grail data."
+          }
         />
       )}
 

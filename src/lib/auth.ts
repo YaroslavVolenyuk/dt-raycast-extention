@@ -13,6 +13,7 @@ export interface TenantConfig {
   ssoEndpoint: string; // default: https://sso.dynatrace.com/sso/oauth2/token
   scopes: string[]; // e.g. ["storage:logs:read", "storage:problems:read"]
   accountUrn?: string; // urn:dtaccount:<uuid> for account-level clients
+  useClassicProxy?: boolean; // default true; set false if /platform/classic/ returns 404
 }
 
 interface CachedToken {
@@ -64,11 +65,12 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
   }
 
   // Fetch a new token
+  const scopeString = tenant.scopes.join(" ");
   const params = new URLSearchParams({
     grant_type: "client_credentials",
     client_id: tenant.clientId,
     client_secret: tenant.clientSecret,
-    scope: tenant.scopes.join(" "),
+    scope: scopeString,
   });
 
   if (tenant.accountUrn) {
@@ -119,6 +121,14 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
 
   tokenCache.set(cacheKey, cacheEntry);
   return tokenData.access_token;
+}
+
+/**
+ * Invalidate cached token for a tenant (force refresh on next call)
+ */
+export function invalidateTokenCache(tenantId: string): void {
+  const cacheKey = `token:${tenantId}`;
+  tokenCache.delete(cacheKey);
 }
 
 /**

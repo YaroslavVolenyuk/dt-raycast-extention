@@ -1,7 +1,7 @@
 import { List, ActionPanel, Action, Icon, Color, Clipboard, showToast, Toast } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
-import { Problem, buildProblemsQuery } from "../../lib/types/problem";
+import { Problem, buildProblemsQuery, getProblemsTimeframe } from "../../lib/types/problem";
 import { setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
@@ -79,7 +79,7 @@ export default function ProblemsCommand() {
   useEffect(() => {
     if (!tenant) return;
     const dql = buildProblemsQuery(statusFilter);
-    execute(dql, undefined, tenant);
+    execute(dql, getProblemsTimeframe(), tenant);
   }, [statusFilter, tenant, execute]);
 
   const handleTenantChange = async (id: string) => {
@@ -185,7 +185,16 @@ export default function ProblemsCommand() {
     return (
       <List
         isLoading={false}
-        searchBarAccessory={tenant ? <TenantSwitcher value={tenant.id} onChange={handleTenantChange} /> : undefined}
+        searchBarAccessory={
+          <List.Dropdown
+            tooltip="Filter by Status"
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as "OPEN" | "ALL")}
+          >
+            <List.Dropdown.Item title="Open Problems" value="OPEN" />
+            <List.Dropdown.Item title="All Problems" value="ALL" />
+          </List.Dropdown>
+        }
       >
         <List.EmptyView icon={Icon.Star} title="All systems operational 🎉" description="No open problems" />
       </List>

@@ -11,6 +11,31 @@ import { assertHttps, isKnownDynatraceHost } from "../../lib/utils/urlSafety";
 
 const DEFAULT_SSO = "https://sso.dynatrace.com/sso/oauth2/token";
 
+const DEFAULT_SCOPES = [
+  "storage:logs:read",
+  "storage:problems:read",
+  "storage:events:read",
+  "storage:spans:read",
+  "storage:metrics:read",
+  "entity:read",
+  "settings:objects:read",
+  "settings:objects:write",
+  "settings:schemas:read",
+  "settings:objects:admin",
+  "slo:read",
+  "automation:workflows:read",
+  "automation:workflows:write",
+  "automation:workflows:execute",
+  "davis:analyzers:read",
+  "davis:analyzers:execute",
+  "davis-copilot:conversations:execute",
+  "davis-copilot:nl2dql:execute",
+  "davis-copilot:dql2nl:execute",
+  "davis-copilot:document-search:execute",
+  "hub:catalog:read",
+  "oauth2:clients:manage",
+].join(" ");
+
 interface Props {
   existing?: TenantConfig;
   onSave?: () => void;
@@ -32,6 +57,7 @@ export default function TenantForm({ existing, onSave }: Props) {
     ssoEndpoint: string;
     scopes: string;
     accountUrn: string;
+    useClassicProxy: boolean;
   }) {
     // Basic validation
     let valid = true;
@@ -102,10 +128,11 @@ export default function TenantForm({ existing, onSave }: Props) {
       clientSecret: values.clientSecret.trim(),
       ssoEndpoint: values.ssoEndpoint.trim() || DEFAULT_SSO,
       scopes: values.scopes
-        .split(/\s+/)
+        .split(/[\s\n]+/)
         .map((s) => s.trim())
         .filter(Boolean),
       accountUrn: values.accountUrn.trim() || undefined,
+      useClassicProxy: values.useClassicProxy,
     };
 
     try {
@@ -190,12 +217,12 @@ export default function TenantForm({ existing, onSave }: Props) {
         placeholder={DEFAULT_SSO}
         defaultValue={existing?.ssoEndpoint ?? DEFAULT_SSO}
       />
-      <Form.TextField
+      <Form.TextArea
         id="scopes"
         title="Scopes"
-        placeholder="storage:logs:read storage:problems:read storage:events:read storage:spans:read entity:read"
-        defaultValue={existing?.scopes.join(" ")}
-        info="Space-separated list of OAuth scopes"
+        placeholder={DEFAULT_SCOPES}
+        defaultValue={existing?.scopes.join("\n") || DEFAULT_SCOPES.split(" ").join("\n")}
+        info="One scope per line (or space-separated)"
       />
       <Form.TextField
         id="accountUrn"
@@ -203,6 +230,12 @@ export default function TenantForm({ existing, onSave }: Props) {
         placeholder="urn:dtaccount:xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         defaultValue={existing?.accountUrn ?? ""}
         info="Optional: required for account-level OAuth clients"
+      />
+      <Form.Checkbox
+        id="useClassicProxy"
+        label="Use Classic API Proxy"
+        defaultValue={existing?.useClassicProxy ?? true}
+        info="Routes /api/v2/ calls through /platform/classic/environment-api/v2/ for OAuth. Disable if your environment returns 'REST endpoint is not available'."
       />
     </Form>
   );

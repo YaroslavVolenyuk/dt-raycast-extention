@@ -28,7 +28,6 @@ const KEY_TIMEFRAME_PRESET = StorageKeys.logTimeframePreset;
 
 // Timeframe presets
 const TIMEFRAME_PRESETS = [
-  { label: "15m", value: "15m" },
   { label: "1h", value: "1h" },
   { label: "4h", value: "4h" },
   { label: "24h", value: "24h" },
@@ -96,9 +95,9 @@ export default function Command(props: CommandProps) {
   // Debounce timer for content search
   const [debouncedContent, setDebouncedContent] = useState<string>("");
 
-  // Effective values: prefer timeframe preset, then CLI args, then stored, then default
+  // CLI args take priority over saved preset; saved preset overrides stored/default
   const timeframe =
-    timeframePreset || (timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : null) || storedTimeframe || "24h";
+    (timeframeValue ? `${timeframeValue}${timeframeUnit ?? "h"}` : null) || timeframePreset || storedTimeframe || "24h";
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
@@ -108,10 +107,10 @@ export default function Command(props: CommandProps) {
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
-    ]).then(([tf, savedLevel, preset]) => {
+    ]).then(([tf, savedLevel]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
-      if (preset) setTimeframePreset(preset);
-      // Restore log level: CLI arg takes priority, then saved, then default "all"
+      // Don't restore preset across sessions — CLI args / default should win on fresh launch
+      // Restore log level: CLI arg takes priority, then saved, then default "error"
       if (!props.arguments.query && savedLevel) {
         setSelectedLogLevel(savedLevel as LogLevel);
       }

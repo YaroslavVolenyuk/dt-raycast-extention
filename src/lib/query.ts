@@ -66,7 +66,7 @@ export function useDynatraceQuery<T = unknown>() {
         } else if (query.includes("spans")) {
           mockData = MOCK_SPANS as unknown[];
           devLog("Returning MOCK_SPANS");
-        } else if (query.includes("entity")) {
+        } else if (query.includes("entity") || query.includes("dt.entity")) {
           mockData = MOCK_ENTITIES as unknown[];
           devLog("Returning MOCK_ENTITIES");
         } else {

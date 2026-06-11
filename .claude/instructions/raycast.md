@@ -28,6 +28,11 @@ package.json                          # Raycast manifest, preferences, command r
 | `dt-problems` | view | Active Davis AI problems |
 | `dt-deployments` | view | Recent deployment events |
 | `dt-entities` | view | Search services, hosts, process groups |
+| `dt-nl2dql` | view | Convert natural language to DQL via Davis CoPilot |
+| `dt-ask` | view | Ask Davis AI questions with conversation history |
+| `dt-slo` | view | SLO dashboard with compliance and error budget |
+| `dt-workflows` | view | View and execute Dynatrace workflows |
+| `dt-settings` | view | Search and inspect configuration objects |
 | `dt-dql-runner` | view | Execute custom DQL query |
 | `dt-saved-queries` | view | Manage and run saved DQL queries |
 | `dt-tenants` | view | Add, edit, switch tenants |
@@ -35,6 +40,11 @@ package.json                          # Raycast manifest, preferences, command r
 | `dt-menubar-problems` | menu-bar | Problem count in menu bar, polls every 5m |
 | `dt-alerts` | no-view | Background notifications for new OPEN problems, polls every 5m |
 | `dt-test-connection` | view | Test tenant connection |
+| `dt-metrics` | view | Metrics explorer and trend views |
+| `dt-synthetics` | view | Synthetic monitor overview and details |
+| `dt-menubar-slo` | menu-bar | SLO violation count in menu bar, polls every 5m |
+| `dt-status` | view | Health dashboard across problems, SLOs, synthetics, deployments |
+| `dt-maintenance` | view | Maintenance windows list/create/detail |
 
 ## Adding a New Command — full checklist
 
@@ -47,10 +57,14 @@ package.json                          # Raycast manifest, preferences, command r
    ```json
    { "name": "dt-<name>", "title": "...", "subtitle": "Dynatrace", "mode": "view", "icon": "dynatrace-icon.png" }
    ```
-4. Use `useDynatraceQuery<YourType>()` — never raw `fetch` inside components
+4. Pick the correct data layer:
+   - Grail/DQL data → `useDynatraceQuery<T>()`
+   - Classic/Platform REST data → `dynatraceRest()` or `useDynatraceRest<T>()`
+   - Davis CoPilot data → helpers in `src/lib/api/davis.ts`
+   - Never raw `fetch` inside command components unless the command is explicitly a low-level diagnostic
 5. Handle no-tenant state: check `tenantChecked && !tenant`, return `<EmptyTenantState />`
-6. Add mock data in `src/lib/api/mock.ts` so it works in mock mode
-7. Add query sniffer in `query.ts` mock branch: `query.includes("your.table")`
+6. Add mock data in `src/lib/api/mock.ts` or register REST mock data with `registerMock()` so it works in mock mode
+7. For Grail/DQL commands, add query sniffer in `query.ts` mock branch: `query.includes("your.table")`
 8. Wire into hub command `src/commands/dt/index.tsx` via `useNavigation().push`
 9. Add unit tests for any new utility functions in `src/__tests__/`
 
@@ -65,7 +79,10 @@ package.json                          # Raycast manifest, preferences, command r
 
 ## Data Flow
 
-- All Dynatrace data goes through `useDynatraceQuery<T>()` — do not duplicate request logic in components
+- Grail/DQL data goes through `useDynatraceQuery<T>()`
+- Classic/Platform REST data goes through `dynatraceRest()` or `useDynatraceRest<T>()`
+- Davis CoPilot data goes through `src/lib/api/davis.ts`
+- Do not duplicate request/auth logic in command components
 - Load tenant and persisted state in a single `useEffect` with `Promise.all` on mount
 - Debounce search inputs 300ms before triggering a query
 - Use `useMemo` for expensive list transforms; `useCallback` for stable callbacks in hook deps
@@ -93,4 +110,4 @@ package.json                          # Raycast manifest, preferences, command r
 - Do not push placeholder React nodes (e.g. `<span>Problems</span>`) as navigation targets
 - Raycast lint enforces action title casing and manifest consistency — run `npm run lint` before committing
 - Build and lint require Node 22+; check with `node --version`
-- `useEffect + fetch` for Dynatrace data is wrong — always use `useDynatraceQuery`
+- `useEffect + fetch` for Dynatrace data is wrong in command components — use the shared Grail, REST, or Davis data layer instead

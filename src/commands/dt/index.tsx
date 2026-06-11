@@ -9,10 +9,19 @@ import SearchLogsCommand from "../search-logs/index";
 import ProblemsCommand from "../problems/index";
 import DeploymentsCommand from "../deployments/index";
 import EntitiesCommand from "../entities/index";
+import Nl2DqlCommand from "../nl2dql/index";
+import AskDavisCommand from "../ask-davis/index";
 import DqlRunnerCommand from "../dql-runner/index";
 import SavedQueriesCommand from "../saved-queries/index";
 import TenantsCommand from "../tenants/index";
 import SearchTracesCommand from "../traces/index";
+import WorkflowsCommand from "../workflows/index";
+import SettingsCommand from "../settings/index";
+import MetricsCommand from "../metrics/index";
+import SyntheticsCommand from "../synthetics/index";
+import StatusCommand from "../status/index";
+import MaintenanceCommand from "../maintenance/index";
+import TestConnectionCommand from "../test-connection/index";
 
 interface HubEntry {
   title: string;
@@ -38,6 +47,54 @@ export default function DtHub() {
       color: Color.Blue,
       keywords: ["logs", "log", "search", "grail", "dql", "dt-logs"],
       component: <SearchLogsCommand {...EMPTY_SEARCH_LOGS_ARGS} />,
+    },
+    {
+      title: "Convert to DQL (NL2DQL)",
+      subtitle: "dt-nl2dql · Ask Davis to convert natural language to DQL queries",
+      icon: Icon.Wand,
+      color: Color.Magenta,
+      keywords: ["nl2dql", "natural", "language", "davis", "copilot", "dql", "convert", "dt-nl2dql"],
+      component: <Nl2DqlCommand />,
+    },
+    {
+      title: "Ask Davis",
+      subtitle: "dt-ask · Ask Davis AI questions about your environment with follow-ups",
+      icon: Icon.Bubble,
+      color: Color.Purple,
+      keywords: ["ask", "davis", "chat", "copilot", "questions", "ai", "diagnostic", "dt-ask"],
+      component: <AskDavisCommand />,
+    },
+    {
+      title: "Metrics Explorer",
+      subtitle: "dt-metrics · Search metrics with trends, aggregations, and sparklines",
+      icon: Icon.BarChart,
+      color: Color.Blue,
+      keywords: ["metrics", "explorer", "cpu", "memory", "response time", "sparkline", "dt-metrics"],
+      component: <MetricsCommand />,
+    },
+    {
+      title: "Synthetic Monitors",
+      subtitle: "dt-synthetics · View uptime and availability across test locations",
+      icon: Icon.Globe,
+      color: Color.Green,
+      keywords: ["synthetic", "monitors", "uptime", "availability", "http", "browser", "dt-synthetics"],
+      component: <SyntheticsCommand />,
+    },
+    {
+      title: "Workflows",
+      subtitle: "dt-workflows · View and execute automation workflows",
+      icon: Icon.Gear,
+      color: Color.Orange,
+      keywords: ["workflows", "automation", "execute", "schedule", "event", "dt-workflows"],
+      component: <WorkflowsCommand />,
+    },
+    {
+      title: "Settings / Config",
+      subtitle: "dt-settings · Search and configure alerting, zones, tags, ownership",
+      icon: Icon.Gear,
+      color: Color.Purple,
+      keywords: ["settings", "config", "alerting", "zones", "tags", "configuration", "dt-settings"],
+      component: <SettingsCommand />,
     },
     {
       title: "Active Problems",
@@ -94,6 +151,30 @@ export default function DtHub() {
       color: Color.SecondaryText,
       keywords: ["tenants", "tenant", "manage", "oauth", "credentials", "dt-tenants"],
       component: <TenantsCommand />,
+    },
+    {
+      title: "System Status",
+      subtitle: "dt-status · Quick health check — problems, SLOs, synthetics, deployments",
+      icon: Icon.Heartbeat,
+      color: Color.Green,
+      keywords: ["status", "health", "dashboard", "overview", "dt-status"],
+      component: <StatusCommand />,
+    },
+    {
+      title: "Maintenance Windows",
+      subtitle: "dt-maintenance · Manage scheduled maintenance and suppression settings",
+      icon: Icon.Calendar,
+      color: Color.Orange,
+      keywords: ["maintenance", "windows", "schedule", "suppression", "dt-maintenance"],
+      component: <MaintenanceCommand />,
+    },
+    {
+      title: "Test Connection",
+      subtitle: "dt-test-connection · Test tenant connectivity and view config details",
+      icon: Icon.Plug,
+      color: Color.SecondaryText,
+      keywords: ["test", "connection", "config", "tenant", "diagnostics", "dt-test-connection"],
+      component: <TestConnectionCommand />,
     },
   ];
 

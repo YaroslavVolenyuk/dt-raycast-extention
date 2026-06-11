@@ -28,3 +28,9 @@ export function buildProblemsQuery(status: "OPEN" | "ALL" = "OPEN", limit = 50):
 
   return parts.join(" | ");
 }
+
+export function getProblemsTimeframe(): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days back
+  return { start: start.toISOString(), end: end.toISOString() };
+}

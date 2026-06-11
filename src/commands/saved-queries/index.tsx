@@ -10,9 +10,12 @@ import {
   showToast,
   Toast,
   Clipboard,
+  Detail,
 } from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { listSavedQueries, deleteSavedQuery, toggleFavorite, getSavedQuery } from "../../lib/savedQueries";
+import { explainDql } from "../../lib/api/davis";
+import { getActiveTenant } from "../../lib/tenants";
 import { useState } from "react";
 import type { SavedQuery } from "../../lib/types/savedQuery";
 import QueryResultsView from "../dql-runner/query-results";
@@ -170,6 +173,52 @@ interface QueryListItemProps {
 
 function QueryListItem({ query, onRun, onToggleFavorite, onEdit, onDelete }: QueryListItemProps) {
   const dqlPreview = query.dql.substring(0, 60).replace(/\n/g, " ");
+  const { push } = useNavigation();
+
+  const handleExplainQuery = async () => {
+    try {
+      const tenant = await getActiveTenant();
+      if (!tenant) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Error",
+          message: "No active tenant configured",
+        });
+        return;
+      }
+
+      const explanation = await explainDql(tenant, query.dql);
+      push(
+        <Detail
+          navigationTitle="Query Explanation"
+          markdown={`# Query Explanation\n\n${explanation}\n\n---\n\n## Original Query\n\n\`\`\`dql\n${query.dql}\n\`\`\``}
+          actions={
+            <ActionPanel>
+              <Action
+                title="Copy Explanation"
+                icon={Icon.Clipboard}
+                onAction={async () => {
+                  await Clipboard.copy(explanation);
+                  await showToast({
+                    style: Toast.Style.Success,
+                    title: "Copied",
+                    message: "Explanation copied to clipboard",
+                  });
+                }}
+              />
+            </ActionPanel>
+          }
+        />,
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to explain query";
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Error",
+        message,
+      });
+    }
+  };
 
   return (
     <List.Item
@@ -184,6 +233,7 @@ function QueryListItem({ query, onRun, onToggleFavorite, onEdit, onDelete }: Que
       actions={
         <ActionPanel>
           <Action title="Run Query" icon={Icon.Play} onAction={onRun} />
+          <Action title="Explain Query" icon={Icon.LightBulb} onAction={handleExplainQuery} />
           <Action.Push title="Edit" icon={Icon.Pencil} target={<EditQueryView queryId={query.id} onSave={onEdit} />} />
           <Action
             title="Toggle Favorite"
