@@ -13,12 +13,24 @@ export const Cache = jest.fn().mockImplementation(() => {
 });
 
 export const getPreferenceValues = jest.fn(() => ({ useMockData: false }));
+export const environment = {
+  supportPath: "/tmp/raycast-test-support",
+};
 export const openExtensionPreferences = jest.fn();
 export const showToast = jest.fn();
+// Map-backed LocalStorage mock so tests can exercise real read/write round-trips.
+// Each jest.fn() delegates to the backing map so callers get realistic behaviour.
+const _localStorageMap = new Map<string, string>();
 export const LocalStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
+  getItem: jest.fn(async (key: string) => _localStorageMap.get(key) ?? null),
+  setItem: jest.fn(async (key: string, value: string) => {
+    _localStorageMap.set(key, value);
+  }),
+  removeItem: jest.fn(async (key: string) => {
+    _localStorageMap.delete(key);
+  }),
+  // Helper for tests to reset state between cases
+  _clear: () => _localStorageMap.clear(),
 };
 
 export const Toast = {

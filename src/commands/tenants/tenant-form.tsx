@@ -7,6 +7,7 @@ import { randomUUID } from "crypto";
 import { saveTenant } from "../../lib/tenants";
 import { validateTenantCredentials } from "../../lib/auth";
 import type { TenantConfig } from "../../lib/auth";
+import { assertHttps, isKnownDynatraceHost } from "../../lib/utils/urlSafety";
 
 const DEFAULT_SSO = "https://sso.dynatrace.com/sso/oauth2/token";
 
@@ -42,7 +43,15 @@ export default function TenantForm({ existing, onSave }: Props) {
     if (!values.tenantEndpoint.trim()) {
       setEndpointError("Endpoint is required");
       valid = false;
-    } else setEndpointError(undefined);
+    } else {
+      try {
+        assertHttps(values.tenantEndpoint.trim(), "Tenant Endpoint");
+        setEndpointError(undefined);
+      } catch (e) {
+        setEndpointError(e instanceof Error ? e.message : "Invalid URL");
+        valid = false;
+      }
+    }
 
     if (!values.clientId.trim()) {
       setClientIdError("Client ID is required");
@@ -61,6 +70,29 @@ export default function TenantForm({ existing, onSave }: Props) {
     } else setClientSecretError(undefined);
 
     if (!valid) return;
+
+    // Warn (non-blocking) if endpoint is not a known Dynatrace host (Managed is OK)
+    const endpointUrl = values.tenantEndpoint.trim();
+    if (!isKnownDynatraceHost(endpointUrl)) {
+      await showToast({
+        style: Toast.Style.Animated,
+        title: "Custom endpoint detected",
+        message: "Credentials will be sent to a non-Dynatrace host. Proceed only if using Dynatrace Managed.",
+      });
+    }
+
+    // Validate SSO endpoint HTTPS
+    const ssoUrl = values.ssoEndpoint.trim() || DEFAULT_SSO;
+    try {
+      assertHttps(ssoUrl, "SSO Endpoint");
+    } catch (e) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Invalid SSO Endpoint",
+        message: e instanceof Error ? e.message : "Invalid URL",
+      });
+      return;
+    }
 
     const tenant: TenantConfig = {
       id: existing?.id ?? randomUUID(),
@@ -161,7 +193,7 @@ export default function TenantForm({ existing, onSave }: Props) {
       <Form.TextField
         id="scopes"
         title="Scopes"
-        placeholder="storage:logs:read storage:problems:read entity:read"
+        placeholder="storage:logs:read storage:problems:read storage:events:read storage:spans:read entity:read"
         defaultValue={existing?.scopes.join(" ")}
         info="Space-separated list of OAuth scopes"
       />

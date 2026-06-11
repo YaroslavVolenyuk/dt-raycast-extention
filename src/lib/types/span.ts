@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { escapeDqlString } from "../dql/escape";
 
 /**
  * Zod schema for distributed trace span data from Dynatrace
@@ -31,15 +32,15 @@ export function buildSpansQuery(
   let query = "fetch spans";
 
   if (serviceName) {
-    query += `\n  | filter service.name == "${serviceName}"`;
+    query += `\n  | filter service.name == "${escapeDqlString(serviceName)}"`;
   }
 
   if (statusCode && statusCode !== "ALL") {
     query += `\n  | filter status_code == "${statusCode}"`;
   }
 
-  if (minDurationUs > 0) {
-    query += `\n  | filter span.duration.us > ${minDurationUs}`;
+  if (minDurationUs > 0 && Number.isFinite(minDurationUs)) {
+    query += `\n  | filter span.duration.us > ${Math.floor(minDurationUs)}`;
   }
 
   query += "\n  | sort timestamp desc\n  | limit 50";

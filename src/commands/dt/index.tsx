@@ -4,7 +4,7 @@
 
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
 
-// Lazy imports — each component is only loaded when navigated to
+// Eager static imports — all command modules load when the hub opens
 import SearchLogsCommand from "../search-logs/index";
 import ProblemsCommand from "../problems/index";
 import DeploymentsCommand from "../deployments/index";

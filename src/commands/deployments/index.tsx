@@ -1,11 +1,10 @@
 import { List, ActionPanel, Action, Icon, Color } from "@raycast/api";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Deployment, buildDeploymentsQuery } from "../../lib/types/deployment";
-import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
+import { setActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
-import type { TenantConfig } from "../../lib/auth";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import DeploymentDetailView from "./deployment-detail";
 
 function formatTimeAgo(timestamp: string): string {
@@ -18,36 +17,21 @@ function formatTimeAgo(timestamp: string): string {
 }
 
 export default function DeploymentsCommand() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
-  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
+  const { tenant, tenants: allTenants, isLoading: tenantLoading } = useActiveTenant();
+  const tenantChecked = !tenantLoading;
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Deployment>();
 
-  // Load active tenant and all tenants once on mount
+  // Execute query when tenant is loaded
   useEffect(() => {
-    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
-      setTenant(activeTenant);
-      setAllTenants(tenants);
-      setTenantChecked(true);
-      setFiltersLoaded(true);
-    });
-  }, []);
-
-  // Execute query when filters are loaded
-  useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
+    if (tenantLoading || !tenant) return;
 
     const dql = buildDeploymentsQuery();
     execute(dql, undefined, tenant);
-  }, [filtersLoaded, tenant, execute]);
+  }, [tenantLoading, tenant, execute]);
 
   const handleTenantChange = async (id: string) => {
     await setActiveTenant(id);
-    const all = await import("../../lib/tenants").then((m) => m.listTenants());
-    const next = all.find((t) => t.id === id) ?? null;
-    setTenant(next);
   };
 
   const deployments = data?.records ?? [];

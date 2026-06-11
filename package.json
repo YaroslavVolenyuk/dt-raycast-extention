@@ -40,8 +40,7 @@
       "description": "For scoped tokens: https://api.atlassian.com/ex/jira/{cloudId} | For unscoped tokens: https://yourcompany.atlassian.net",
       "type": "textfield",
       "required": false,
-      "placeholder": "https://api.atlassian.com/ex/jira/e6f310ff-605a-4f7c-b043-5d591d075292",
-      "default": "https://api.atlassian.com/ex/jira/e6f310ff-605a-4f7c-b043-5d591d075292"
+      "placeholder": "https://yourcompany.atlassian.net"
     },
     {
       "name": "jiraEmail",
@@ -223,7 +222,7 @@
     "@types/node": "22.13.10",
     "@types/react": "19.0.10",
     "eslint": "^9.22.0",
-    "jest": "^30.3.0",
+    "jest": "30.4.1",
     "prettier": "^3.5.3",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",

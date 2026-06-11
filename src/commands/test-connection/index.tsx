@@ -3,7 +3,7 @@
 
 import { List, ActionPanel, Action, Icon, showToast, Toast, useNavigation } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { listTenants } from "../../lib/tenants";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { validateTenantCredentials, OAuthError } from "../../lib/auth";
 import type { TenantConfig } from "../../lib/auth";
 
@@ -22,6 +22,7 @@ interface TestResult {
 
 export default function Command() {
   const { pop } = useNavigation();
+  const { tenants, isLoading: tenantLoading } = useActiveTenant();
   const [results, setResults] = useState<TestResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -71,9 +72,10 @@ export default function Command() {
   }
 
   useEffect(() => {
-    async function loadAndTest() {
+    if (tenantLoading) return;
+
+    async function runTests() {
       try {
-        const tenants = await listTenants();
         if (tenants.length === 0) {
           setResults([]);
           setIsLoading(false);
@@ -88,8 +90,8 @@ export default function Command() {
       setIsLoading(false);
     }
 
-    loadAndTest();
-  }, []);
+    runTests();
+  }, [tenantLoading, tenants]);
 
   return (
     <List

@@ -7,21 +7,19 @@ import {
   Color,
   useNavigation,
   Icon,
-  AI,
-  environment,
   showToast,
   Toast,
-  LocalStorage,
-  open,
+  launchCommand,
+  LaunchType,
 } from "@raycast/api";
 import { LogRecord } from "../../lib/types/log";
 import type { TenantConfig } from "../../lib/auth";
+import { buildLogContextQuery } from "../../lib/dql/builders";
 import { formatLogContent } from "../../lib/utils/formatLogContent";
 import { JiraIssueForm } from "../../components/JiraIssueForm";
 import { JiraIssueResult } from "../../components/JiraIssueResult";
 
 interface ExtensionPrefs {
-  dynatraceEndpoint: string;
   jiraUrl?: string;
   jiraEmail?: string;
   jiraApiToken?: string;
@@ -49,43 +47,6 @@ function buildLogsUrl(baseUrl: string): string {
 
   // Use 24h timeframe for context
   return `${url}/ui/apps/dynatrace.logs?gtf=last_24h`;
-}
-
-/**
- * Builds a ready-to-paste DQL query that finds related logs.
- * Does NOT include timestamp filters — user should set timeframe in the DQL runner form.
- * Filters by service, app, or process name only.
- */
-function buildDqlFilter(log: LogRecord): string {
-  const conditions: string[] = [];
-
-  // Add service/app/process filter - try in order of preference
-  const service = log["service.name"] ? String(log["service.name"]) : undefined;
-  if (service) {
-    conditions.push(`service.name == "${service}"`);
-  } else {
-    const appName = log["dt.app.name"] ? String(log["dt.app.name"]) : undefined;
-    if (appName) {
-      conditions.push(`dt.app.name == "${appName}"`);
-    } else {
-      // Fall back to process name if available
-      const processName = log["dt.process.name"]
-        ? String(log["dt.process.name"])
-        : log["dt.process_group.detected_name"]
-          ? String(log["dt.process_group.detected_name"])
-          : undefined;
-      if (processName) {
-        conditions.push(`dt.process.name == "${processName}"`);
-      }
-    }
-  }
-
-  // If we have conditions, add them; otherwise just fetch all logs
-  if (conditions.length > 0) {
-    return `fetch logs\n| filter ${conditions.join("\n    and ")}\n| limit 100`;
-  } else {
-    return `fetch logs\n| limit 100`;
-  }
 }
 
 /**
@@ -161,30 +122,12 @@ function levelColor(level: string | undefined, status: string | undefined): Colo
   }
 }
 
-/**
- * Simple detail view to display AI analysis result
- */
-function AIAnalysisDetail({ content }: { content: string }) {
-  return (
-    <Detail
-      markdown={content}
-      navigationTitle="AI Analysis"
-      actions={
-        <ActionPanel>
-          <Action.CopyToClipboard title="Copy Analysis" content={content} />
-        </ActionPanel>
-      }
-    />
-  );
-}
-
 export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?: TenantConfig }) {
   try {
     const { push } = useNavigation();
     const prefs = getPreferenceValues<ExtensionPrefs>();
 
-    // Use tenant endpoint if available, fall back to preferences
-    const baseUrl = (tenant?.tenantEndpoint || prefs.dynatraceEndpoint)?.replace(/\/$/, "") ?? "";
+    const baseUrl = tenant?.tenantEndpoint?.replace(/\/$/, "") ?? "";
     const logsUrl = buildLogsUrl(baseUrl);
     const hasJiraConfig = !!(prefs.jiraUrl && prefs.jiraEmail && prefs.jiraApiToken && prefs.jiraProjectKey);
 
@@ -233,7 +176,7 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
     const traceUrl = traceId ? buildTraceUrl(baseUrl, traceId, spanId, log.timestamp) : undefined;
 
     // DQL filter — used in markdown preview and Copy action
-    const dqlFilter = buildDqlFilter(log);
+    const dqlFilter = buildLogContextQuery(log);
 
     const hasServiceInfo = !!(
       serviceName ||
@@ -301,11 +244,12 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
           timeframePreset: "custom",
         };
 
-        // Store DQL and timeframe in localStorage so dql-runner can pick it up
-        await LocalStorage.setItem("dql-runner-preset", JSON.stringify(preset));
-
-        // Open DQL runner command
-        await open("raycast://extensions/one-developer-corporation/dynatrace-connector/dt-dql-runner");
+        // Pass preset via launchContext — avoids hardcoded author/extension path
+        await launchCommand({
+          name: "dt-dql-runner",
+          type: LaunchType.UserInitiated,
+          context: { preset },
+        });
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,
@@ -378,64 +322,6 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
                 />
               )}
             </ActionPanel.Section>
-
-            {/* AI Analysis section — only if Raycast AI is available */}
-            {environment.canAccess(AI) && log.content && (
-              <ActionPanel.Section title="AI Analysis">
-                <Action
-                  title="Explain This Error"
-                  icon={Icon.LightBulb}
-                  onAction={async () => {
-                    const toast = await showToast({
-                      style: Toast.Style.Animated,
-                      title: "Analyzing error with AI...",
-                    });
-
-                    try {
-                      const explanation = await AI.ask(
-                        `Please analyze and explain the following error or log entry. Provide possible causes and suggested fixes:\n\n${log.content}`,
-                        { creativity: "low" },
-                      );
-
-                      toast.hide();
-                      push(<AIAnalysisDetail content={explanation} />);
-                    } catch (error) {
-                      toast.style = Toast.Style.Failure;
-                      toast.title = "AI Analysis Failed";
-                      toast.message = error instanceof Error ? error.message : "Unknown error";
-                    }
-                  }}
-                />
-                {serviceName && (
-                  <Action
-                    title="Summarize Last 10 Errors for This Service"
-                    icon={Icon.TextDocument}
-                    onAction={async () => {
-                      const toast = await showToast({
-                        style: Toast.Style.Animated,
-                        title: "Analyzing service errors with AI...",
-                      });
-
-                      try {
-                        // In a real implementation, you would fetch the last 10 ERROR records for this service
-                        // For now, we'll provide a summary prompt based on the current log
-                        const summary = await AI.ask(
-                          `Please provide a summary of common error patterns and root causes for the service "${serviceName}" based on recent error logs. Include:\n1. Top 3 most common error types\n2. Suggested mitigation strategies\n3. Recommended monitoring enhancements\n\nContext: This service recently had the following error:\n${log.content}`,
-                          { creativity: "low" },
-                        );
-
-                        toast.hide();
-                        push(<AIAnalysisDetail content={`## Error Summary for ${serviceName}\n\n${summary}`} />);
-                      } catch (error) {
-                        toast.style = Toast.Style.Failure;
-                        toast.title = "Analysis Failed";
-                        toast.message = error instanceof Error ? error.message : "Unknown error";
-                      }
-                    }}
-                  />
-                )}
-              </ActionPanel.Section>
-            )}
 
             {/* Jira Integration section */}
             {hasJiraConfig && log.content && (

@@ -1,15 +1,10 @@
 // src/lib/utils/buildDqlQuery.ts
 // Builds a DQL (Dynatrace Query Language) string for log fetching.
 
-export type LogLevel = "error" | "warning" | "info" | "debug" | "fatal" | "all";
+export { escapeDqlString } from "../dql/escape";
+import { escapeDqlString } from "../dql/escape";
 
-/**
- * Escapes special characters in a string for safe interpolation into DQL query strings.
- * Escapes backslashes first, then double quotes.
- */
-function escapeDqlString(str: string): string {
-  return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
+export type LogLevel = "error" | "warning" | "info" | "debug" | "fatal" | "all";
 
 const LOG_LEVEL_MAP: Record<LogLevel, string | null> = {
   error: "ERROR",

@@ -15,7 +15,7 @@ export const problemSchema = z.object({
 
 export type Problem = z.infer<typeof problemSchema>;
 
-export function buildProblemsQuery(status: "OPEN" | "ALL" = "OPEN"): string {
+export function buildProblemsQuery(status: "OPEN" | "ALL" = "OPEN", limit = 50): string {
   const statusFilter = status === "OPEN" ? 'event.status == "OPEN"' : "";
   const parts = ["fetch dt.davis.problems"];
 
@@ -24,7 +24,7 @@ export function buildProblemsQuery(status: "OPEN" | "ALL" = "OPEN"): string {
   }
 
   parts.push("sort event.severity asc, event.start desc");
-  parts.push("limit 50");
+  parts.push(`limit ${limit}`);
 
   return parts.join(" | ");
 }

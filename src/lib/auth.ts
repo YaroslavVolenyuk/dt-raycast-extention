@@ -1,8 +1,6 @@
 // src/lib/auth.ts
 // OAuth 2.0 client credentials service for Dynatrace SSO.
-// Tokens are cached with a 30-second proactive refresh window.
-
-import { Cache } from "@raycast/api";
+// Tokens are cached in-process (not persisted to disk) with a 30-second proactive refresh window.
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -36,32 +34,33 @@ export class OAuthError extends Error {
   }
 }
 
-// ── Cache ─────────────────────────────────────────────────────────────────────
+// ── In-memory cache (tokens never written to disk) ────────────────────────────
+// Each Raycast command is a separate process — cache lives only for the duration
+// of the command. One extra SSO request per command launch is acceptable since
+// Dynatrace OAuth tokens live ~5 min anyway.
 
-const tokenCache = new Cache({ namespace: "dt-oauth" });
+const tokenCache = new Map<string, CachedToken>();
 
 const REFRESH_BUFFER_MS = 30_000; // refresh 30 seconds before expiry
+
+// ── Token invalidation ────────────────────────────────────────────────────────
+
+export function invalidateToken(tenantId: string): void {
+  tokenCache.delete(`token:${tenantId}`);
+}
 
 // ── Main function ─────────────────────────────────────────────────────────────
 
 /**
  * Returns a valid access token for the given tenant.
- * Caches tokens and proactively refreshes 30 seconds before expiry.
+ * Caches tokens in memory and proactively refreshes 30 seconds before expiry.
  */
 export async function getAccessToken(tenant: TenantConfig): Promise<string> {
   const cacheKey = `token:${tenant.id}`;
 
-  // Check cache first
   const cached = tokenCache.get(cacheKey);
-  if (cached) {
-    try {
-      const parsed: CachedToken = JSON.parse(cached);
-      if (parsed.exp - Date.now() > REFRESH_BUFFER_MS) {
-        return parsed.access_token;
-      }
-    } catch {
-      // Corrupted cache entry — fall through to fetch
-    }
+  if (cached && cached.exp - Date.now() > REFRESH_BUFFER_MS) {
+    return cached.access_token;
   }
 
   // Fetch a new token
@@ -76,11 +75,25 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
     params.set("resource", tenant.accountUrn);
   }
 
-  const res = await fetch(tenant.ssoEndpoint, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: params.toString(),
-  });
+  const ssoTimeout = new AbortController();
+  const ssoTimer = setTimeout(() => ssoTimeout.abort(), 15_000);
+  let res: Response;
+  try {
+    res = await fetch(tenant.ssoEndpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+      signal: ssoTimeout.signal,
+    });
+  } catch (fetchErr) {
+    clearTimeout(ssoTimer);
+    if (fetchErr instanceof Error && fetchErr.name === "AbortError") {
+      throw new OAuthError(0, "SSO endpoint is not responding (15s timeout)");
+    }
+    throw fetchErr;
+  } finally {
+    clearTimeout(ssoTimer);
+  }
 
   const body = await res.text();
 
@@ -95,25 +108,28 @@ export async function getAccessToken(tenant: TenantConfig): Promise<string> {
     throw new OAuthError(res.status, `Failed to parse token response: ${body.slice(0, 200)}`);
   }
 
+  if (!tokenData.access_token || !Number.isFinite(tokenData.expires_in)) {
+    throw new OAuthError(res.status, "Token response missing access_token or expires_in");
+  }
+
   const cacheEntry: CachedToken = {
     access_token: tokenData.access_token,
     exp: Date.now() + tokenData.expires_in * 1000,
   };
 
-  tokenCache.set(cacheKey, JSON.stringify(cacheEntry));
+  tokenCache.set(cacheKey, cacheEntry);
   return tokenData.access_token;
 }
 
 /**
  * Validates tenant credentials by attempting to get an access token.
  * Returns { valid: true } on success, or { valid: false, error: string } on failure.
- * In mock mode, mock tenants always validate successfully.
  */
 export async function validateTenantCredentials(
   tenant: TenantConfig,
 ): Promise<{ valid: true } | { valid: false; error: string }> {
-  // Mock tenants always validate in mock mode
-  if (tenant.clientId.includes("MOCK_")) {
+  // Mock tenants with the mock- prefix always validate in mock mode
+  if (tenant.id.startsWith("mock-") && tenant.clientId.includes("MOCK_")) {
     return { valid: true };
   }
 
@@ -122,7 +138,6 @@ export async function validateTenantCredentials(
     return { valid: true };
   } catch (err) {
     if (err instanceof OAuthError) {
-      // Parse error messages
       if (err.statusCode === 400) {
         return { valid: false, error: "Invalid Client ID or Secret — check Dynatrace OAuth app settings" };
       }

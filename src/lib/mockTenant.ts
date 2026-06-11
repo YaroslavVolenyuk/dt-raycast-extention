@@ -5,6 +5,38 @@
 import { isMockMode } from "./devMode";
 import type { TenantConfig } from "./auth";
 
+// ── Mock tenant list (used by listTenants in mock mode) ────────────────────────
+
+export const MOCK_TENANTS: TenantConfig[] = [
+  {
+    id: "mock-prod",
+    name: "Production (Mock)",
+    tenantEndpoint: "https://prod.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_PROD_ID",
+    clientSecret: "dt0s02.MOCK_PROD_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+  {
+    id: "mock-dev",
+    name: "Development (Mock)",
+    tenantEndpoint: "https://dev.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_DEV_ID",
+    clientSecret: "dt0s02.MOCK_DEV_SECRET.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+  {
+    id: "mock-staging",
+    name: "Staging (Mock)",
+    tenantEndpoint: "https://staging.live.dynatrace.com",
+    clientId: "dt0s02.MOCK_STAGING_ID",
+    clientSecret: "dt0s02.MOCK_STAGING_SECRET.XXXXXXXXXXXXXXXXXXXXXXXX",
+    ssoEndpoint: "https://sso.dynatrace.com/sso/oauth2/token",
+    scopes: ["storage:logs:read", "storage:problems:read", "entity:read"],
+  },
+];
+
 /**
  * Create a dummy tenant for mock mode development.
  * Use this when getActiveTenant() returns null but mock mode is enabled.

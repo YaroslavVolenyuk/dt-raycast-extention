@@ -1,5 +1,6 @@
 // src/lib/types/entity.ts
 import { z } from "zod";
+import { escapeDqlString } from "../dql/escape";
 
 export const entitySchema = z.object({
   "entity.id": z.string(),
@@ -24,7 +25,7 @@ export function buildEntityQuery(type: string, query: string): string {
   }
 
   return `fetch ${table}
-    | filter matchesPhrase(entity.name, "${query}")
+    | filter matchesPhrase(entity.name, "${escapeDqlString(query)}")
     | fields entity.id, entity.name, entity.type
     | limit 20`;
 }

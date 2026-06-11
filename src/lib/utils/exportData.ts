@@ -1,5 +1,9 @@
 // P2-S4: Export utilities — convert data to JSON and CSV formats
 
+import { environment } from "@raycast/api";
+import * as fs from "fs";
+import * as path from "path";
+
 /**
  * Convert records to JSON string
  */
@@ -20,10 +24,14 @@ export function toCsv(records: Record<string, unknown>[]): string {
   // Get headers from first record
   const headers = Object.keys(records[0]);
 
-  // Helper to escape CSV field value
+  // Helper to escape CSV field value (OWASP formula-injection neutralization)
   const escapeCsvField = (value: unknown): string => {
-    const str = String(value ?? "");
-    // If contains comma, quote, or newline, wrap in quotes and escape quotes
+    let str = String(value ?? "");
+    // Neutralize formula injection: Excel/Sheets trigger on = + - @ and tab/CR at field start.
+    // Exclude plain negative numbers (-123) which are safe.
+    if (/^[=+\-@\t\r]/.test(str) && !/^-?\d+(\.\d+)?$/.test(str)) {
+      str = `'${str}`;
+    }
     if (str.includes(",") || str.includes('"') || str.includes("\n")) {
       return `"${str.replace(/"/g, '""')}"`;
     }
@@ -53,4 +61,29 @@ export function getExportTimestamp(): string {
 export function getExportFilename(basename: string, format: "json" | "csv"): string {
   const timestamp = getExportTimestamp();
   return `${basename}-${timestamp}.${format}`;
+}
+
+/**
+ * Export records to a file in `environment.supportPath`.
+ * Returns the absolute path of the written file.
+ *
+ * @param records  - array of records to export
+ * @param basename - filename prefix (no extension), e.g. "problems"
+ * @param format   - "json" or "csv"
+ */
+export async function exportToFile(
+  records: Record<string, unknown>[],
+  basename: string,
+  format: "json" | "csv",
+): Promise<string> {
+  const filename = getExportFilename(basename, format);
+  const filePath = path.join(environment.supportPath, filename);
+
+  // Ensure support directory exists
+  await fs.promises.mkdir(environment.supportPath, { recursive: true });
+
+  const content = format === "json" ? toJson(records) : toCsv(records);
+  await fs.promises.writeFile(filePath, content, "utf-8");
+
+  return filePath;
 }

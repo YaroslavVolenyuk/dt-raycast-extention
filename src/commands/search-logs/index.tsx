@@ -15,17 +15,16 @@ import { useDynatraceQuery } from "../../lib/query";
 import { parseTimeframe } from "../../lib/utils/parseTimeframe";
 import { buildDqlQuery, LogLevel } from "../../lib/utils/buildDqlQuery";
 import { LogRecord } from "../../lib/types/log";
-import { getActiveTenant } from "../../lib/tenants";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import type { TenantConfig } from "../../lib/auth";
-import { toJson, toCsv } from "../../lib/utils/exportData";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { toJson, toCsv, exportToFile } from "../../lib/utils/exportData";
 
-// ── Persistence keys ───────────────────────────────────────────────────────
-const KEY_TIMEFRAME = "dt_last_timeframe";
-const KEY_LOG_LEVEL = "dt_last_log_level";
-const KEY_TIMEFRAME_PRESET = "dt_timeframe_preset";
+import { StorageKeys } from "../../lib/storageKeys";
+
+const KEY_TIMEFRAME = StorageKeys.logTimeframe;
+const KEY_LOG_LEVEL = StorageKeys.logLevel;
+const KEY_TIMEFRAME_PRESET = StorageKeys.logTimeframePreset;
 
 // Timeframe presets
 const TIMEFRAME_PRESETS = [
@@ -76,19 +75,23 @@ export default function Command(props: CommandProps) {
   const extraFilter = props._extraFilter;
   const { push } = useNavigation();
 
+  const { tenant, isLoading: tenantLoading } = useActiveTenant();
+  const tenantChecked = !tenantLoading;
+
   // Persist filter state
   const [storedTimeframe, setStoredTimeframe] = useState<string | null>(null);
   const [timeframePreset, setTimeframePreset] = useState<string | null>(null);
-  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(props.arguments.query ?? "error");
+  const [selectedLogLevel, setSelectedLogLevel] = useState<LogLevel>(props.arguments.query ?? "all");
   const [selectedService, setSelectedService] = useState<string>("all");
   const [contentSearch, setContentSearch] = useState<string>("");
   const [filtersLoaded, setFiltersLoaded] = useState(false);
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
 
   // Pagination state
   const [allRecords, setAllRecords] = useState<LogRecord[]>([]);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  // Explicit flag: true when the next data batch is a "load more" continuation, not a fresh query.
+  // Avoids false-positive detection based on matching timestamps.
+  const isLoadMoreRef = useRef(false);
 
   // Debounce timer for content search
   const [debouncedContent, setDebouncedContent] = useState<string>("");
@@ -99,22 +102,19 @@ export default function Command(props: CommandProps) {
 
   const { data, isLoading, error, execute } = useDynatraceQuery<LogRecord>();
 
-  // Load persisted filters and active tenant once on mount
+  // Load persisted filters once on mount
   useEffect(() => {
     Promise.all([
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
-      getActiveTenantOrMock(() => getActiveTenant()),
-    ]).then(([tf, savedLevel, preset, activeTenant]) => {
+    ]).then(([tf, savedLevel, preset]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       if (preset) setTimeframePreset(preset);
-      // Restore log level: CLI arg takes priority, then saved, then default "error"
+      // Restore log level: CLI arg takes priority, then saved, then default "all"
       if (!props.arguments.query && savedLevel) {
         setSelectedLogLevel(savedLevel as LogLevel);
       }
-      setTenant(activeTenant);
-      setTenantChecked(true);
       setFiltersLoaded(true);
     });
   }, []);
@@ -127,9 +127,9 @@ export default function Command(props: CommandProps) {
     return () => clearTimeout(timer);
   }, [contentSearch]);
 
-  // Execute query after filters are loaded; re-run when any filter changes
+  // Execute query after filters and tenant are loaded; re-run when any filter changes
   useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
+    if (!filtersLoaded || tenantLoading || !tenant) return;
 
     const timeRange = parseTimeframe(timeframe);
     const dql = buildDqlQuery({
@@ -146,21 +146,30 @@ export default function Command(props: CommandProps) {
     LocalStorage.setItem(KEY_LOG_LEVEL, selectedLogLevel);
 
     // Reset pagination when query changes
+    isLoadMoreRef.current = false;
     setAllRecords([]);
-  }, [timeframe, selectedLogLevel, selectedService, debouncedContent, filtersLoaded, tenant, extraFilter]);
+  }, [
+    timeframe,
+    selectedLogLevel,
+    selectedService,
+    debouncedContent,
+    filtersLoaded,
+    tenantLoading,
+    tenant,
+    extraFilter,
+  ]);
 
   // Update data when new results come in (append for "load more", replace on new query)
   useEffect(() => {
     if (data?.records) {
-      // If oldest record from last batch exists in new data, we're loading more
-      const isLoadMore =
-        allRecords.length > 0 && data.records.some((r) => r.timestamp === allRecords[allRecords.length - 1]?.timestamp);
-
-      if (isLoadMore) {
-        setAllRecords((prev) => [
-          ...prev,
-          ...data.records.filter((r) => !prev.some((p) => p.timestamp === r.timestamp)),
-        ]);
+      if (isLoadMoreRef.current) {
+        isLoadMoreRef.current = false;
+        // Dedup by timestamp+content to handle same-millisecond records correctly
+        setAllRecords((prev) => {
+          const existingKeys = new Set(prev.map((r) => `${r.timestamp}::${r.content}`));
+          const newRecords = data.records.filter((r) => !existingKeys.has(`${r.timestamp}::${r.content}`));
+          return [...prev, ...newRecords];
+        });
         setIsLoadingMore(false);
       } else {
         setAllRecords(data.records);
@@ -181,11 +190,11 @@ export default function Command(props: CommandProps) {
   const handleLoadMore = useCallback(async () => {
     if (allRecords.length === 0 || !tenant) return;
     setIsLoadingMore(true);
+    isLoadMoreRef.current = true;
 
     const oldestRecord = allRecords[allRecords.length - 1];
     const timeRange = parseTimeframe(timeframe);
 
-    // Build query with "before" cursor for pagination
     const dql = buildDqlQuery({
       logLevel: selectedLogLevel,
       serviceName: selectedService !== "all" ? selectedService : undefined,
@@ -235,6 +244,46 @@ export default function Command(props: CommandProps) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleSaveJsonFile = async () => {
+    try {
+      const filePath = await exportToFile(allRecords as Record<string, unknown>[], "logs", "json");
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Saved",
+        message: filePath,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleSaveCsvFile = async () => {
+    try {
+      const rows = allRecords.map((r) => ({
+        timestamp: r.timestamp,
+        service: (r["service.name"] ?? r["dt.app.name"] ?? "") as string,
+        level: r.loglevel,
+        content: r.content,
+      }));
+      const filePath = await exportToFile(rows as Record<string, unknown>[], "logs", "csv");
+      await showToast({
+        style: Toast.Style.Success,
+        title: "Saved",
+        message: filePath,
+      });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -299,6 +348,8 @@ export default function Command(props: CommandProps) {
         <ActionPanel.Section title="Export">
           <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleExportJson} />
           <Action title="Copy All as CSV" icon={Icon.Clipboard} onAction={handleExportCsv} />
+          <Action title="Save as JSON File" icon={Icon.Document} onAction={handleSaveJsonFile} />
+          <Action title="Save as CSV File" icon={Icon.Document} onAction={handleSaveCsvFile} />
         </ActionPanel.Section>
       )}
     </>
@@ -336,6 +387,7 @@ export default function Command(props: CommandProps) {
                     logLevel: selectedLogLevel,
                     serviceName: selectedService !== "all" ? selectedService : undefined,
                     contentFilter: debouncedContent || undefined,
+                    extraFilter: extraFilter ? `filter ${extraFilter}` : undefined,
                   });
                   execute(dql, timeRange, tenant);
                 }}

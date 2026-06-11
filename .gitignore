@@ -17,8 +17,8 @@ compiled_raycast_rust
 .idea
 .vscode
 
-# Development mode icons (root level, for npm run dev)
-dynatrace-icon*.png
+# Development mode icons (root level only — anchor prevents matching assets/)
+/dynatrace-icon*.png
 
 # Environment variables (contains secrets)
 .env
@@ -28,3 +28,5 @@ dynatrace-icon*.png
 dynatrace-raycast-audit.docx
 dynatrace-raycast-audit.md
 internal-docs
+
+.claude/report

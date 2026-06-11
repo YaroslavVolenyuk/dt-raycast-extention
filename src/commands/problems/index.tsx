@@ -2,13 +2,13 @@ import { List, ActionPanel, Action, Icon, Color, Clipboard, showToast, Toast } f
 import { useEffect, useState } from "react";
 import { useDynatraceQuery } from "../../lib/query";
 import { Problem, buildProblemsQuery } from "../../lib/types/problem";
-import { getActiveTenant, setActiveTenant, listTenants } from "../../lib/tenants";
+import { setActiveTenant, listTenants } from "../../lib/tenants";
 import TenantSwitcher from "../../components/TenantSwitcher";
 import EmptyTenantState from "../../components/EmptyTenantState";
-import { getActiveTenantOrMock } from "../../lib/mockTenant";
 import type { TenantConfig } from "../../lib/auth";
 import ProblemDetailView from "./problem-detail";
-import { toJson, toCsv } from "../../lib/utils/exportData";
+import { toJson, toCsv, exportToFile } from "../../lib/utils/exportData";
+import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 
 const SEVERITY_ICONS: Record<string, Icon> = {
   AVAILABILITY: Icon.XMarkCircle,
@@ -59,36 +59,34 @@ function formatTimeAgo(timestamp: string): string {
 
 export default function ProblemsCommand() {
   const [statusFilter, setStatusFilter] = useState<"OPEN" | "ALL">("OPEN");
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
-  const [tenantChecked, setTenantChecked] = useState(false);
-  const [filtersLoaded, setFiltersLoaded] = useState(false);
-  const [allTenants, setAllTenants] = useState<TenantConfig[]>([]);
+  const [localTenant, setLocalTenant] = useState<TenantConfig | null>(null);
+
+  const { tenant: activeTenant, tenants: allTenants, isLoading: tenantLoading } = useActiveTenant();
+
+  // Sync hook tenant into local state for tenant-switching (override support)
+  useEffect(() => {
+    if (activeTenant && !localTenant) {
+      setLocalTenant(activeTenant);
+    }
+  }, [activeTenant, localTenant]);
+
+  const tenant = localTenant ?? activeTenant;
+  const tenantChecked = !tenantLoading;
 
   const { data, isLoading, error, execute } = useDynatraceQuery<Problem>();
 
-  // Load active tenant and all tenants once on mount
+  // Execute query once tenant is available (or when status filter changes)
   useEffect(() => {
-    Promise.all([getActiveTenantOrMock(() => getActiveTenant()), listTenants()]).then(([activeTenant, tenants]) => {
-      setTenant(activeTenant);
-      setAllTenants(tenants);
-      setTenantChecked(true);
-      setFiltersLoaded(true);
-    });
-  }, []);
-
-  // Execute query when filters are loaded
-  useEffect(() => {
-    if (!filtersLoaded || !tenant) return;
-
+    if (!tenant) return;
     const dql = buildProblemsQuery(statusFilter);
     execute(dql, undefined, tenant);
-  }, [statusFilter, filtersLoaded, tenant, execute]);
+  }, [statusFilter, tenant, execute]);
 
   const handleTenantChange = async (id: string) => {
     await setActiveTenant(id);
-    const all = await import("../../lib/tenants").then((m) => m.listTenants());
+    const all = await listTenants();
     const next = all.find((t) => t.id === id) ?? null;
-    setTenant(next);
+    setLocalTenant(next);
   };
 
   const handleExportJson = async () => {
@@ -132,6 +130,41 @@ export default function ProblemsCommand() {
       await showToast({
         style: Toast.Style.Failure,
         title: "Export failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleSaveJsonFile = async () => {
+    try {
+      const filePath = await exportToFile(problems as unknown as Record<string, unknown>[], "problems", "json");
+      await showToast({ style: Toast.Style.Success, title: "Saved", message: filePath });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleSaveCsvFile = async () => {
+    try {
+      const rows = problems.map((p) => ({
+        id: p["event.id"],
+        name: p["event.name"],
+        severity: p["event.severity"],
+        status: p["event.status"],
+        start: p["event.start"],
+        entities: p.affected_entity_ids?.join("; ") || "",
+        duration: formatDuration(p["event.start"], p["event.end"]),
+      }));
+      const filePath = await exportToFile(rows, "problems", "csv");
+      await showToast({ style: Toast.Style.Success, title: "Saved", message: filePath });
+    } catch (error) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Save failed",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     }
@@ -218,6 +251,8 @@ export default function ProblemsCommand() {
             <ActionPanel.Section title="Export">
               <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleExportJson} />
               <Action title="Copy All as CSV" icon={Icon.Clipboard} onAction={handleExportCsv} />
+              <Action title="Save as JSON File" icon={Icon.Document} onAction={handleSaveJsonFile} />
+              <Action title="Save as CSV File" icon={Icon.Document} onAction={handleSaveCsvFile} />
             </ActionPanel.Section>
           )}
         </ActionPanel>
