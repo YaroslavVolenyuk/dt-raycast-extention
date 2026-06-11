@@ -1,7 +1,11 @@
-import { MenuBarExtra, Icon, Color, showToast, Toast } from "@raycast/api";
+import { MenuBarExtra, Icon, Color, launchCommand, LaunchType } from "@raycast/api";
 import { useMemo, useEffect, useState } from "react";
 import { getActiveTenant } from "../../lib/tenants";
-import type { SLO } from "../../lib/types/slo";
+import { useDynatraceRest } from "../../lib/api/useRest";
+import { registerMock } from "../../lib/api/rest";
+import { sloListResponseSchema } from "../../lib/types/slo";
+import type { SLO, SloListResponse } from "../../lib/types/slo";
+import type { TenantConfig } from "../../lib/auth";
 
 // Mock SLO data
 const MOCK_SLOS: SLO[] = [
@@ -74,85 +78,44 @@ const MOCK_SLOS: SLO[] = [
 
 /**
  * SLO Menubar — shows violated SLOs count in macOS menubar
- * Updates every 5 minutes and provides quick access to dashboard
+ * Raycast refreshes this command every 5 minutes per package.json interval setting.
  */
 export default function MenubarSloCommand() {
-  const [slos, setSlos] = useState<SLO[]>([]);
+  const [tenant, setTenant] = useState<TenantConfig | null>(null);
 
-  // Load data on mount
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        // In real mode, would fetch from API
-        setSlos(MOCK_SLOS);
-        await getActiveTenant();
-      } catch (error) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "Failed to load SLOs",
-          message: String(error),
-        });
-      }
-    };
-
-    loadData();
-
-    // Refresh every 5 minutes
-    const interval = setInterval(loadData, 5 * 60 * 1000);
-    return () => clearInterval(interval);
+    registerMock("/api/v2/slo", { totalCount: MOCK_SLOS.length, slo: MOCK_SLOS });
+    getActiveTenant().then(setTenant);
   }, []);
 
-  // Calculate violated SLOs
-  const violatedSlos = useMemo(() => {
-    return slos.filter((slo) => {
-      const compliance = slo.compliance;
-      const target = slo.target;
+  const { data, revalidate } = useDynatraceRest<SloListResponse>(tenant ?? undefined, "/api/v2/slo", {
+    schema: sloListResponseSchema,
+    enabled: !!tenant,
+  });
 
-      // Failed if below target
-      if (compliance < target) return true;
-      return false;
-    });
-  }, [slos]);
+  const slos = data?.slo ?? [];
 
-  const warningSlos = useMemo(() => {
-    return slos.filter((slo) => {
-      const compliance = slo.compliance;
-      const target = slo.target;
-      const warning = slo.warning || target;
+  const violatedSlos = useMemo(() => slos.filter((slo) => slo.compliance < slo.target), [slos]);
 
-      // Warning if below warning threshold but above target
-      if (compliance >= target && compliance < warning) return true;
-      return false;
-    });
-  }, [slos]);
+  const warningSlos = useMemo(
+    () => slos.filter((slo) => slo.compliance >= slo.target && slo.compliance < slo.warning),
+    [slos],
+  );
 
-  // Determine icon and color
   const getMenubarIcon = () => {
-    if (violatedSlos.length > 0) {
-      return { source: Icon.XMarkCircle, tintColor: Color.Red };
-    }
-    if (warningSlos.length > 0) {
-      return { source: Icon.ExclamationMark, tintColor: Color.Yellow };
-    }
+    if (violatedSlos.length > 0) return { source: Icon.XMarkCircle, tintColor: Color.Red };
+    if (warningSlos.length > 0) return { source: Icon.ExclamationMark, tintColor: Color.Yellow };
     return { source: Icon.CheckCircle, tintColor: Color.Green };
   };
 
-  // Get menubar title
   const getTitle = (): string => {
-    if (violatedSlos.length > 0) {
-      return `${violatedSlos.length}`;
-    }
-    if (warningSlos.length > 0) {
-      return `${warningSlos.length}!`;
-    }
+    if (violatedSlos.length > 0) return `${violatedSlos.length}`;
+    if (warningSlos.length > 0) return `${warningSlos.length}!`;
     return "✓";
   };
 
-  const icon = getMenubarIcon();
-  const title = getTitle();
-
   return (
-    <MenuBarExtra icon={icon} title={title} tooltip="SLO Status">
+    <MenuBarExtra icon={getMenubarIcon()} title={getTitle()} tooltip="SLO Status">
       {violatedSlos.length > 0 && (
         <MenuBarExtra.Section title={`${violatedSlos.length} Violated`}>
           {violatedSlos.slice(0, 5).map((slo) => (
@@ -196,26 +159,9 @@ export default function MenubarSloCommand() {
           title="Open SLO Dashboard"
           subtitle="View full dashboard"
           icon={Icon.Binoculars}
-          onAction={() => {
-            // Would push to dt-slo command if in a navigation context
-            // For menubar, we can only show toast or open browser
-            showToast({
-              style: Toast.Style.Success,
-              title: "Opening SLO Dashboard",
-              message: "Use 'dt slo' command in Raycast",
-            });
-          }}
+          onAction={() => launchCommand({ name: "dt-slo", type: LaunchType.UserInitiated })}
         />
-        <MenuBarExtra.Item
-          title="Refresh"
-          icon={Icon.ArrowClockwise}
-          onAction={() => {
-            // Manually refresh
-            setTimeout(() => {
-              setSlos(MOCK_SLOS);
-            }, 500);
-          }}
-        />
+        <MenuBarExtra.Item title="Refresh" icon={Icon.ArrowClockwise} onAction={() => revalidate()} />
       </MenuBarExtra.Section>
     </MenuBarExtra>
   );

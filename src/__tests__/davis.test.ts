@@ -104,10 +104,10 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "what's wrong with order-service");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer).toContain("order-service");
-      expect(result.sources).toBeDefined();
-      expect(result.sources?.length).toBeGreaterThan(0);
+      expect(result.text).toBeTruthy();
+      expect(result.text).toContain("order-service");
+      expect(result.metadata?.sources).toBeDefined();
+      expect(result.metadata?.sources?.length).toBeGreaterThan(0);
     });
 
     it("should return answer for performance questions", async () => {
@@ -117,8 +117,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "are we having performance issues");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer.length).toBeGreaterThan(50);
+      expect(result.text).toBeTruthy();
+      expect(result.text.length).toBeGreaterThan(50);
     });
 
     it("should return answer for deployment queries", async () => {
@@ -128,8 +128,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "show latest deployments");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer).toContain("deployment");
+      expect(result.text).toBeTruthy();
+      expect(result.text).toContain("deployment");
     });
 
     it("should support conversation history", async () => {
@@ -144,7 +144,7 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "is it critical", undefined, history);
 
-      expect(result.answer).toBeTruthy();
+      expect(result.text).toBeTruthy();
     });
 
     it("should support entity context", async () => {
@@ -160,7 +160,7 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "how is this service performing", context);
 
-      expect(result.answer).toBeTruthy();
+      expect(result.text).toBeTruthy();
     });
 
     it("should return sources with relevant information", async () => {
@@ -170,8 +170,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "what's wrong with order-service");
 
-      expect(result.sources).toBeDefined();
-      result.sources?.forEach((source) => {
+      expect(result.metadata?.sources).toBeDefined();
+      result.metadata?.sources?.forEach((source) => {
         expect(source.title).toBeTruthy();
         expect(source.type).toMatch(/PROBLEM|TRACE|LOG|METRIC|ENTITY/);
       });
@@ -184,8 +184,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "unknown obscure question xyz");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer).toContain("unknown obscure question xyz");
+      expect(result.text).toBeTruthy();
+      expect(result.text).toContain("unknown obscure question xyz");
     });
 
     it("should handle error budget status questions", async () => {
@@ -195,8 +195,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "what is my error budget status");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer).toContain("SLO");
+      expect(result.text).toBeTruthy();
+      expect(result.text).toContain("SLO");
     });
 
     it("should handle latency trend questions", async () => {
@@ -206,8 +206,8 @@ describe("Davis CoPilot API", () => {
 
       const result = await askDavis(mockTenant, "check latency trends");
 
-      expect(result.answer).toBeTruthy();
-      expect(result.answer.toLowerCase()).toContain("latency");
+      expect(result.text).toBeTruthy();
+      expect(result.text.toLowerCase()).toContain("latency");
     });
   });
 });

@@ -17,4 +17,13 @@ export const sloSchema = z.object({
 
 export const sloListSchema = z.array(sloSchema);
 
+export const sloListResponseSchema = z.object({
+  totalCount: z.number().optional(),
+  pageSize: z.number().optional(),
+  nextPageKey: z.string().nullable().optional(),
+  slo: z.array(sloSchema),
+});
+
+export type SloListResponse = z.infer<typeof sloListResponseSchema>;
+
 export type SLO = z.infer<typeof sloSchema>;

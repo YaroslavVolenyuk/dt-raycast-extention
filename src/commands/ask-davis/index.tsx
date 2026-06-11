@@ -1,13 +1,11 @@
 // A3: Davis CoPilot — Ask Command
 // Ask Davis questions with conversation history support
 
-import { Form, Action, ActionPanel, showToast, Toast, Detail, Icon, useNavigation } from "@raycast/api";
+import { Form, Action, ActionPanel, showToast, Toast, Detail, Icon, useNavigation, open } from "@raycast/api";
 import { useState } from "react";
 import { getActiveTenant } from "../../lib/tenants";
 import { askDavis } from "../../lib/api/davis";
-import { buildDeepLink } from "../../lib/utils/deepLinks";
 import type { DavisAnswer, ConversationMessage } from "../../lib/types/davis";
-import type { DeepLinkType } from "../../lib/utils/deepLinks";
 
 interface State {
   isLoading: boolean;
@@ -37,9 +35,6 @@ export default function AskDavisCommand() {
       return;
     }
 
-    console.log(`[AskDavis] Starting ask request...`);
-    console.log(`[AskDavis] Question: ${question.substring(0, 100)}`);
-
     setState({ ...state, isLoading: true, error: null, answer: null });
 
     try {
@@ -48,17 +43,6 @@ export default function AskDavisCommand() {
         throw new Error("No active tenant configured");
       }
 
-      console.log(`[AskDavis] Using tenant: ${tenant.name}`);
-      console.log(`[AskDavis] Tenant endpoint: ${tenant.tenantEndpoint}`);
-      console.log(`[AskDavis] Scopes count: ${tenant.scopes.length}`);
-      console.log(`[AskDavis] Scopes:`);
-      tenant.scopes.forEach((scope, idx) => {
-        if (scope.includes("davis") || scope.includes("copilot")) {
-          console.log(`[AskDavis]   ${idx + 1}. ${scope} ✓`);
-        }
-      });
-
-      // Parse entity context if provided
       const context = values.entityContext
         ? {
             entityId: values.entityContext,
@@ -66,16 +50,13 @@ export default function AskDavisCommand() {
           }
         : undefined;
 
-      // Ask Davis with conversation history
-      console.log(`[AskDavis] Calling askDavis API...`);
       const result = await askDavis(tenant, question, context, state.conversationHistory);
-      console.log(`[AskDavis] Success, got answer`);
 
       // Add this exchange to conversation history
       const newHistory: ConversationMessage[] = [
         ...state.conversationHistory,
         { role: "user", content: question },
-        { role: "assistant", content: result.answer },
+        { role: "assistant", content: result.text },
       ];
 
       setState({
@@ -95,17 +76,12 @@ export default function AskDavisCommand() {
       let errorMessage = "Unknown error";
       if (err instanceof Error) {
         errorMessage = err.message;
-        console.error(`[AskDavis] Error: ${err.name} - ${err.message}`);
-        console.error(`[AskDavis] Stack:`, err.stack?.substring(0, 300));
+        console.error(`[AskDavis] ${err.name}: ${err.message}`);
       } else if (typeof err === "string") {
         errorMessage = err;
-        console.error(`[AskDavis] String error:`, err);
       } else if (err && typeof err === "object") {
         errorMessage = JSON.stringify(err);
-        console.error(`[AskDavis] Object error:`, err);
       }
-
-      console.error(`[AskDavis] Final error message:`, errorMessage);
 
       setState({
         isLoading: false,
@@ -246,15 +222,17 @@ function AskDavisAnswerView({
   onContinueConversation,
   onClearConversation,
 }: AnswerViewProps) {
-  // Build markdown with sources
-  let markdown = `# Davis Answer\n\n${answer.answer}`;
+  const sources = answer.metadata?.sources ?? [];
 
-  if (answer.sources && answer.sources.length > 0) {
+  // Build markdown with sources
+  let markdown = `# Davis Answer\n\n${answer.text}`;
+
+  if (sources.length > 0) {
     markdown += `\n\n---\n\n## Sources\n\n`;
-    answer.sources.forEach((source, index) => {
-      markdown += `${index + 1}. **${source.title}** (${source.type})`;
-      if (source.entityId) {
-        markdown += ` - Entity: \`${source.entityId}\``;
+    sources.forEach((source, index) => {
+      markdown += `${index + 1}. **${source.title ?? "Source"}** (${source.type ?? "unknown"})`;
+      if (source.url) {
+        markdown += ` - [Open](${source.url})`;
       }
       markdown += `\n`;
     });
@@ -268,53 +246,16 @@ function AskDavisAnswerView({
       actions={
         <ActionPanel>
           <Action title="Ask Follow-Up Question" icon={Icon.Message} onAction={onContinueConversation} />
-          {answer.sources && answer.sources.length > 0 && (
+          {sources.length > 0 && (
             <ActionPanel.Submenu title="Open Source" icon={Icon.Link}>
-              {answer.sources.map((source, index) => {
-                // Map Davis source types to DeepLinkType
-                const deepLinkTypeMap: Record<string, DeepLinkType> = {
-                  METRIC: "metric",
-                  PROBLEM: "problem",
-                  TRACE: "trace",
-                  EVENT: "deployment",
-                  SERVICE: "entity",
-                  HOST: "host",
-                  LOG: "log-query",
-                };
-
-                const deepLinkType: DeepLinkType = deepLinkTypeMap[source.type ?? ""] || "entity";
-
+              {sources.map((source, index) => {
                 return (
                   <Action
                     key={index}
-                    title={source.title}
+                    title={source.title ?? `Source ${index + 1}`}
                     onAction={async () => {
-                      if (source.entityId) {
-                        try {
-                          const tenant = await getActiveTenant();
-                          if (!tenant) {
-                            await showToast({
-                              style: Toast.Style.Failure,
-                              title: "Error",
-                              message: "No active tenant configured",
-                            });
-                            return;
-                          }
-
-                          const url = buildDeepLink(deepLinkType, source.entityId, tenant);
-                          await showToast({
-                            style: Toast.Style.Success,
-                            title: "Deep Link Ready",
-                            message: url,
-                          });
-                        } catch (err) {
-                          const message = err instanceof Error ? err.message : "Failed to generate deep link";
-                          await showToast({
-                            style: Toast.Style.Failure,
-                            title: "Error",
-                            message,
-                          });
-                        }
+                      if (source.url) {
+                        await open(source.url);
                       }
                     }}
                   />
@@ -350,7 +291,7 @@ function AskDavisErrorView({ error, onRetry }: ErrorViewProps) {
   let errorMarkdown = `# Error\n\n❌ ${error}\n\n## Common Issues\n\n- **Davis CoPilot not available**: Your tenant may not have a Platform Subscription with Davis CoPilot enabled\n- **Rate limited**: Too many requests, please wait a moment and try again\n- **Network error**: Check your connection and tenant configuration`;
 
   if (error.includes("Davis CoPilot requires")) {
-    errorMarkdown = `# Davis CoPilot Not Available\n\n❌ **${error}**\n\n## Solution\n\n1. Check that your Dynatrace tenant has a **Platform Subscription**\n2. Ensure Davis CoPilot is **enabled** in your tenant settings\n3. Verify your OAuth credentials have the correct scopes\n\n[Learn more about Davis CoPilot](https://docs.dynatrace.com/docs/davis-ai/davis-copilot)`;
+    errorMarkdown = `# Davis CoPilot Not Available\n\n❌ **${error}**\n\n## Solution\n\n1. Check that your Dynatrace tenant has a **Platform Subscription**\n2. Enable Davis CoPilot in your tenant: **Settings → Davis AI → CoPilot**\n3. Verify your OAuth credentials include scopes: \`davis-copilot:conversations:execute\`, \`davis-copilot:nl2dql:execute\`\n\n[Enable Davis CoPilot →](https://docs.dynatrace.com/docs/discover-dynatrace/platform/davis-ai/copilot/copilot-getting-started#enable-davis-copilot)`;
   }
 
   return (

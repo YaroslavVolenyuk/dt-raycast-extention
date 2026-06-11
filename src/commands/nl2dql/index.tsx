@@ -3,6 +3,7 @@
 
 import { Form, Action, ActionPanel, showToast, Toast, Detail, useNavigation, Icon } from "@raycast/api";
 import { useState } from "react";
+import DqlRunnerCommand from "../dql-runner/index";
 import { getActiveTenant } from "../../lib/tenants";
 import { convertNl2Dql } from "../../lib/api/davis";
 
@@ -151,9 +152,7 @@ ${originalQuery}`;
                 }),
               );
 
-              // Close this view and navigate to DQL runner
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              push(require("../dql-runner/index").default());
+              push(<DqlRunnerCommand />);
             }}
           />
           <Action.CopyToClipboard

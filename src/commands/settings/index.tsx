@@ -3,7 +3,7 @@ import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/
 import { useDynatraceRest } from "../../lib/api/useRest";
 import { getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
-import { settingsListSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
+import { settingsApiResponseSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
 import type { SettingsObject, SettingsType } from "../../lib/types/settings";
 import { registerMock } from "../../lib/api/rest";
 import { useState, useEffect, useMemo } from "react";
@@ -16,25 +16,30 @@ export default function SettingsCommand() {
 
   useEffect(() => {
     // Register mock data for settings
-    registerMock("/api/v2/settings/objects", MOCK_SETTINGS);
+    registerMock("/api/v2/settings/objects", { items: MOCK_SETTINGS, totalCount: MOCK_SETTINGS.length });
     getActiveTenant().then(setTenant);
   }, []);
 
   // Memoize options to prevent infinite re-fetch cycles
   const restOptions = useMemo(
     () => ({
-      schema: settingsListSchema,
+      schema: settingsApiResponseSchema,
       enabled: !!tenant,
+      queryParams: {
+        scopes: "environment",
+      },
     }),
     [tenant],
   );
 
   const {
-    data: settings = [],
+    data: settingsResponse,
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<SettingsObject[]>(tenant || undefined, "/api/v2/settings/objects", restOptions);
+  } = useDynatraceRest<{ items: SettingsObject[] }>(tenant || undefined, "/api/v2/settings/objects", restOptions);
+
+  const settings = settingsResponse?.items ?? [];
 
   const { push } = useNavigation();
 

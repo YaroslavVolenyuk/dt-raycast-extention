@@ -3,8 +3,8 @@ import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/
 import { useDynatraceRest } from "../../lib/api/useRest";
 import { getActiveTenant } from "../../lib/tenants";
 import type { TenantConfig } from "../../lib/auth";
-import { sloListSchema } from "../../lib/types/slo";
-import type { SLO } from "../../lib/types/slo";
+import { sloListResponseSchema } from "../../lib/types/slo";
+import type { SLO, SloListResponse } from "../../lib/types/slo";
 import { registerMock } from "../../lib/api/rest";
 import { useState, useEffect, useMemo } from "react";
 import SloDetailView from "./slo-detail";
@@ -87,33 +87,25 @@ export default function SloCommand() {
   const [tenant, setTenant] = useState<TenantConfig | null>(null);
 
   useEffect(() => {
-    // Register mock data for SLOs
-    registerMock("/api/v2/slo", MOCK_SLOS);
-    getActiveTenant().then((t) => {
-      console.log("[SLO] Active tenant loaded:", {
-        tenantId: t?.id,
-        tenantName: t?.name,
-        endpoint: t?.tenantEndpoint,
-      });
-      setTenant(t);
-    });
+    registerMock("/api/v2/slo", { totalCount: MOCK_SLOS.length, slo: MOCK_SLOS });
+    getActiveTenant().then(setTenant);
   }, []);
 
-  // Memoize options to prevent infinite re-fetch cycles
   const restOptions = useMemo(
     () => ({
-      schema: sloListSchema,
+      schema: sloListResponseSchema,
       enabled: !!tenant,
     }),
     [tenant],
   );
 
-  const {
-    data: slos = [],
-    isLoading,
-    error,
-    revalidate,
-  } = useDynatraceRest<SLO[]>(tenant || undefined, "/api/v2/slo", restOptions);
+  const { data, isLoading, error, revalidate } = useDynatraceRest<SloListResponse>(
+    tenant || undefined,
+    "/api/v2/slo",
+    restOptions,
+  );
+
+  const slos = data?.slo ?? [];
 
   const { push } = useNavigation();
 
@@ -181,7 +173,6 @@ interface SloListItemProps {
 }
 
 function SloListItem({ slo, onSelect }: SloListItemProps) {
-  // Determine status color
   const statusColor =
     slo.compliance >= slo.target ? Color.Green : slo.compliance >= slo.warning ? Color.Yellow : Color.Red;
   const statusIcon =
@@ -198,23 +189,9 @@ function SloListItem({ slo, onSelect }: SloListItemProps) {
     icon?: { source: Icon; tintColor?: Color };
   }> = [];
 
-  // Add status icon
-  accessories.push({
-    icon: { source: statusIcon, tintColor: statusColor },
-  });
-
-  // Add compliance percentage
-  accessories.push({
-    tag: {
-      value: `${slo.compliance.toFixed(2)}%`,
-      color: statusColor,
-    },
-  });
-
-  // Add target percentage
-  accessories.push({
-    text: `Target: ${slo.target.toFixed(2)}%`,
-  });
+  accessories.push({ icon: { source: statusIcon, tintColor: statusColor } });
+  accessories.push({ tag: { value: `${slo.compliance.toFixed(2)}%`, color: statusColor } });
+  accessories.push({ text: `Target: ${slo.target.toFixed(2)}%` });
 
   return (
     <List.Item

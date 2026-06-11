@@ -303,16 +303,13 @@ describe("Mock mode", () => {
     expect(result.status).toBe(200);
   });
 
-  it("should return empty response when no mock found", async () => {
+  it("should throw RestError when no mock found", async () => {
     clearMocks();
 
-    const result = await dynatraceRest(mockTenant, "/api/v2/unknown");
-
-    expect(result.data).toEqual([]);
-    expect(result.status).toBe(200);
+    await expect(dynatraceRest(mockTenant, "/api/v2/unknown")).rejects.toThrow(RestError);
   });
 
-  it("should match mock paths with includes", async () => {
+  it("should match mock paths by prefix boundary", async () => {
     const mockData = { result: "found" };
     registerMock("/api/v2", mockData);
 

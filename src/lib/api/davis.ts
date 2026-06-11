@@ -46,52 +46,29 @@ const MOCK_DQL2NL_PAIRS: Record<string, string> = {
 
 const MOCK_ASK_ANSWERS: Record<string, DavisAnswer> = {
   "what's wrong with order-service": {
-    answer:
-      "The order-service is experiencing a 23% error rate over the last 15 minutes, with response times averaging 2.3 seconds (normally ~150ms). This is likely due to database connection pool exhaustion. I detected 47 failed database queries in the last 10 minutes. Consider scaling the database connections or investigating recent code changes.",
-    sources: [
-      {
-        title: "Order Service - Service Error Rate",
-        type: "METRIC",
-        entityId: "order-service",
-      },
-      {
-        title: "Order Service - Recent Deployments",
-        type: "PROBLEM",
-        entityId: "order-service",
-      },
-    ],
+    text: "The order-service is experiencing a 23% error rate over the last 15 minutes, with response times averaging 2.3 seconds (normally ~150ms). This is likely due to database connection pool exhaustion.",
+    messageToken: "mock-token-1",
+    status: "SUCCESSFUL",
+    state: {},
+    metadata: { sources: [{ title: "Order Service - Service Error Rate", type: "METRIC" }] },
   },
   "are we having performance issues": {
-    answer:
-      "I'm seeing elevated response times across multiple services in the last 30 minutes. The payment-service is slowest at 1.8 seconds median latency. This corresponds with a spike in database query times. The infrastructure metrics show normal CPU and memory usage, so the bottleneck appears to be at the application level.",
-    sources: [
-      {
-        title: "Payment Service - Response Time (p95)",
-        type: "METRIC",
-      },
-      {
-        title: "Database Query Performance",
-        type: "TRACE",
-      },
-    ],
+    text: "I'm seeing elevated response times across multiple services in the last 30 minutes. The payment-service is slowest at 1.8 seconds median latency.",
+    messageToken: "mock-token-2",
+    status: "SUCCESSFUL",
+    state: {},
   },
   "show latest deployments": {
-    answer:
-      "Here are the 5 most recent deployments in the last hour:\n\n1. **payment-service** → v2.4.1 (13 min ago) - No errors detected\n2. **api-gateway** → v1.8.3 (34 min ago) - 2 warnings in logs\n3. **notification-service** → v3.1.0 (45 min ago) - Healthy\n4. **order-service** → v1.5.8 (52 min ago) - High error rate detected\n5. **analytics-service** → v4.2.1 (59 min ago) - Normal operation\n\nThe order-service deployment seems to have introduced issues.",
-    sources: [
-      {
-        title: "Recent Deployments",
-        type: "PROBLEM",
-      },
-    ],
+    text: "Here are the 5 most recent deployments in the last hour:\n\n1. **payment-service** → v2.4.1 (13 min ago)\n2. **api-gateway** → v1.8.3 (34 min ago)\n3. **order-service** → v1.5.8 (52 min ago) - High error rate detected",
+    messageToken: "mock-token-3",
+    status: "SUCCESSFUL",
+    state: {},
   },
   "check latency trends": {
-    answer:
-      "Latency is trending upward across the platform. Over the last hour:\n\n- **5 minutes ago**: 150ms median\n- **30 minutes ago**: 185ms median\n- **60 minutes ago**: 200ms median\n\nCurrently at 235ms median, indicating a degradation trend. This correlates with increased database load and the recent deployment of order-service v1.5.8.",
-  },
-  "what is my error budget status": {
-    answer:
-      "Your SLO compliance status:\n\n- **payment-service**: 99.5% (Target: 99.9%) - Warning, using error budget\n- **api-gateway**: 99.95% - Healthy\n- **order-service**: 98.2% - Critical, below target\n\nYou have approximately 2.5 hours of error budget remaining across your services. Focus on stabilizing order-service.",
+    text: "Latency is trending upward. Currently at 235ms median, up from 150ms an hour ago.",
+    messageToken: "mock-token-4",
+    status: "SUCCESSFUL",
+    state: {},
   },
 };
 
@@ -116,11 +93,15 @@ export async function convertNl2Dql(tenant: TenantConfig, text: string): Promise
     return `fetch logs, filter by content contains "${text}" | fields timestamp, content`;
   }
 
-  const response = await dynatraceRest<NL2DQLResponse>(tenant, "/davis/v1/copilot/nl2dql", {
-    method: "POST",
-    body: { text },
-    schema: nl2dqlResponseSchema,
-  });
+  const response = await dynatraceRest<NL2DQLResponse>(
+    tenant,
+    "/platform/davis/copilot/v1/skills/nl2dql:generate",
+    {
+      method: "POST",
+      body: { text },
+      schema: nl2dqlResponseSchema,
+    },
+  );
 
   return response.data.dql;
 }
@@ -145,11 +126,15 @@ export async function explainDql(tenant: TenantConfig, dql: string): Promise<str
     return `This DQL query fetches and filters data from Dynatrace. It appears to be analyzing: ${dql.slice(0, 100)}...`;
   }
 
-  const response = await dynatraceRest<DQL2NLResponse>(tenant, "/davis/v1/copilot/dql2nl", {
-    method: "POST",
-    body: { dql },
-    schema: dql2nlResponseSchema,
-  });
+  const response = await dynatraceRest<DQL2NLResponse>(
+    tenant,
+    "/platform/davis/copilot/v1/skills/dql2nl:explain",
+    {
+      method: "POST",
+      body: { dql },
+      schema: dql2nlResponseSchema,
+    },
+  );
 
   return response.data.explanation;
 }
@@ -170,11 +155,7 @@ export async function askDavis(
   context?: DavisContext,
   conversationHistory?: ConversationMessage[],
 ): Promise<DavisAnswer> {
-  console.log(`[Davis] askDavis called`);
-  console.log(`[Davis] Mock mode: ${isMockMode()}`);
-
   if (isMockMode()) {
-    console.log(`[Davis] Using mock mode`);
     // Look for matching mock answer
     const lowerMessage = message.toLowerCase();
     for (const [question, answer] of Object.entries(MOCK_ASK_ANSWERS)) {
@@ -185,31 +166,23 @@ export async function askDavis(
 
     // Default fallback
     return {
-      answer: `Based on the available data, "${message}" - however, I don't have a specific answer in mock mode. In production, I would analyze your Dynatrace metrics and logs to provide a detailed response.`,
-      sources: [],
+      text: `Based on the available data, "${message}" - however, I don't have a specific answer in mock mode. In production, I would analyze your Dynatrace metrics and logs to provide a detailed response.`,
+      messageToken: "mock-token",
+      status: "SUCCESSFUL" as const,
+      state: {},
     };
   }
 
-  const payload = {
-    message,
-    context,
-    conversationHistory: conversationHistory || [],
-  };
+  const response = await dynatraceRest<DavisAnswer>(
+    tenant,
+    "/platform/davis/copilot/v1/skills/conversations:message",
+    {
+      method: "POST",
+      body: { text: message },
+      schema: davisAnswerSchema,
+    },
+  );
 
-  console.log(`[Davis] Payload:`, {
-    messageLength: message.length,
-    hasContext: !!context,
-    historyLength: (conversationHistory || []).length,
-  });
-
-  console.log(`[Davis] Calling /davis/v1/copilot/ask endpoint...`);
-  const response = await dynatraceRest<DavisAnswer>(tenant, "/davis/v1/copilot/ask", {
-    method: "POST",
-    body: payload,
-    schema: davisAnswerSchema,
-  });
-
-  console.log(`[Davis] Got response from API`);
   return response.data;
 }
 

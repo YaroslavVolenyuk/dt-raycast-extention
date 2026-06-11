@@ -45,15 +45,13 @@ export default function StatusCommand() {
         dynatraceRest<{ problems: Problem[] }>(tenant, "/api/v2/problems", {
           queryParams: { status: "OPEN" },
         }).catch((): { data: { problems: Problem[] } } => ({ data: { problems: [] } })),
-        dynatraceRest<{ slo: SLO[] }>(tenant, "/api/v2/slo", {}).catch(
-          (): { data: { slo: SLO[] } } => ({ data: { slo: [] } }),
-        ),
+        dynatraceRest<{ slo: SLO[] }>(tenant, "/api/v2/slo", {}).catch((): { data: { slo: SLO[] } } => ({
+          data: { slo: [] },
+        })),
         dynatraceRest<{ monitors: SyntheticMonitorData[] }>(tenant, "/api/v2/synthetic/monitors", {}).catch(
           (): { data: { monitors: SyntheticMonitorData[] } } => ({ data: { monitors: [] } }),
         ),
-        dynatraceRest<{ deployments: Deployment[] }>(tenant, "/api/v2/deployments", {
-          queryParams: { pageSize: "3" },
-        }).catch((): { data: { deployments: Deployment[] } } => ({ data: { deployments: [] } })),
+        Promise.resolve({ data: { deployments: [] as Deployment[] } }),
       ]);
 
       // Extract data from promises

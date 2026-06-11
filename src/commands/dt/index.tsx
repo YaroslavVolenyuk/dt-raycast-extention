@@ -20,6 +20,9 @@ import WorkflowsCommand from "../workflows/index";
 import SettingsCommand from "../settings/index";
 import MetricsCommand from "../metrics/index";
 import SyntheticsCommand from "../synthetics/index";
+import StatusCommand from "../status/index";
+import MaintenanceCommand from "../maintenance/index";
+import TestConnectionCommand from "../test-connection/index";
 
 interface HubEntry {
   title: string;

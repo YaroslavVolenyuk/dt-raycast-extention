@@ -26,6 +26,7 @@ export const tenantConfigSchema = z.object({
   ssoEndpoint: z.string().url(),
   scopes: z.array(z.string()),
   accountUrn: z.string().optional(),
+  useClassicProxy: z.boolean().optional(),
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

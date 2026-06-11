@@ -1,19 +1,10 @@
 // src/lib/types/settings.ts
 import { z } from "zod";
 
-// Settings object types (schema IDs)
-export const settingsTypeSchema = z.enum([
-  "builtin:alerting.profile",
-  "builtin:management-zones",
-  "builtin:tags.auto-tagging",
-  "builtin:maintenance-window",
-  "builtin:notification",
-  "builtin:ownership.teams",
-  "builtin:automation.rule",
-  "builtin:service-api.request-attributes",
-]);
+// Settings object types (schema IDs) — open string so unknown schemas don't fail validation
+export const settingsTypeSchema = z.string();
 
-export type SettingsType = z.infer<typeof settingsTypeSchema>;
+export type SettingsType = string;
 
 // Settings scope (where the setting applies)
 export const settingsScopeSchema = z.enum(["ENVIRONMENT", "MANAGEMENT_ZONE", "ENTITY", "APPLICATION"]);
@@ -37,6 +28,12 @@ export const settingsObjectSchema = z.object({
 });
 
 export const settingsListSchema = z.array(settingsObjectSchema);
+
+export const settingsApiResponseSchema = z.object({
+  items: z.array(settingsObjectSchema),
+  totalCount: z.number().optional(),
+  nextPageKey: z.string().optional(),
+});
 
 export type SettingsObject = z.infer<typeof settingsObjectSchema>;
 

@@ -1,66 +1,78 @@
 // src/lib/types/davis.ts
-// Types for Davis CoPilot API responses
+// Types for Davis CoPilot API responses — aligned with @dynatrace-sdk/client-davis-copilot
 
 import { z } from "zod";
 
-// ── Davis Context (for conversation history) ──────────────────────────────────
-
-export const davisContextSchema = z.object({
-  entityName: z.string().optional(),
-  entityType: z.string().optional(),
-  entityId: z.string().optional(),
-  timeframeStart: z.string().optional(),
-  timeframeEnd: z.string().optional(),
-  customContext: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type DavisContext = z.infer<typeof davisContextSchema>;
-
-// ── Davis Answer (from ask endpoint) ──────────────────────────────────────────
-
-export const davisSourceSchema = z.object({
-  title: z.string(),
-  url: z.string().optional(),
-  entityId: z.string().optional(),
-  type: z.enum(["PROBLEM", "TRACE", "LOG", "METRIC", "ENTITY"]).optional(),
-});
-
-export const davisAnswerSchema = z.object({
-  answer: z.string(),
-  sources: z.array(davisSourceSchema).optional(),
-  context: davisContextSchema.optional(),
-});
-
-export type DavisSource = z.infer<typeof davisSourceSchema>;
-export type DavisAnswer = z.infer<typeof davisAnswerSchema>;
-
-// ── NL2DQL Response ──────────────────────────────────────────────────────────
+// ── NL2DQL ────────────────────────────────────────────────────────────────────
 
 export const nl2dqlResponseSchema = z.object({
   dql: z.string(),
-  explanation: z.string().optional(),
+  messageToken: z.string(),
+  status: z.enum(["SUCCESSFUL", "SUCCESSFUL_WITH_WARNINGS", "FAILED"]),
+  metadata: z.object({ notifications: z.array(z.unknown()).optional() }).optional(),
 });
 
 export type NL2DQLResponse = z.infer<typeof nl2dqlResponseSchema>;
 
-// ── DQL2NL Response ──────────────────────────────────────────────────────────
+// ── DQL2NL ────────────────────────────────────────────────────────────────────
 
 export const dql2nlResponseSchema = z.object({
+  summary: z.string(),
   explanation: z.string(),
-  summary: z.string().optional(),
+  messageToken: z.string(),
+  status: z.enum(["SUCCESSFUL", "SUCCESSFUL_WITH_WARNINGS", "FAILED"]),
+  metadata: z.object({ notifications: z.array(z.unknown()).optional() }).optional(),
 });
 
 export type DQL2NLResponse = z.infer<typeof dql2nlResponseSchema>;
 
-// ── Conversation Message ─────────────────────────────────────────────────────
+// ── Conversations ─────────────────────────────────────────────────────────────
+
+export const davisSourceSchema = z.object({
+  title: z.string().optional(),
+  url: z.string().optional(),
+  type: z.string().optional(),
+});
+
+export type DavisSource = z.infer<typeof davisSourceSchema>;
+
+export const davisStateSchema = z.object({
+  version: z.string().optional(),
+  conversationId: z.string().optional(),
+  skillName: z.string().optional(),
+  history: z.array(z.unknown()).optional(),
+});
+
+export type DavisState = z.infer<typeof davisStateSchema>;
+
+export const davisAnswerSchema = z.object({
+  text: z.string(),
+  messageToken: z.string(),
+  status: z.enum(["SUCCESSFUL", "SUCCESSFUL_WITH_WARNINGS", "FAILED"]),
+  state: davisStateSchema,
+  metadata: z
+    .object({
+      notifications: z.array(z.unknown()).optional(),
+      sources: z.array(davisSourceSchema).optional(),
+    })
+    .optional(),
+});
+
+export type DavisAnswer = z.infer<typeof davisAnswerSchema>;
+
+// ── Context / legacy compat ───────────────────────────────────────────────────
+
+export interface DavisContext {
+  entityId?: string;
+  entityType?: string;
+}
 
 export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
-  timestamp?: number;
 }
 
-// ── Error type for Davis ─────────────────────────────────────────────────────
+// ── Error ─────────────────────────────────────────────────────────────────────
 
 export class DavisCopilotUnavailableError extends Error {
   constructor(public statusCode: number = 403) {

@@ -1,6 +1,6 @@
 // B1-2: Workflow detail view
 import { Detail, Action, ActionPanel, Icon, useNavigation } from "@raycast/api";
-import type { Workflow, WorkflowExecution, WorkflowStep } from "../../lib/types/workflow";
+import type { Workflow, WorkflowStep } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { dynatraceRest } from "../../lib/api/rest";
 import ExecuteWorkflowForm from "./execute-workflow";
