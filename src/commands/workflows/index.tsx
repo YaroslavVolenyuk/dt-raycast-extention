@@ -1,44 +1,33 @@
 // B1: Workflows — List & Execute
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
 import { useDynatraceRest } from "../../lib/api/useRest";
-import { getActiveTenant } from "../../lib/tenants";
-import type { TenantConfig } from "../../lib/auth";
 import { workflowListSchema } from "../../lib/types/workflow";
 import type { Workflow } from "../../lib/types/workflow";
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
+import { useTenant } from "../../hooks/useTenant";
 import WorkflowDetailView from "./workflow-detail";
 
 export default function WorkflowsCommand() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const { tenant } = useTenant();
   const [filterTrigger, setFilterTrigger] = useState<string | null>(null);
   const [filterOwner, setFilterOwner] = useState<string | null>(null);
 
-  useEffect(() => {
-    getActiveTenant().then((tenant) => {
-      setTenant(tenant);
-    });
-  }, []);
-
-  // Memoize options to prevent infinite re-fetch cycles
-  const restOptions = useMemo(
-    () => ({
-      schema: workflowListSchema,
-      enabled: !!tenant,
-    }),
-    [tenant],
-  );
+  const restOptions = {
+    schema: workflowListSchema,
+    enabled: !!tenant,
+  };
 
   const {
     data: workflows = [],
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<Workflow[]>(tenant || undefined, "/platform/automation/v1/workflows", restOptions);
+  } = useDynatraceRest<Workflow[]>(tenant ?? undefined, "/platform/automation/v1/workflows", restOptions);
 
   const { push } = useNavigation();
 
   const handleSelectWorkflow = (workflow: Workflow) => {
-    push(<WorkflowDetailView workflow={workflow} tenant={tenant} onRefresh={revalidate} />);
+    push(<WorkflowDetailView workflow={workflow} tenant={tenant ?? null} onRefresh={revalidate} />);
   };
 
   if (error) {

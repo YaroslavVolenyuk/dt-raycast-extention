@@ -93,15 +93,11 @@ export async function convertNl2Dql(tenant: TenantConfig, text: string): Promise
     return `fetch logs, filter by content contains "${text}" | fields timestamp, content`;
   }
 
-  const response = await dynatraceRest<NL2DQLResponse>(
-    tenant,
-    "/platform/davis/copilot/v1/skills/nl2dql:generate",
-    {
-      method: "POST",
-      body: { text },
-      schema: nl2dqlResponseSchema,
-    },
-  );
+  const response = await dynatraceRest<NL2DQLResponse>(tenant, "/platform/davis/copilot/v1/skills/nl2dql:generate", {
+    method: "POST",
+    body: { text },
+    schema: nl2dqlResponseSchema,
+  });
 
   return response.data.dql;
 }
@@ -126,15 +122,11 @@ export async function explainDql(tenant: TenantConfig, dql: string): Promise<str
     return `This DQL query fetches and filters data from Dynatrace. It appears to be analyzing: ${dql.slice(0, 100)}...`;
   }
 
-  const response = await dynatraceRest<DQL2NLResponse>(
-    tenant,
-    "/platform/davis/copilot/v1/skills/dql2nl:explain",
-    {
-      method: "POST",
-      body: { dql },
-      schema: dql2nlResponseSchema,
-    },
-  );
+  const response = await dynatraceRest<DQL2NLResponse>(tenant, "/platform/davis/copilot/v1/skills/dql2nl:explain", {
+    method: "POST",
+    body: { dql },
+    schema: dql2nlResponseSchema,
+  });
 
   return response.data.explanation;
 }
@@ -152,7 +144,9 @@ export async function explainDql(tenant: TenantConfig, dql: string): Promise<str
 export async function askDavis(
   tenant: TenantConfig,
   message: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   context?: DavisContext,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   conversationHistory?: ConversationMessage[],
 ): Promise<DavisAnswer> {
   if (isMockMode()) {
@@ -173,15 +167,11 @@ export async function askDavis(
     };
   }
 
-  const response = await dynatraceRest<DavisAnswer>(
-    tenant,
-    "/platform/davis/copilot/v1/skills/conversations:message",
-    {
-      method: "POST",
-      body: { text: message },
-      schema: davisAnswerSchema,
-    },
-  );
+  const response = await dynatraceRest<DavisAnswer>(tenant, "/platform/davis/copilot/v1/skills/conversations:message", {
+    method: "POST",
+    body: { text: message },
+    schema: davisAnswerSchema,
+  });
 
   return response.data;
 }

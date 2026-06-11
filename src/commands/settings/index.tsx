@@ -1,43 +1,34 @@
 // B3-1: Settings / Config Management — search and browse configuration objects
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
 import { useDynatraceRest } from "../../lib/api/useRest";
-import { getActiveTenant } from "../../lib/tenants";
-import type { TenantConfig } from "../../lib/auth";
 import { settingsApiResponseSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
 import type { SettingsObject, SettingsType } from "../../lib/types/settings";
 import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { MOCK_SETTINGS } from "../../lib/api/mock";
+import { useTenant } from "../../hooks/useTenant";
 import SettingDetailView from "./setting-detail";
 
 export default function SettingsCommand() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const { tenant } = useTenant();
   const [filterSchemaId, setFilterSchemaId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Register mock data for settings
     registerMock("/api/v2/settings/objects", { items: MOCK_SETTINGS, totalCount: MOCK_SETTINGS.length });
-    getActiveTenant().then(setTenant);
   }, []);
 
-  // Memoize options to prevent infinite re-fetch cycles
-  const restOptions = useMemo(
-    () => ({
-      schema: settingsApiResponseSchema,
-      enabled: !!tenant,
-      queryParams: {
-        scopes: "environment",
-      },
-    }),
-    [tenant],
-  );
+  const restOptions = {
+    schema: settingsApiResponseSchema,
+    enabled: !!tenant,
+    queryParams: { scopes: "environment" },
+  };
 
   const {
     data: settingsResponse,
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<{ items: SettingsObject[] }>(tenant || undefined, "/api/v2/settings/objects", restOptions);
+  } = useDynatraceRest<{ items: SettingsObject[] }>(tenant ?? undefined, "/api/v2/settings/objects", restOptions);
 
   const settings = settingsResponse?.items ?? [];
 

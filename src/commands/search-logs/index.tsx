@@ -107,7 +107,7 @@ export default function Command(props: CommandProps) {
       LocalStorage.getItem<string>(KEY_TIMEFRAME),
       LocalStorage.getItem<string>(KEY_LOG_LEVEL),
       LocalStorage.getItem<string>(KEY_TIMEFRAME_PRESET),
-    ]).then(([tf, savedLevel, preset]) => {
+    ]).then(([tf, savedLevel]) => {
       if (!timeframeValue && tf) setStoredTimeframe(tf);
       // Don't restore preset across sessions — CLI args / default should win on fresh launch
       // Restore log level: CLI arg takes priority, then saved, then default "error"

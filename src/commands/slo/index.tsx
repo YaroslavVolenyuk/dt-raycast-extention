@@ -1,12 +1,11 @@
 // A4: SLO Dashboard — view all SLOs with compliance status and error budget
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
 import { useDynatraceRest } from "../../lib/api/useRest";
-import { getActiveTenant } from "../../lib/tenants";
-import type { TenantConfig } from "../../lib/auth";
 import { sloListResponseSchema } from "../../lib/types/slo";
 import type { SLO, SloListResponse } from "../../lib/types/slo";
 import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect, useMemo } from "react";
+import { useEffect } from "react";
+import { useTenant } from "../../hooks/useTenant";
 import SloDetailView from "./slo-detail";
 
 // Mock SLO data for development/testing
@@ -84,26 +83,16 @@ const MOCK_SLOS: SLO[] = [
 ];
 
 export default function SloCommand() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const { tenant } = useTenant();
 
   useEffect(() => {
     registerMock("/api/v2/slo", { totalCount: MOCK_SLOS.length, slo: MOCK_SLOS });
-    getActiveTenant().then(setTenant);
   }, []);
 
-  const restOptions = useMemo(
-    () => ({
-      schema: sloListResponseSchema,
-      enabled: !!tenant,
-    }),
-    [tenant],
-  );
-
-  const { data, isLoading, error, revalidate } = useDynatraceRest<SloListResponse>(
-    tenant || undefined,
-    "/api/v2/slo",
-    restOptions,
-  );
+  const { data, isLoading, error, revalidate } = useDynatraceRest<SloListResponse>(tenant ?? undefined, "/api/v2/slo", {
+    schema: sloListResponseSchema,
+    enabled: !!tenant,
+  });
 
   const slos = data?.slo ?? [];
 

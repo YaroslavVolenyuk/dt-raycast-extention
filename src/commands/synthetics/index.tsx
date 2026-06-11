@@ -1,8 +1,18 @@
 import { List, Icon, Color } from "@raycast/api";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MOCK_SYNTHETICS } from "../../lib/api/mock";
 import { SyntheticMonitorData, ExecutionStatus, MonitorType } from "../../lib/types/synthetic";
 import { MonitorDetailAction } from "./monitor-detail";
+import { useDynatraceRest } from "../../lib/api/useRest";
+import { registerMock } from "../../lib/api/rest";
+import { useTenant } from "../../hooks/useTenant";
+import {
+  SyntheticMonitorListResponseSchema,
+  SyntheticMonitorListResponse,
+  apiMonitorToSyntheticMonitorData,
+} from "../../lib/api/synthetics";
+
+const SYNTHETICS_PATH = "/api/v2/synthetic/monitors";
 
 /**
  * Synthetic Monitors — view and manage synthetic tests
@@ -11,11 +21,29 @@ import { MonitorDetailAction } from "./monitor-detail";
 export default function SyntheticsCommand() {
   const [searchText, setSearchText] = useState("");
   const [selectedType] = useState<MonitorType | "ALL">("ALL");
+  const { tenant } = useTenant();
 
-  // In mock mode, use static data
-  const allMonitors = useMemo(() => {
-    return MOCK_SYNTHETICS;
+  useEffect(() => {
+    registerMock(SYNTHETICS_PATH, {
+      monitors: MOCK_SYNTHETICS.map((m) => ({
+        entityId: m.monitor.monitorId,
+        name: m.monitor.name,
+        type: m.monitor.type,
+        enabled: m.monitor.enabled,
+        locations: m.monitor.locations.map((name) => ({ entityId: name, name })),
+        tags: [],
+      })),
+      totalCount: MOCK_SYNTHETICS.length,
+    });
   }, []);
+
+  const { data, isLoading, error } = useDynatraceRest<SyntheticMonitorListResponse>(
+    tenant ?? undefined,
+    SYNTHETICS_PATH,
+    { schema: SyntheticMonitorListResponseSchema, enabled: !!tenant },
+  );
+
+  const allMonitors = useMemo(() => (data?.monitors ?? []).map(apiMonitorToSyntheticMonitorData), [data]);
 
   // Filter by search and type
   const filteredMonitors = useMemo(() => {
@@ -100,16 +128,24 @@ export default function SyntheticsCommand() {
     );
   };
 
+  if (error) {
+    return (
+      <List>
+        <List.EmptyView icon={Icon.Binoculars} title="Error" description={error} />
+      </List>
+    );
+  }
+
   return (
     <List
-      isLoading={false}
+      isLoading={isLoading}
       searchBarPlaceholder="Search monitors (name, URL)..."
       onSearchTextChange={setSearchText}
       navigationTitle="Synthetic Monitors"
       searchText={searchText}
       filtering={false}
     >
-      {filteredMonitors.length === 0 ? (
+      {filteredMonitors.length === 0 && !isLoading ? (
         <List.EmptyView title="No monitors found" description="Try a different search term" />
       ) : (
         <>

@@ -1,11 +1,10 @@
 import { MenuBarExtra, Icon, Color, launchCommand, LaunchType } from "@raycast/api";
-import { useMemo, useEffect, useState } from "react";
-import { getActiveTenant } from "../../lib/tenants";
+import { useMemo, useEffect } from "react";
 import { useDynatraceRest } from "../../lib/api/useRest";
 import { registerMock } from "../../lib/api/rest";
 import { sloListResponseSchema } from "../../lib/types/slo";
 import type { SLO, SloListResponse } from "../../lib/types/slo";
-import type { TenantConfig } from "../../lib/auth";
+import { useTenant } from "../../hooks/useTenant";
 
 // Mock SLO data
 const MOCK_SLOS: SLO[] = [
@@ -81,11 +80,10 @@ const MOCK_SLOS: SLO[] = [
  * Raycast refreshes this command every 5 minutes per package.json interval setting.
  */
 export default function MenubarSloCommand() {
-  const [tenant, setTenant] = useState<TenantConfig | null>(null);
+  const { tenant } = useTenant();
 
   useEffect(() => {
     registerMock("/api/v2/slo", { totalCount: MOCK_SLOS.length, slo: MOCK_SLOS });
-    getActiveTenant().then(setTenant);
   }, []);
 
   const { data, revalidate } = useDynatraceRest<SloListResponse>(tenant ?? undefined, "/api/v2/slo", {

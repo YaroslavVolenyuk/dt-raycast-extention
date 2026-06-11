@@ -1,7 +1,7 @@
 // src/lib/api/useRest.ts
-// React hook for declarative REST API calls with loading/error states and auto-refresh
+// React hook for declarative REST API calls with loading/error states and caching
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCachedPromise } from "@raycast/utils";
 import { showToast, Toast } from "@raycast/api";
 import { dynatraceRest, RestClientOptions, RestError, ValidationError, DavisCopilotUnavailableError } from "./rest";
 import { TenantConfig } from "../auth";
@@ -51,90 +51,37 @@ export function useDynatraceRest<T = unknown>(
   path: string,
   options: UseRestOptions<T> = {},
 ): UseRestState<T> {
+  // interval kept in type for API compat but not used — useCachedPromise handles caching
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { interval, enabled = true, showErrorToast = true, onError, ...restOptions } = options;
 
-  const [data, setData] = useState<T | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const hasErrorRef = useRef(false); // tracks error state to avoid toast spam on polling
+  const { data, isLoading, error, revalidate } = useCachedPromise(
+    async (tenantArg: TenantConfig, apiPath: string) => {
+      devLog(`useDynatraceRest: fetching ${apiPath}`);
+      const response = await dynatraceRest<T>(tenantArg, apiPath, restOptions);
+      return response.data;
+    },
+    [tenant as TenantConfig, path],
+    {
+      execute: enabled && !!tenant,
+      onError: (err) => {
+        const errorMessage = errorToString(err);
+        if (showErrorToast) {
+          showToast({ style: Toast.Style.Failure, title: "API Error", message: errorMessage });
+        }
+        if (onError && (err instanceof RestError || err instanceof ValidationError)) {
+          onError(err);
+        }
+      },
+    },
+  );
 
-  // Stable ref for restOptions — avoids stale closure without putting the object in deps
-  const restOptionsRef = useRef(restOptions);
-  restOptionsRef.current = restOptions;
-
-  // Serialize the parts that affect the request URL/body for dep comparison
-  const optionsKey = JSON.stringify({ method: restOptions.method, queryParams: restOptions.queryParams });
-
-  const fetchData = useCallback(async () => {
-    if (!enabled || !tenant) {
-      devLog("useDynatraceRest: hook is disabled or no tenant");
-      setIsLoading(false);
-      return;
-    }
-
-    abortRef.current?.abort();
-    abortRef.current = new AbortController();
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      devLog(`useDynatraceRest: fetching ${path}`, { interval, enabled });
-
-      const response = await dynatraceRest<T>(tenant, path, {
-        ...restOptionsRef.current,
-        signal: abortRef.current.signal,
-      });
-
-      setData(response.data);
-      setError(null);
-      hasErrorRef.current = false;
-    } catch (err) {
-      if (err instanceof Error && err.name === "AbortError") {
-        devLog(`useDynatraceRest: request cancelled for ${path}`);
-        return;
-      }
-      if (err instanceof RestError && err.statusCode === 0 && err.message.includes("abort")) {
-        devLog(`useDynatraceRest: request aborted for ${path}`);
-        return;
-      }
-
-      const errorMessage = errorToString(err);
-      // Only toast on transition from no-error to error (suppress repeated polling toasts)
-      const shouldShowToast = showErrorToast && !hasErrorRef.current;
-      hasErrorRef.current = true;
-      setError(errorMessage);
-
-      if (shouldShowToast) {
-        showToast({ style: Toast.Style.Failure, title: "API Error", message: errorMessage });
-      }
-
-      if (onError && (err instanceof RestError || err instanceof ValidationError)) {
-        onError(err);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [tenant?.id, path, enabled, showErrorToast, onError, optionsKey]);
-
-  useEffect(() => {
-    if (!enabled) return;
-
-    fetchData();
-    const id = interval && interval > 0 ? setInterval(fetchData, interval) : null;
-
-    return () => {
-      if (id) clearInterval(id);
-      abortRef.current?.abort();
-    };
-  }, [enabled, interval, fetchData]);
-
-  const revalidate = useCallback(async () => {
-    devLog(`useDynatraceRest: manual revalidation of ${path}`);
-    hasErrorRef.current = false; // allow toast on manual refresh
-    await fetchData();
-  }, [fetchData, path]);
-
-  return { data, isLoading, error, revalidate };
+  return {
+    data: data ?? null,
+    isLoading,
+    error: error ? errorToString(error) : null,
+    revalidate: async () => {
+      await revalidate();
+    },
+  };
 }

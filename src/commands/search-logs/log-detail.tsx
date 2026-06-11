@@ -105,6 +105,14 @@ function toArray(v: unknown): string[] {
  * Maps log level + status to a Raycast tag Color.
  * INFO stays gray (Color.SecondaryText) per design.
  */
+function environmentColor(env: string | undefined): Color {
+  const e = env?.toLowerCase() ?? "";
+  if (e === "prod" || e === "production") return Color.Green;
+  if (e.includes("stag")) return Color.Yellow;
+  if (e.includes("dev")) return Color.SecondaryText;
+  return Color.SecondaryText;
+}
+
 function levelColor(level: string | undefined, status: string | undefined): Color {
   const st = status?.toUpperCase();
   if (st === "SUCCESS") return Color.Green;
@@ -117,8 +125,10 @@ function levelColor(level: string | undefined, status: string | undefined): Colo
     case "FATAL":
     case "CRITICAL":
       return Color.Red;
+    case "INFO":
+      return Color.Blue;
     default:
-      return Color.SecondaryText; // INFO, DEBUG — neutral gray
+      return Color.SecondaryText;
   }
 }
 
@@ -209,6 +219,15 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
     }
     const statusHeader = badgeParts.join("  ·  ");
 
+    // Context chips line: environment · service · k8s namespace · pipeline source
+    const chipParts: string[] = [];
+    const envVal = val(log["dt.environment.id"]) ?? val(log["environment"]);
+    if (envVal) chipParts.push(`\`${envVal}\``);
+    if (serviceName) chipParts.push(`\`${serviceName}\``);
+    if (k8sNamespace) chipParts.push(`\`k8s:${k8sNamespace}\``);
+    if (pipelineSource) chipParts.push(`\`${pipelineSource}\``);
+    const contextChips = chipParts.join(" · ");
+
     // Long IDs section — values that get truncated in the narrow metadata sidebar
     const longIds: string[] = [];
     if (awsArn) longIds.push(`**AWS ARN**\n\`${awsArn}\``);
@@ -216,17 +235,20 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
     if (podUid) longIds.push(`**K8s Pod UID**\n\`${podUid}\``);
 
     // Format log content: pretty-print JSON, format stack traces, or display as-is
-    const formattedContent = log.content ? formatLogContent(log.content) : "No content available";
+    const formattedContent = log.content ? formatLogContent(log.content) : "_No content available_";
 
     const markdown = [
       statusHeader,
       "---",
-      "## Log Content",
       formattedContent,
+      ...(contextChips ? [contextChips] : []),
       "---",
       "**DQL Filter** *(⌘D to copy)*",
       `\`\`\`\n${dqlFilter}\n\`\`\``,
       ...(longIds.length > 0 ? ["---", ...longIds] : []),
+      "---",
+      "**Raw Fields**",
+      `\`\`\`json\n${JSON.stringify(log, null, 2)}\n\`\`\``,
     ].join("\n\n");
 
     // Handle "Run DQL" — opens DQL runner with pre-filled query and custom timeframe
@@ -361,6 +383,11 @@ export default function LogDetailView({ log, tenant }: { log: LogRecord; tenant?
             {eventType && <Detail.Metadata.Label title="Event Type" text={eventType} />}
             {log.timestamp && (
               <Detail.Metadata.Label title="Timestamp" text={new Date(log.timestamp).toLocaleString()} />
+            )}
+            {envVal && (
+              <Detail.Metadata.TagList title="Environment">
+                <Detail.Metadata.TagList.Item text={envVal} color={environmentColor(envVal)} />
+              </Detail.Metadata.TagList>
             )}
 
             {/* ── Section: Service / Process ───────────────────────────────── */}
