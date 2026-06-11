@@ -216,7 +216,6 @@ export function buildJiraIssueUrl(selfUrl: string, issueKey: string, siteUrl?: s
   }
 }
 
-
 export function validateJiraConfig(
   jiraUrl: string | undefined,
   email: string | undefined,

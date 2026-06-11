@@ -1,8 +1,8 @@
 // src/lib/types/settings.ts
 import { z } from "zod";
 
-// Settings object types (schema IDs) — open string so unknown schemas don't fail validation
-export const settingsTypeSchema = z.string();
+// Settings schema IDs always use builtin: prefix in Dynatrace Settings v2
+export const settingsTypeSchema = z.string().regex(/^builtin:/, { message: "schemaId must start with 'builtin:'" });
 
 export type SettingsType = string;
 

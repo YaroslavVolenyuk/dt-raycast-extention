@@ -33,7 +33,6 @@ export function buildSpansQuery(
 
   if (serviceName) {
     query += `\n  | filter service.name == "${escapeDqlString(serviceName)}"`;
-
   }
 
   if (statusCode && statusCode !== "ALL") {

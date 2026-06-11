@@ -9,9 +9,6 @@ import { TenantConfig } from "./auth";
 import { isMockMode, devLog, simulateNetworkDelay } from "./devMode";
 import { executeDqlQuery } from "./api/grail";
 
-const POLL_INTERVAL_MS = 1000;
-const MAX_POLLS = 60;
-
 export function useDynatraceQuery<T = unknown>() {
   const [data, setData] = useState<{ records: T[] } | null>(null);
   const [isLoading, setIsLoading] = useState(true);

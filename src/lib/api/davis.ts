@@ -70,6 +70,12 @@ const MOCK_ASK_ANSWERS: Record<string, DavisAnswer> = {
     status: "SUCCESSFUL",
     state: {},
   },
+  "error budget status slo": {
+    text: "Your SLO error budget is at 42% remaining. The checkout-service SLO is most at risk with only 12% budget left for the current month.",
+    messageToken: "mock-token-5",
+    status: "SUCCESSFUL",
+    state: {},
+  },
 };
 
 // ── NL2DQL: Natural Language to DQL ───────────────────────────────────────────
