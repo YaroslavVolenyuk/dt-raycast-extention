@@ -76,12 +76,12 @@ export function parseTimeExpression(expr: string): Date | null {
  *   - Duration presets "1h", "30m", "7d"
  *   - Plain numbers (treated as hours, legacy)
  *
- * Falls back to last 1 hour for unrecognised input.
+ * Falls back to last 24 hours for unrecognised input.
  */
 export function parseTimeframe(input: string | undefined | null): Timeframe {
   const raw = (input ?? "").trim().toLowerCase();
 
-  if (!raw) return relativeTimeframe(1, "h");
+  if (!raw) return relativeTimeframe(24, "h");
 
   // ISO range
   if (raw.includes("|")) {
@@ -117,8 +117,8 @@ export function parseTimeframe(input: string | undefined | null): Timeframe {
     }
   }
 
-  console.warn(`[parseTimeframe] Unrecognised format: "${raw}", falling back to 1h`);
-  return relativeTimeframe(1, "h");
+  console.warn(`[parseTimeframe] Unrecognised format: "${raw}", falling back to 24h`);
+  return relativeTimeframe(24, "h");
 }
 
 function relativeTimeframe(amount: number, unit: "m" | "h" | "d"): Timeframe {
