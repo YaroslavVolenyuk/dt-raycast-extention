@@ -1,5 +1,6 @@
 // B1-2: Workflow detail view
-import { Detail, Action, ActionPanel, Icon, useNavigation } from "@raycast/api";
+import { Detail, Action, ActionPanel, Icon, useNavigation, open } from "@raycast/api";
+import { buildDeepLink } from "../../lib/utils/deepLinks";
 import type { Workflow, WorkflowStep } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
 import { dynatraceRest } from "../../lib/api/rest";
@@ -143,10 +144,9 @@ export default function WorkflowDetailView({ workflow, tenant, onRefresh }: Work
           <Action
             title="Open in Dynatrace"
             icon={Icon.Globe}
-            onAction={() => {
+            onAction={async () => {
               if (tenant) {
-                // In real app, use openInBrowser with:
-                // `${tenant.url}/ui/apps/dynatrace.workflows/workflow/${workflow.id}`
+                await open(buildDeepLink("workflow", workflow.id, tenant));
               }
             }}
           />

@@ -1,88 +1,50 @@
-import { z } from "zod";
-import { problemSchema } from "./problem";
-import { sloSchema } from "./slo";
-import { SyntheticMonitorDataSchema } from "./synthetic";
+// Dynatrace Status Dashboard — pure helpers, contract-aligned with the
+// data sources used elsewhere in the extension:
+//   problems   → Grail dt.davis.problems (classification via event.category)
+//   synthetics → /api/v2/synthetic/monitors (no fabricated execution metrics)
+import type { Problem } from "./problem";
+import type { SyntheticMonitorData } from "./synthetic";
+import { ExecutionStatus } from "./synthetic";
 
-/**
- * Dynatrace Status Dashboard types
- */
+export type DashboardSeverity = "critical" | "warning" | "healthy" | "unknown";
 
-export enum ProblemSeverity {
-  CRITICAL = "CRITICAL",
-  MAJOR = "MAJOR",
-  MINOR = "MINOR",
-  WARNING = "WARNING",
+/** null in a section means "data unavailable" — never "all clear". */
+export interface StatusSnapshot {
+  lastChecked: number;
+  problems: Problem[] | null;
+  synthetics: SyntheticMonitorData[] | null;
 }
 
-export const StatusDashboardSchema = z.object({
-  lastChecked: z.number().describe("Timestamp of last check"),
-  problems: z
-    .object({
-      total: z.number(),
-      bySeverity: z.record(z.nativeEnum(ProblemSeverity), z.number()),
-      items: z.array(problemSchema).optional(),
-    })
-    .nullable(),
-  slos: z
-    .object({
-      total: z.number(),
-      violated: z.number(),
-      items: z.array(sloSchema).optional(),
-    })
-    .nullable(),
-  synthetics: z
-    .object({
-      total: z.number(),
-      failing: z.number(),
-      items: z.array(SyntheticMonitorDataSchema).optional(),
-    })
-    .nullable(),
-  deployments: z
-    .object({
-      recent: z.array(
-        z.object({
-          id: z.string(),
-          service: z.string(),
-          version: z.string(),
-          timestamp: z.number(),
-          status: z.enum(["SUCCESS", "FAILED"]),
-        }),
-      ),
-    })
-    .nullable(),
-});
+export function countAvailabilityProblems(problems: Problem[]): number {
+  return problems.filter((p) => p["event.category"] === "AVAILABILITY").length;
+}
 
-export type StatusDashboard = z.infer<typeof StatusDashboardSchema>;
+export function countFailingMonitors(monitors: SyntheticMonitorData[]): number {
+  return monitors.filter((m) => m.lastExecution && m.lastExecution.status !== ExecutionStatus.OK).length;
+}
 
-/**
- * Check if there are any health issues
- */
-export function hasIssues(status: StatusDashboard): boolean {
-  if (status.problems && status.problems.total > 0) return true;
-  if (status.slos && status.slos.violated > 0) return true;
-  if (status.synthetics && status.synthetics.failing > 0) return true;
+export function hasIssues(status: StatusSnapshot): boolean {
+  if (status.problems && status.problems.length > 0) return true;
+  if (status.synthetics && countFailingMonitors(status.synthetics) > 0) return true;
   return false;
 }
 
 /**
- * Get severity level of the dashboard
+ * Overall dashboard severity.
+ * "unknown" is returned when no issues were found but at least one data source
+ * was unavailable — an unreachable API must never look healthy.
  */
-export function getDashboardSeverity(status: StatusDashboard): "critical" | "warning" | "healthy" {
-  if (!status.problems && !status.slos && !status.synthetics) {
-    return "healthy";
-  }
+export function getDashboardSeverity(status: StatusSnapshot): DashboardSeverity {
+  const availabilityProblems = status.problems ? countAvailabilityProblems(status.problems) : 0;
 
-  if ((status.problems?.bySeverity?.[ProblemSeverity.CRITICAL] ?? 0) > 0) {
-    return "critical";
-  }
+  if (availabilityProblems > 0) return "critical";
 
-  if (
-    (status.problems && status.problems.total > 0) ||
-    (status.slos && status.slos.violated > 0) ||
-    (status.synthetics && status.synthetics.failing > 0)
-  ) {
-    return "warning";
-  }
+  const openProblems = status.problems?.length ?? 0;
+  const failingMonitors = status.synthetics ? countFailingMonitors(status.synthetics) : 0;
+  if (openProblems > 0 || failingMonitors > 0) return "warning";
+
+  const anyUnavailable = status.problems === null || status.synthetics === null;
+  if (anyUnavailable) return "unknown";
 
   return "healthy";
 }

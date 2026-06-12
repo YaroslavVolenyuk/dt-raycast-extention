@@ -15,22 +15,24 @@ export default function MenuBarProblems() {
   const fetchOpenProblems = async (): Promise<{
     count: number | string;
     problems: Problem[];
+    failed: boolean;
   }> => {
     const activeTenant = await getActiveTenant();
     setTenant(activeTenant);
 
     if (!activeTenant) {
-      return { count: 0, problems: [] };
+      return { count: 0, problems: [], failed: false };
     }
 
     // Fetch top 6 to detect if there are more than 5
     const dql = `fetch dt.davis.problems
       | filter event.status == "OPEN"
-      | sort event.severity asc, event.start desc
+      | sort event.start desc
       | limit 6`;
 
     const results = await execute(dql, getProblemsTimeframe(), activeTenant);
-    if (!results) return { count: 0, problems: [] };
+    // execute() returns null on API failure — never report that as "all clear"
+    if (results === null) return { count: 0, problems: [], failed: true };
 
     // Slice to top 5 for display, show "5+" if there are more
     const problems = results.slice(0, 5);
@@ -39,6 +41,7 @@ export default function MenuBarProblems() {
     return {
       count,
       problems: (problems as Problem[]) || [],
+      failed: false,
     };
   };
 
@@ -49,31 +52,35 @@ export default function MenuBarProblems() {
   const countNum = typeof count === "string" ? 5 : (count as number);
   const countDisplay = typeof count === "string" ? count : String(count);
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
       case "AVAILABILITY":
         return Icon.CircleProgress;
       case "ERROR":
         return Icon.ExclamationMark;
-      case "PERFORMANCE":
+      case "SLOWDOWN":
         return Icon.Clock;
       case "RESOURCE_CONTENTION":
         return Icon.ArrowRightCircle;
+      case "CUSTOM_ALERT":
+        return Icon.Bell;
       default:
         return Icon.QuestionMark;
     }
   };
 
-  const getSeverityColor = (severity: string): Color => {
-    switch (severity) {
+  const getCategoryColor = (category: string): Color => {
+    switch (category) {
       case "AVAILABILITY":
         return Color.Red;
       case "ERROR":
         return Color.Orange;
-      case "PERFORMANCE":
+      case "SLOWDOWN":
         return Color.Yellow;
       case "RESOURCE_CONTENTION":
         return Color.Blue;
+      case "CUSTOM_ALERT":
+        return Color.Purple;
       default:
         return Color.SecondaryText;
     }
@@ -97,8 +104,17 @@ export default function MenuBarProblems() {
     );
   }
 
-  // Choose icon and tint based on problem count
+  const failed = data?.failed ?? false;
+
+  // Choose icon and tint based on problem count / fetch health
   const getMenuBarIcon = () => {
+    if (failed) {
+      // API unreachable — never show the "all clear" checkmark
+      return {
+        source: Icon.WifiDisabled,
+        tintColor: Color.Yellow,
+      };
+    }
     if (countNum > 0) {
       // Problems exist - use warning icon with red tint
       return {
@@ -117,21 +133,29 @@ export default function MenuBarProblems() {
   return (
     <MenuBarExtra
       icon={getMenuBarIcon()}
-      title={countNum > 0 ? countDisplay : undefined}
-      tooltip={`${countDisplay} open problems`}
+      title={countNum > 0 && !failed ? countDisplay : undefined}
+      tooltip={failed ? "Dynatrace unreachable — problem status unknown" : `${countDisplay} open problems`}
       isLoading={isLoading}
     >
+      {failed && (
+        <MenuBarExtra.Item
+          title="Dynatrace Unreachable"
+          subtitle="Problem status unknown"
+          icon={{ source: Icon.Warning, tintColor: Color.Yellow }}
+          onAction={() => revalidate()}
+        />
+      )}
       {problems.length > 0 && (
         <>
           <MenuBarExtra.Section title="Top Problems">
-            {problems.map((problem, index) => (
+            {problems.map((problem) => (
               <MenuBarExtra.Item
-                key={index}
+                key={problem["event.id"]}
                 title={problem["event.name"]}
-                subtitle={problem["event.severity"]}
+                subtitle={problem["event.category"]}
                 icon={{
-                  source: getSeverityIcon(problem["event.severity"]),
-                  tintColor: getSeverityColor(problem["event.severity"]),
+                  source: getCategoryIcon(problem["event.category"]),
+                  tintColor: getCategoryColor(problem["event.category"]),
                 }}
                 onAction={async () => {
                   if (tenant) {

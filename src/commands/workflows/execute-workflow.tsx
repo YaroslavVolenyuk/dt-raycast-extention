@@ -14,12 +14,27 @@ interface ExecuteWorkflowFormProps {
 export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: ExecuteWorkflowFormProps) {
   const { pop } = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
-  const [formValues, setFormValues] = useState<Record<string, string | number | boolean | undefined>>({});
 
   // Parse input parameters from schema
   const parameters = buildFormParameters(workflow.inputParametersSchema);
   const schema = workflow.inputParametersSchema as { required?: string[] };
   const requiredParams = schema?.required || [];
+
+  // Seed defaults from the workflow input schema so enum dropdowns and
+  // pre-filled values match what the Workflows UI would send.
+  const [formValues, setFormValues] = useState<Record<string, string | number | boolean | undefined>>(() => {
+    const initial: Record<string, string | number | boolean | undefined> = {};
+    for (const param of parameters) {
+      if (param.default !== undefined) initial[param.name] = param.default;
+      else if (param.enum && param.enum.length > 0) initial[param.name] = param.enum[0];
+    }
+    return initial;
+  });
+
+  // A required field is missing only when it has no value at all.
+  // `false` (boolean) and `0` (number) are valid filled values.
+  const isMissing = (value: string | number | boolean | undefined): boolean =>
+    value === undefined || value === "" || (typeof value === "number" && Number.isNaN(value));
 
   const handleSubmit = async () => {
     setIsLoading(true);
@@ -27,11 +42,28 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
     try {
       // Validate required fields
       for (const param of requiredParams) {
-        if (!formValues[param]) {
+        if (isMissing(formValues[param])) {
           await showToast({
             style: Toast.Style.Failure,
             title: "Missing Required Field",
             message: `${param} is required`,
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Reject non-numeric input for number parameters instead of sending NaN
+      for (const param of parameters) {
+        if (
+          param.type === "number" &&
+          typeof formValues[param.name] === "number" &&
+          Number.isNaN(formValues[param.name])
+        ) {
+          await showToast({
+            style: Toast.Style.Failure,
+            title: "Invalid Number",
+            message: `${param.name} must be a valid number`,
           });
           setIsLoading(false);
           return;
@@ -86,7 +118,13 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
               placeholder={param.description || ""}
               value={formValues[param.name]?.toString() || ""}
               onChange={(value) => setFormValues({ ...formValues, [param.name]: value ? Number(value) : undefined })}
-              error={isRequired && !formValues[param.name] ? "This field is required" : undefined}
+              error={
+                isRequired && isMissing(formValues[param.name])
+                  ? "This field is required"
+                  : typeof formValues[param.name] === "number" && Number.isNaN(formValues[param.name])
+                    ? "Must be a valid number"
+                    : undefined
+              }
             />
           );
         } else if (param.type === "boolean") {
@@ -124,7 +162,7 @@ export default function ExecuteWorkflowForm({ workflow, tenant, onSuccess }: Exe
               placeholder={param.description || ""}
               value={formValues[param.name]?.toString() || ""}
               onChange={(value) => setFormValues({ ...formValues, [param.name]: value })}
-              error={isRequired && !formValues[param.name] ? "This field is required" : undefined}
+              error={isRequired && isMissing(formValues[param.name]) ? "This field is required" : undefined}
             />
           );
         }

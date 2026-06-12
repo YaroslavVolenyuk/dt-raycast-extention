@@ -16,6 +16,7 @@ import { useCachedPromise } from "@raycast/utils";
 import { listSavedQueries, deleteSavedQuery, toggleFavorite, getSavedQuery } from "../../lib/savedQueries";
 import { explainDql } from "../../lib/api/davis";
 import { getActiveTenant } from "../../lib/tenants";
+import { parseTimeframe, timeframeLabel } from "../../lib/utils/parseTimeframe";
 import { useState } from "react";
 import type { SavedQuery } from "../../lib/types/savedQuery";
 import QueryResultsView from "../dql-runner/query-results";
@@ -76,10 +77,13 @@ export default function SavedQueriesCommand() {
     }
   };
 
+  const [selectedTimeframe, setSelectedTimeframe] = useState<{ start: string; end: string } | undefined>(undefined);
+
   const handleRunQuery = async (id: string) => {
     const query = await getSavedQuery(id);
     if (query) {
       setSelectedQuery(query.dql);
+      setSelectedTimeframe(query.timeframe ? parseTimeframe(query.timeframe) : undefined);
       setShowResults(true);
     }
   };
@@ -88,9 +92,11 @@ export default function SavedQueriesCommand() {
     return (
       <QueryResultsView
         dql={selectedQuery}
+        timeframe={selectedTimeframe}
         onClose={() => {
           setShowResults(false);
           setSelectedQuery(null);
+          setSelectedTimeframe(undefined);
         }}
       />
     );
@@ -225,6 +231,7 @@ function QueryListItem({ query, onRun, onToggleFavorite, onEdit, onDelete }: Que
       title={query.name}
       subtitle={dqlPreview + (query.dql.length > 60 ? "…" : "")}
       accessories={[
+        ...(query.timeframe ? [{ text: timeframeLabel(query.timeframe), tooltip: "Saved timeframe" }] : []),
         {
           icon: query.isFavorite ? Icon.Star : Icon.StarCircle,
           tooltip: query.isFavorite ? "Remove from favorites" : "Add to favorites",

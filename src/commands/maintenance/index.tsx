@@ -1,14 +1,26 @@
-import React, { useState, useMemo } from "react";
-import { List, Action, ActionPanel, showToast, Toast, useNavigation, Icon, Color, Keyboard } from "@raycast/api";
-import { useDynatraceRest } from "../../lib/api/useRest";
+import React, { useMemo, useState } from "react";
+import {
+  List,
+  Action,
+  ActionPanel,
+  showToast,
+  Toast,
+  useNavigation,
+  Icon,
+  Color,
+  Keyboard,
+  Alert,
+  confirmAlert,
+} from "@raycast/api";
+import { useCachedPromise } from "@raycast/utils";
 import {
   MaintenanceWindow,
-  MaintenanceWindowListSchema,
   getMaintenanceStatus,
   formatMaintenanceTime,
   sortMaintenanceWindows,
   MaintenanceWindowStatus,
 } from "../../lib/types/maintenance";
+import { fetchMaintenanceWindows, deleteMaintenanceWindow } from "../../lib/api/maintenance";
 import MaintenanceDetail from "./maintenance-detail";
 import CreateMaintenanceForm from "./create-maintenance";
 import { useTenant } from "../../hooks/useTenant";
@@ -18,31 +30,26 @@ export default function MaintenanceCommand() {
   const { push } = useNavigation();
   const [searchText, setSearchText] = useState("");
 
-  // Memoize options to prevent infinite re-fetch cycles
-  const restOptions = useMemo(
-    () => ({
-      schema: MaintenanceWindowListSchema,
-      queryParams: {
-        schemaIds: "builtin:alerting.maintenance-window",
-        pageSize: "100",
-      },
-      enabled: !!tenant,
-    }),
-    [tenant],
+  const { data, isLoading, error, revalidate } = useCachedPromise(
+    async (t) => {
+      const result = await fetchMaintenanceWindows(t);
+      if (result.skipped > 0) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Some windows skipped",
+          message: `${result.skipped} object(s) did not match the expected Settings 2.0 format`,
+        });
+      }
+      return result.windows;
+    },
+    [tenant!],
+    { execute: !!tenant, keepPreviousData: true },
   );
 
-  const {
-    data: windows,
-    isLoading,
-    error,
-    revalidate,
-  } = useDynatraceRest<MaintenanceWindow[]>(tenant || undefined, "/api/v2/settings/objects", restOptions);
+  const windows = data ?? [];
 
   const filteredAndSorted = useMemo(() => {
-    if (!windows) return [];
-
     const filtered = windows.filter((w) => w.name.toLowerCase().includes(searchText.toLowerCase()));
-
     return sortMaintenanceWindows(filtered);
   }, [windows, searchText]);
 
@@ -59,22 +66,27 @@ export default function MaintenanceCommand() {
   };
 
   const handleCreate = async () => {
-    push(<CreateMaintenanceForm onCreated={revalidate} />);
+    push(<CreateMaintenanceForm onCreated={() => revalidate()} />);
   };
 
   const handleDelete = async (window: MaintenanceWindow) => {
+    if (!tenant) return;
+    const confirmed = await confirmAlert({
+      title: `Delete "${window.name}"?`,
+      message: "The maintenance window will be permanently removed from Dynatrace.",
+      primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+    });
+    if (!confirmed) return;
+
     try {
-      // In real implementation, this would be a DELETE request
-      await showToast({
-        style: Toast.Style.Success,
-        title: `Deleted "${window.name}"`,
-      });
+      await deleteMaintenanceWindow(tenant, window.id);
+      await showToast({ style: Toast.Style.Success, title: `Deleted "${window.name}"` });
       revalidate();
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to delete",
-        message: String(err),
+        message: err instanceof Error ? err.message : String(err),
       });
     }
   };
@@ -82,7 +94,16 @@ export default function MaintenanceCommand() {
   if (error) {
     return (
       <List isLoading={isLoading}>
-        <List.EmptyView icon="⚠️" title="Failed to load maintenance windows" description={String(error)} />
+        <List.EmptyView
+          icon="⚠️"
+          title="Failed to load maintenance windows"
+          description={error instanceof Error ? error.message : String(error)}
+          actions={
+            <ActionPanel>
+              <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => revalidate()} />
+            </ActionPanel>
+          }
+        />
       </List>
     );
   }
@@ -115,7 +136,7 @@ export default function MaintenanceCommand() {
               <List.Item
                 key={window.id}
                 title={window.name}
-                subtitle={`${window.type} • ${status}`}
+                subtitle={`${window.maintenanceType} • ${window.scheduleType} • ${status}`}
                 accessories={[
                   {
                     text: formatMaintenanceTime(window.startTime),
@@ -130,7 +151,7 @@ export default function MaintenanceCommand() {
                   <ActionPanel>
                     <Action.Push
                       title="View Details"
-                      target={<MaintenanceDetail window={window} onDeleted={revalidate} />}
+                      target={<MaintenanceDetail window={window} onDeleted={() => revalidate()} />}
                       icon={Icon.Eye}
                     />
                     <Action
@@ -139,15 +160,13 @@ export default function MaintenanceCommand() {
                       icon={Icon.Plus}
                       shortcut={Keyboard.Shortcut.Common.New}
                     />
-                    {(status === MaintenanceWindowStatus.SCHEDULED || status === MaintenanceWindowStatus.PAST) && (
-                      <Action
-                        title="Delete"
-                        onAction={() => handleDelete(window)}
-                        icon={Icon.Trash}
-                        style={Action.Style.Destructive}
-                        shortcut={Keyboard.Shortcut.Common.Remove}
-                      />
-                    )}
+                    <Action
+                      title="Delete"
+                      onAction={() => handleDelete(window)}
+                      icon={Icon.Trash}
+                      style={Action.Style.Destructive}
+                      shortcut={Keyboard.Shortcut.Common.Remove}
+                    />
                   </ActionPanel>
                 }
               />

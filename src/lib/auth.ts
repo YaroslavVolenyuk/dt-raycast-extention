@@ -44,12 +44,6 @@ const tokenCache = new Map<string, CachedToken>();
 
 const REFRESH_BUFFER_MS = 30_000; // refresh 30 seconds before expiry
 
-// ── Token invalidation ────────────────────────────────────────────────────────
-
-export function invalidateToken(tenantId: string): void {
-  tokenCache.delete(`token:${tenantId}`);
-}
-
 // ── Main function ─────────────────────────────────────────────────────────────
 
 /**

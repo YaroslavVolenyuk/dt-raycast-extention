@@ -1,41 +1,25 @@
 import { List, Icon, Color } from "@raycast/api";
-import { useMemo, useState, useEffect } from "react";
-import { MOCK_SYNTHETICS } from "../../lib/api/mock";
+import { useMemo, useState } from "react";
 import { SyntheticMonitorData, ExecutionStatus, MonitorType } from "../../lib/types/synthetic";
 import { MonitorDetailAction } from "./monitor-detail";
 import { useDynatraceRest } from "../../lib/api/useRest";
-import { registerMock } from "../../lib/api/rest";
 import { useTenant } from "../../hooks/useTenant";
 import {
   SyntheticMonitorListResponseSchema,
   SyntheticMonitorListResponse,
   apiMonitorToSyntheticMonitorData,
+  SYNTHETICS_PATH,
 } from "../../lib/api/synthetics";
 
-const SYNTHETICS_PATH = "/api/v2/synthetic/monitors";
-
 /**
- * Synthetic Monitors — view and manage synthetic tests
- * Shows uptime, availability, response times across locations
+ * Synthetic Monitors — list of monitors with configuration state.
+ * The v2 list endpoint does not include availability or response times;
+ * those are intentionally not displayed instead of being fabricated.
  */
 export default function SyntheticsCommand() {
   const [searchText, setSearchText] = useState("");
   const [selectedType] = useState<MonitorType | "ALL">("ALL");
   const { tenant } = useTenant();
-
-  useEffect(() => {
-    registerMock(SYNTHETICS_PATH, {
-      monitors: MOCK_SYNTHETICS.map((m) => ({
-        entityId: m.monitor.monitorId,
-        name: m.monitor.name,
-        type: m.monitor.type,
-        enabled: m.monitor.enabled,
-        locations: m.monitor.locations.map((name) => ({ entityId: name, name })),
-        tags: [],
-      })),
-      totalCount: MOCK_SYNTHETICS.length,
-    });
-  }, []);
 
   const { data, isLoading, error } = useDynatraceRest<SyntheticMonitorListResponse>(
     tenant ?? undefined,
@@ -71,7 +55,7 @@ export default function SyntheticsCommand() {
     return groups;
   }, [filteredMonitors]);
 
-  const getStatusIcon = (status: ExecutionStatus): Icon => {
+  const getStatusIcon = (status: ExecutionStatus | null): Icon => {
     switch (status) {
       case ExecutionStatus.OK:
         return Icon.CheckCircle;
@@ -86,10 +70,10 @@ export default function SyntheticsCommand() {
     }
   };
 
-  const getStatusColor = (availability: number): Color => {
-    if (availability >= 99) return Color.Green;
-    if (availability >= 95) return Color.Yellow;
-    return Color.Red;
+  const getStatusColor = (monitor: SyntheticMonitorData): Color => {
+    if (monitor.lastExecution?.status === ExecutionStatus.FAILED) return Color.Red;
+    if (!monitor.monitor.enabled) return Color.SecondaryText;
+    return Color.Blue;
   };
 
   const renderMonitorGroup = (type: MonitorType, monitors: SyntheticMonitorData[]) => {
@@ -98,17 +82,20 @@ export default function SyntheticsCommand() {
     return (
       <List.Section key={type} title={`${type} Monitors (${monitors.length})`}>
         {monitors.map((monitor) => {
-          const status = monitor.lastExecution?.status || ExecutionStatus.OK;
-          const availability = monitor.availability;
+          const status = monitor.lastExecution?.status ?? null;
+          const subtitleParts = [
+            monitor.monitor.url || undefined,
+            monitor.availability != null ? `${monitor.availability.toFixed(1)}% available` : undefined,
+          ].filter(Boolean);
 
           return (
             <List.Item
               key={monitor.monitor.monitorId}
               title={monitor.monitor.name}
-              subtitle={`${availability.toFixed(1)}% available · ${monitor.avgResponseTime || "—"}ms`}
+              subtitle={subtitleParts.join(" · ") || undefined}
               icon={{
                 source: getStatusIcon(status),
-                tintColor: getStatusColor(availability),
+                tintColor: getStatusColor(monitor),
               }}
               accessories={[
                 {

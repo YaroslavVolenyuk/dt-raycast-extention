@@ -1,5 +1,5 @@
 // B3-2: Settings detail view with JSON definition and copy actions
-import { Detail, Action, ActionPanel, Icon, showToast, Toast, useNavigation, Clipboard } from "@raycast/api";
+import { Detail, Action, ActionPanel, Icon, showToast, Toast, useNavigation, Clipboard, open } from "@raycast/api";
 import type { SettingsObject } from "../../lib/types/settings";
 import type { TenantConfig } from "../../lib/auth";
 import { getSettingsTypeIcon, getSettingsTypeLabel } from "../../lib/types/settings";
@@ -52,15 +52,10 @@ export default function SettingDetailView({ setting, tenant, onRefresh }: Settin
     }
   };
 
-  const handleOpenInDynatrace = () => {
+  const handleOpenInDynatrace = async () => {
     if (tenant) {
       const deepLinkUrl = `${tenant.tenantEndpoint}/ui/apps/dynatrace.settings/configuration/schema/${setting.schemaId}/objects/${setting.objectId}`;
-      // In real app, use openInBrowser(deepLinkUrl)
-      showToast({
-        style: Toast.Style.Success,
-        title: "Deep Link Ready",
-        message: deepLinkUrl,
-      });
+      await open(deepLinkUrl);
     }
   };
 

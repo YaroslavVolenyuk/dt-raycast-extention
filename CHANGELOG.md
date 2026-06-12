@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- 🗂 **Epic 2.0 commands**: Dynatrace hub (`dt`), NL2DQL, Ask Davis, SLO Dashboard, SLOs in Menu Bar, Workflows (list/execute/execution history), Settings browser, Synthetic Monitors, System Status dashboard, Maintenance Windows (list/create/delete), Search Traces, Test Connection
+- 🧰 Generic REST client (`dynatraceRest`) with Zod validation, classic-proxy rewrite, pagination, mock registry, client-side timeout
+- 🔐 gitleaks secret scanning in CI
+
+### Changed
+- **Problems contract fixed against live Grail**: classification now uses `event.category` (AVAILABILITY / ERROR / SLOWDOWN / RESOURCE_CONTENTION / CUSTOM_ALERT); `event.severity` is a numeric string and is displayed as-is; problem sorting by `event.start`
+- **SLO contract fixed against the documented v2 API**: `evaluatedPercentage` (not `compliance`), `evaluate=true` with pageSize 25 pagination, state taken from the API `status` field (FAILURE < target ≤ WARNING < warning ≤ SUCCESS)
+- **Maintenance Windows now use the real Settings 2.0 contract** (`builtin:alerting.maintenance-window`): correct read mapping, array payload with `schemaId`/`scope` on create (validated with `validateOnly=true` first), real delete
+- **Workflow execution history** uses the single documented endpoint `GET /platform/automation/v1/executions?workflow=<id>` (removed 12-endpoint probing)
+- **Settings browser** requests the mandatory `schemaIds` parameter and explicit `fields`
+- Default OAuth scopes are now read-only; write scopes (`settings:objects:write`, `automation:workflows:*`) are opt-in
+- Davis CoPilot scopes included in the suggested scope list
+- REST pagination uses the correct `nextPageKey` parameter name
+- 401-retry now runs before Davis CoPilot 403 mapping (stale tokens no longer masquerade as missing subscription)
+- Menu bar commands (problems, SLOs) show an explicit "Dynatrace unreachable" state instead of a false-healthy checkmark
+- System Status renders per-section "Unavailable" with the error reason; deployments stub removed; navigation uses `launchCommand`
+- Synthetic Monitors no longer fabricate availability/response-time values; absent metrics render as absent
+- Ask Davis no longer pretends to keep conversation history or entity context (the API call never sent them); source links are validated as https before opening
+- macOS-only (`platforms`) since the extension ships menu-bar commands
+
+### Removed
+- Metrics Explorer command (was mock-only in real mode) — will return when backed by a real timeseries query
+
 ## [1.0.0] — 2026-04-20
 
 ### Added

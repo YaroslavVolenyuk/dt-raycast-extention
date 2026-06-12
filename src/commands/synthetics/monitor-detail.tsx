@@ -76,18 +76,25 @@ ${exec.locationResults
 **Type:** ${m.type}
 **Status:** ${m.enabled ? "🟢 Enabled" : "⚫ Disabled"}
 
-## Health Metrics
+${
+  monitor.availability != null || monitor.failureCount != null || monitor.avgResponseTime != null || exec
+    ? `## Health Metrics
 
-- **Availability:** ${monitor.availability.toFixed(2)}%
-- **Failed Executions:** ${monitor.failureCount}
-- **Average Response Time:** ${monitor.avgResponseTime || "—"}ms
-- **Last Execution:** ${exec ? new Date(exec.timestamp).toLocaleString() : "Never"}
+${monitor.availability != null ? `- **Availability:** ${monitor.availability.toFixed(2)}%` : ""}
+${monitor.failureCount != null ? `- **Failed Executions:** ${monitor.failureCount}` : ""}
+${monitor.avgResponseTime != null ? `- **Average Response Time:** ${monitor.avgResponseTime}ms` : ""}
+${exec ? `- **Last Execution:** ${new Date(exec.timestamp).toLocaleString()}` : ""}
+`
+    : `## Health Metrics
 
+_Execution metrics are not included in the monitor list API — open the monitor in Dynatrace for availability and response times._
+`
+}
 ## Configuration
 
-- **URL:** \`${m.url}\`
-- **Schedule:** Every ${m.schedule.interval} minutes
-- **Locations:** ${m.locations.join(", ")}
+${m.url ? `- **URL:** \`${m.url}\`` : ""}
+${m.schedule ? `- **Schedule:** Every ${m.schedule.interval} minutes` : ""}
+- **Locations:** ${m.locations.join(", ") || "—"}
 - **Owner:** ${m.owner || "Unassigned"}
 
 ${locationTable}
@@ -95,8 +102,8 @@ ${locationTable}
 ## Details
 
 - **Monitor ID:** \`${m.monitorId}\`
-- **Created:** ${new Date(m.createdAt).toLocaleDateString()}
-- **Modified:** ${new Date(m.modifiedAt).toLocaleDateString()}
+${m.createdAt ? `- **Created:** ${new Date(m.createdAt).toLocaleDateString()}` : ""}
+${m.modifiedAt ? `- **Modified:** ${new Date(m.modifiedAt).toLocaleDateString()}` : ""}
 ${exec?.errorMessage ? `- **Last Error:** ${exec.errorMessage}` : ""}
 `;
   }, [monitor]);

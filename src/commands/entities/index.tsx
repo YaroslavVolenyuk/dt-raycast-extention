@@ -66,7 +66,7 @@ export default function EntitiesCommand() {
   const groupedEntities = useMemo(() => {
     const groups: Record<string, Entity[]> = {};
     for (const entity of entities) {
-      const type = entity["entity.type"];
+      const type = entity.type;
       if (!groups[type]) groups[type] = [];
       groups[type].push(entity);
     }
@@ -115,15 +115,15 @@ export default function EntitiesCommand() {
         <List.Section key={type} title={`${type} (${items.length})`}>
           {items.map((entity) => (
             <List.Item
-              key={entity["entity.id"]}
+              key={entity.id}
               icon={getIcon(type)}
-              title={entity["entity.name"]}
-              subtitle={entity["entity.id"]}
+              title={entity.name}
+              subtitle={entity.id}
               actions={
                 <ActionPanel>
-                  <Action.CopyToClipboard content={entity["entity.id"]} title="Copy Entity ID" />
+                  <Action.CopyToClipboard content={entity.id} title="Copy Entity ID" />
                   <Action.CopyToClipboard
-                    content={`${tenant?.tenantEndpoint}/ui/entity/${entity["entity.id"]}`}
+                    content={`${tenant?.tenantEndpoint}/ui/entity/${entity.id}`}
                     title="Copy Entity URL"
                   />
                 </ActionPanel>

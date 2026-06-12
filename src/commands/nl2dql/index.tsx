@@ -102,7 +102,6 @@ export default function Nl2DqlCommand() {
         id="naturalLanguage"
         title="Natural Language Query"
         placeholder="e.g., error logs from payment service last hour"
-        storeValue
       />
       <Form.Description text="Describe what data you're looking for in plain English, and Davis will convert it to a DQL query." />
     </Form>

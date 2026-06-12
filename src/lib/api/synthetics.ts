@@ -3,6 +3,24 @@
 
 import { z } from "zod";
 import { SyntheticMonitorData, MonitorType, ExecutionStatus } from "../types/synthetic";
+import { registerMock } from "./rest";
+import { MOCK_SYNTHETICS } from "./mock";
+
+export const SYNTHETICS_PATH = "/api/v2/synthetic/monitors";
+
+// Module-level registration so any command importing this module gets mock data
+// before the first fetch starts (V13 — useEffect registration races the request).
+registerMock(SYNTHETICS_PATH, {
+  monitors: MOCK_SYNTHETICS.map((m) => ({
+    entityId: m.monitor.monitorId,
+    name: m.monitor.name,
+    type: m.monitor.type,
+    enabled: m.monitor.enabled,
+    locations: m.monitor.locations.map((name) => ({ entityId: name, name })),
+    tags: [],
+  })),
+  totalCount: MOCK_SYNTHETICS.length,
+});
 
 // ── v2 API response shape ────────────────────────────────────────────────────
 
@@ -47,7 +65,9 @@ export type ApiSyntheticMonitor = z.infer<typeof ApiSyntheticMonitorSchema>;
 
 export const SyntheticMonitorListResponseSchema = z.object({
   monitors: z.array(ApiSyntheticMonitorSchema),
-  totalCount: z.number(),
+  // v2 API uses "totalResults"; keep "totalCount" optional for mock compat
+  totalResults: z.number().optional(),
+  totalCount: z.number().optional(),
 });
 
 export type SyntheticMonitorListResponse = z.infer<typeof SyntheticMonitorListResponseSchema>;
@@ -75,15 +95,14 @@ export function apiMonitorToSyntheticMonitorData(m: ApiSyntheticMonitor): Synthe
       type: toMonitorType(m.type),
       url,
       enabled: m.enabled,
-      schedule: { interval: 5 }, // not exposed in list response
+      // schedule / createdAt / modifiedAt are NOT exposed by the list endpoint —
+      // leave them absent instead of fabricating values.
       locations,
-      createdAt: Date.now(),
-      modifiedAt: Date.now(),
     },
-    // Availability and response time require a separate /results call.
-    // Default to 100 / undefined so the list renders without errors.
-    availability: 100,
-    failureCount: 0,
+    // Availability / failure metrics require a separate execution-results call.
+    // Leave undefined — the UI must render "no data", never a fake 100%.
+    availability: undefined,
+    failureCount: undefined,
     avgResponseTime: undefined,
     lastExecution:
       m.status === "INVALID"

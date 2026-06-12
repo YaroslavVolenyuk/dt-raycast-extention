@@ -5,10 +5,8 @@
   "description": "Monitor your Dynatrace environment directly from Raycast — search logs, track problems, inspect deployments and entities.",
   "icon": "dynatrace-icon.png",
   "author": "yaroslav_volenyuk",
-  "version": "1.0.0",
   "platforms": [
-    "macOS",
-    "Windows"
+    "macOS"
   ],
   "categories": [
     "Developer Tools",
@@ -103,9 +101,18 @@
           "type": "dropdown",
           "placeholder": "Hours",
           "data": [
-            { "title": "Minutes", "value": "m" },
-            { "title": "Hours", "value": "h" },
-            { "title": "Days", "value": "d" }
+            {
+              "title": "Minutes",
+              "value": "m"
+            },
+            {
+              "title": "Hours",
+              "value": "h"
+            },
+            {
+              "title": "Days",
+              "value": "d"
+            }
           ],
           "required": false
         },
@@ -114,12 +121,30 @@
           "type": "dropdown",
           "placeholder": "All Logs",
           "data": [
-            { "title": "All Logs", "value": "all" },
-            { "title": "Error", "value": "error" },
-            { "title": "Fatal", "value": "fatal" },
-            { "title": "Warning", "value": "warning" },
-            { "title": "Info", "value": "info" },
-            { "title": "Debug", "value": "debug" }
+            {
+              "title": "All Logs",
+              "value": "all"
+            },
+            {
+              "title": "Error",
+              "value": "error"
+            },
+            {
+              "title": "Fatal",
+              "value": "fatal"
+            },
+            {
+              "title": "Warning",
+              "value": "warning"
+            },
+            {
+              "title": "Info",
+              "value": "info"
+            },
+            {
+              "title": "Debug",
+              "value": "debug"
+            }
           ],
           "required": false
         }
@@ -214,7 +239,7 @@
       "icon": "dynatrace-icon.png",
       "interval": "5m"
     },
-    {
+{
       "name": "dt-traces",
       "title": "Search Traces",
       "subtitle": "Dynatrace",
@@ -239,19 +264,11 @@
       "mode": "view",
       "icon": "dynatrace-icon.png"
     },
-    {
-      "name": "dt-metrics",
-      "title": "Metrics Explorer",
-      "subtitle": "Dynatrace",
-      "description": "Search and view metrics with trends, aggregations, and sparklines",
-      "mode": "view",
-      "icon": "dynatrace-icon.png"
-    },
-    {
+{
       "name": "dt-synthetics",
       "title": "Synthetic Monitors",
       "subtitle": "Dynatrace",
-      "description": "View synthetic monitors with availability, response times, and per-location breakdown",
+      "description": "View synthetic monitors with type, locations, and enabled state",
       "mode": "view",
       "icon": "dynatrace-icon.png"
     },
@@ -259,7 +276,7 @@
       "name": "dt-status",
       "title": "System Status",
       "subtitle": "Dynatrace",
-      "description": "Quick health check dashboard with problems, SLOs, synthetics, and recent deployments",
+      "description": "Quick health check dashboard with problems, SLOs, and synthetic monitors",
       "mode": "view",
       "icon": "dynatrace-icon.png"
     },

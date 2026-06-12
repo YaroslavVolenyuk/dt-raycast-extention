@@ -1,11 +1,11 @@
-// B2-1, B2-2: Workflow executions list with pagination
+// Workflow executions list — single documented Automation API endpoint.
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
+import { useCachedPromise } from "@raycast/utils";
 import type { WorkflowExecution } from "../../lib/types/workflow";
 import type { TenantConfig } from "../../lib/auth";
-import { MOCK_WORKFLOW_EXECUTIONS } from "../../lib/api/mock";
-import { dynatraceRest } from "../../lib/api/rest";
+import { fetchWorkflowExecutions } from "../../lib/api/workflows";
 import ExecutionDetailView from "./execution-detail";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface ExecutionsListProps {
   workflowId: string;
@@ -17,113 +17,59 @@ interface ExecutionsListProps {
 export default function ExecutionsList({ workflowId, workflowName, tenant, onRefresh }: ExecutionsListProps) {
   const { push } = useNavigation();
   const [pageIndex, setPageIndex] = useState(0);
-  const [apiExecutions, setApiExecutions] = useState<WorkflowExecution[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const pageSize = 10;
 
-  // Fetch execution history from API
-  useEffect(() => {
-    if (!tenant) {
-      setApiExecutions([]);
-      return;
-    }
-
-    setIsLoading(true);
-
-    const endpointsToTry = [
-      `/platform/automation/v1/workflows/${workflowId}?includeExecutionHistory=true`,
-      `/platform/automation/v1/workflows/${workflowId}?includeHistory=true`,
-      `/platform/automation/v1/workflows/${workflowId}?include=executionHistory`,
-      `/platform/automation/v1/workflows/${workflowId}?include=history`,
-      `/platform/automation/v1/workflows/${workflowId}/executions`,
-      `/api/v2/workflows/${workflowId}/executions`,
-      `/api/v2/automation/workflows/${workflowId}/executions`,
-      `/api/v2/automations/${workflowId}/executions`,
-      `/api/v2/automations/workflows/${workflowId}/executions`,
-      `/platform/automation/v1/workflows/${workflowId}`, // Works! Returns workflow details
-      `/api/v2/workflows/${workflowId}`,
-      `/api/v2/automations/${workflowId}`,
-    ];
-
-    const attemptEndpoint = async (endpoint: string): Promise<boolean> => {
-      try {
-        const response = await dynatraceRest<Record<string, unknown>>(tenant, endpoint, { method: "GET" });
-
-        // Try to extract executions from various possible response structures
-        let execs: WorkflowExecution[] = [];
-
-        if (Array.isArray(response.data)) {
-          execs = response.data as WorkflowExecution[];
-        } else if (response.data?.results) {
-          execs = response.data.results as WorkflowExecution[];
-        } else if (response.data?.executions) {
-          execs = response.data.executions as WorkflowExecution[];
-        } else if (response.data?.executionHistory) {
-          execs = response.data.executionHistory as WorkflowExecution[];
-        } else if (response.data?.runs) {
-          execs = response.data.runs as WorkflowExecution[];
-        } else if (response.data?.tasks) {
-          // This is workflow detail - no execution data but we got workflow data
-          execs = [];
-        } else if (response.data?.history) {
-          execs = response.data.history as WorkflowExecution[];
-        }
-
-        setApiExecutions(execs);
-
-        // Even if no executions, if we got workflow data, consider it success
-        if (execs.length > 0 || response.data?.id) {
-          return true;
-        }
-
-        return false;
-      } catch {
-        return false;
-      }
-    };
-
-    const tryAllEndpoints = async () => {
-      for (let i = 0; i < endpointsToTry.length; i++) {
-        const success = await attemptEndpoint(endpointsToTry[i]);
-        if (success) {
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      setApiExecutions([]);
-      setIsLoading(false);
-    };
-
-    tryAllEndpoints();
-  }, [tenant, workflowId]);
-
-  // Fallback to mock data if API fails or not available
-  const mockExecutions = MOCK_WORKFLOW_EXECUTIONS.filter((e) => e.workflowId === workflowId);
-  const allExecutions = apiExecutions && apiExecutions.length > 0 ? apiExecutions : mockExecutions;
+  const {
+    data: executions = [],
+    isLoading,
+    error,
+    revalidate,
+  } = useCachedPromise(async (t: TenantConfig, id: string) => fetchWorkflowExecutions(t, id), [tenant!, workflowId], {
+    execute: !!tenant,
+    keepPreviousData: true,
+  });
 
   // Sort by startTime descending (most recent first)
-  const sortedExecutions = [...allExecutions].sort(
+  const sortedExecutions = [...executions].sort(
     (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime(),
   );
 
   // Paginate
-  const totalPages = Math.ceil(sortedExecutions.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(sortedExecutions.length / pageSize));
   const paginatedExecutions = sortedExecutions.slice(pageIndex * pageSize, (pageIndex + 1) * pageSize);
 
   const handleSelectExecution = (execution: WorkflowExecution) => {
     push(
       <ExecutionDetailView
         execution={execution}
-        workflowId={workflowId}
         workflowName={workflowName}
         tenant={tenant}
-        onRefresh={onRefresh}
+        onRefresh={() => {
+          revalidate();
+          onRefresh();
+        }}
       />,
     );
   };
 
-  if (sortedExecutions.length === 0) {
+  if (error) {
+    return (
+      <List>
+        <List.EmptyView
+          icon={Icon.Warning}
+          title="Failed to Load Executions"
+          description={error instanceof Error ? error.message : String(error)}
+          actions={
+            <ActionPanel>
+              <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => revalidate()} />
+            </ActionPanel>
+          }
+        />
+      </List>
+    );
+  }
+
+  if (!isLoading && sortedExecutions.length === 0) {
     return (
       <List>
         <List.EmptyView
@@ -141,6 +87,7 @@ export default function ExecutionsList({ workflowId, workflowName, tenant, onRef
       searchBarPlaceholder="Filter executions by status..."
       actions={
         <ActionPanel>
+          <Action title="Refresh" icon={Icon.ArrowClockwise} onAction={() => revalidate()} />
           {pageIndex > 0 && (
             <Action title="Previous Page" icon={Icon.ChevronLeft} onAction={() => setPageIndex(pageIndex - 1)} />
           )}
@@ -193,7 +140,9 @@ function ExecutionListItem({ execution, onSelect }: ExecutionListItemProps) {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffDays > 0) {
+    if (Number.isNaN(diffMs)) {
+      startTimeStr = "—";
+    } else if (diffDays > 0) {
       startTimeStr = `${diffDays}d ago`;
     } else if (diffHours > 0) {
       startTimeStr = `${diffHours}h ago`;
@@ -203,7 +152,7 @@ function ExecutionListItem({ execution, onSelect }: ExecutionListItemProps) {
       startTimeStr = "now";
     }
   } catch {
-    startTimeStr = "Invalid date";
+    startTimeStr = "—";
   }
 
   // Duration
@@ -219,20 +168,9 @@ function ExecutionListItem({ execution, onSelect }: ExecutionListItemProps) {
     icon?: { source: Icon; tintColor?: Color };
   }> = [];
 
-  // Status icon
-  accessories.push({
-    icon: { source: statusIcon, tintColor: statusColor },
-  });
-
-  // Duration
-  accessories.push({
-    text: durationStr,
-  });
-
-  // Time
-  accessories.push({
-    text: startTimeStr,
-  });
+  accessories.push({ icon: { source: statusIcon, tintColor: statusColor } });
+  accessories.push({ text: durationStr });
+  accessories.push({ text: startTimeStr });
 
   return (
     <List.Item

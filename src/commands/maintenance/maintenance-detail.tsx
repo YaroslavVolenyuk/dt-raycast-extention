@@ -1,12 +1,25 @@
 import React from "react";
-import { Detail, Action, ActionPanel, showToast, Toast, useNavigation, Icon, Keyboard } from "@raycast/api";
+import {
+  Detail,
+  Action,
+  ActionPanel,
+  showToast,
+  Toast,
+  useNavigation,
+  Icon,
+  Keyboard,
+  Clipboard,
+  Alert,
+  confirmAlert,
+} from "@raycast/api";
 import {
   MaintenanceWindow,
   getMaintenanceStatus,
   formatMaintenanceTime,
   getScopeDisplay,
-  MaintenanceWindowStatus,
+  getSuppressionDisplay,
 } from "../../lib/types/maintenance";
+import { deleteMaintenanceWindow } from "../../lib/api/maintenance";
 import { buildDeepLink } from "../../lib/utils/deepLinks";
 import { useTenant } from "../../hooks/useTenant";
 
@@ -20,65 +33,73 @@ export default function MaintenanceDetail({ window, onDeleted }: MaintenanceDeta
   const { tenant } = useTenant();
   const status = getMaintenanceStatus(window);
 
+  const duration =
+    window.startTime != null && window.endTime != null
+      ? `${Math.round((window.endTime - window.startTime) / 60000)} minutes`
+      : "—";
+
   const markdown = `
 # ${window.name}
 
-**Type:** ${window.type}
+**Type:** ${window.maintenanceType}
+**Schedule:** ${window.scheduleType}
 **Status:** ${status}
 
 ## Schedule
 
 - **Start:** ${formatMaintenanceTime(window.startTime)}
 - **End:** ${formatMaintenanceTime(window.endTime)}
-- **Duration:** ${Math.round((window.endTime - window.startTime) / 60000)} minutes
+- **Duration:** ${duration}
+${window.timeZone ? `- **Time Zone:** ${window.timeZone}` : ""}
 
 ## Scope
 
-${getScopeDisplay(window.scope)}
+${getScopeDisplay(window.filters)}
 
 ## Settings
 
-- **Suppress Alerting:** ${window.suppressAlertingEnabled ? "✅ Yes" : "❌ No"}
-- **Suppress Problems:** ${window.suppressProblemsEnabled ? "✅ Yes" : "❌ No"}
+- **Suppression:** ${getSuppressionDisplay(window.suppression)}
+- **Synthetic Execution Disabled:** ${window.disableSyntheticMonitorExecution ? "✅ Yes" : "❌ No"}
 - **Enabled:** ${window.enabled ? "✅ Yes" : "❌ No"}
 
 ${window.description ? `\n## Description\n\n${window.description}` : ""}
-
-${window.createdBy ? `\n## Metadata\n\n- **Created by:** ${window.createdBy}\n- **Created at:** ${window.createdAt ? formatMaintenanceTime(window.createdAt) : "—"}\n- **Modified at:** ${window.modifiedAt ? formatMaintenanceTime(window.modifiedAt) : "—"}` : ""}
 `;
 
-  const handleConfirmDelete = async () => {
-    const response = await showToast({
-      style: Toast.Style.Animated,
-      title: "Deleting...",
+  const handleDelete = async () => {
+    if (!tenant) {
+      await showToast({ style: Toast.Style.Failure, title: "No tenant configured" });
+      return;
+    }
+    const confirmed = await confirmAlert({
+      title: `Delete "${window.name}"?`,
+      message: "The maintenance window will be permanently removed from Dynatrace.",
+      primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
     });
+    if (!confirmed) return;
 
-    // Show confirmation
-    setTimeout(async () => {
-      response.hide();
-      await showToast({
-        style: Toast.Style.Success,
-        title: "Deleted",
-        message: `"${window.name}" has been deleted`,
-      });
+    try {
+      await deleteMaintenanceWindow(tenant, window.id);
+      await showToast({ style: Toast.Style.Success, title: "Deleted", message: `"${window.name}" has been deleted` });
       onDeleted();
       pop();
-    }, 500);
+    } catch (err) {
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Failed to delete",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
   };
 
   const handleCopyId = async () => {
     try {
-      // In real implementation, would copy to clipboard
-      await showToast({
-        style: Toast.Style.Success,
-        title: "Copied",
-        message: "Window ID copied to clipboard",
-      });
+      await Clipboard.copy(window.id);
+      await showToast({ style: Toast.Style.Success, title: "Copied", message: "Window ID copied to clipboard" });
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to copy",
-        message: String(err),
+        message: err instanceof Error ? err.message : String(err),
       });
     }
   };
@@ -101,15 +122,13 @@ ${window.createdBy ? `\n## Metadata\n\n- **Created by:** ${window.createdBy}\n- 
               shortcut={Keyboard.Shortcut.Common.Open}
             />
           )}
-          {(status === MaintenanceWindowStatus.SCHEDULED || status === MaintenanceWindowStatus.PAST) && (
-            <Action
-              title="Delete"
-              onAction={handleConfirmDelete}
-              icon={Icon.Trash}
-              style={Action.Style.Destructive}
-              shortcut={Keyboard.Shortcut.Common.Remove}
-            />
-          )}
+          <Action
+            title="Delete"
+            onAction={handleDelete}
+            icon={Icon.Trash}
+            style={Action.Style.Destructive}
+            shortcut={Keyboard.Shortcut.Common.Remove}
+          />
         </ActionPanel>
       }
     />

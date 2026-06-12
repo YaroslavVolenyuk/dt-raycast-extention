@@ -316,6 +316,13 @@ export default function QueryResultsView({ dql, timeframe, onClose }: QueryResul
                       });
                     }}
                   />
+                  <ActionPanel.Section>
+                    <Action title="Save as Saved Query" icon={Icon.StarCircle} onAction={handleSaveAsTemplate} />
+                    <Action title="Explain Query" icon={Icon.LightBulb} onAction={handleExplainQuery} />
+                    <Action title="Copy All as JSON" icon={Icon.Clipboard} onAction={handleCopyJson} />
+                    <Action title="Copy DQL Query" icon={Icon.Clipboard} onAction={handleCopyDql} />
+                    {onClose && <Action title="Back" icon={Icon.ArrowLeft} onAction={onClose} />}
+                  </ActionPanel.Section>
                 </ActionPanel>
               }
             />
