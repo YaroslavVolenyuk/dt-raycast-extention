@@ -26,7 +26,8 @@ export default function ProblemDetailView({ problem, tenant }: Props) {
 
 ## Problem Info
 - **ID**: ${problem["event.id"]}
-- **Severity**: ${problem["event.severity"]}
+- **Category**: ${problem["event.category"]}
+${problem["event.severity"] ? `- **Severity**: ${problem["event.severity"]}` : ""}
 - **Status**: ${problem["event.status"]}
 - **Duration**: ${formatDuration(problem["event.start"], problem["event.end"])}
 - **Started**: ${formatDateTime(problem["event.start"])}
@@ -46,17 +47,16 @@ ${problem.root_cause_entity_id ? `- ${problem.root_cause_entity_id}` : "Not dete
 ${problem.maintenance_window ? "Yes — This problem is currently under maintenance" : "No"}
 `;
 
-  const handleOpenInDynatrace = () => {
-    // In a real app, we'd use Action.OpenInBrowser
-    // For now, this is a placeholder
-  };
-
   return (
     <Detail
       markdown={markdown}
       actions={
         <ActionPanel>
-          <Action title="Open in Dynatrace" icon={Icon.Link} onAction={handleOpenInDynatrace} />
+          <Action.OpenInBrowser
+            title="Open in Dynatrace"
+            icon={Icon.Link}
+            url={`${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]}`}
+          />
           <Action.CopyToClipboard content={problem["event.id"]} title="Copy Problem ID" />
           <Action.CopyToClipboard
             content={`${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]}`}
@@ -71,7 +71,7 @@ ${problem.maintenance_window ? "Yes — This problem is currently under maintena
                 icon={Icon.ExclamationMark}
                 onAction={() => {
                   const summary = `[Dynatrace] ${problem["event.name"]}`;
-                  const description = `**Severity**: ${problem["event.severity"]}\n**Status**: ${problem["event.status"]}\n**Affected Entities**: ${problem.affected_entity_ids?.join(", ") || "N/A"}\n**Root Cause**: ${problem.root_cause_entity_id || "Not determined"}\n\n[Open in Dynatrace](${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]})`;
+                  const description = `**Category**: ${problem["event.category"]}\n**Status**: ${problem["event.status"]}\n**Affected Entities**: ${problem.affected_entity_ids?.join(", ") || "N/A"}\n**Root Cause**: ${problem.root_cause_entity_id || "Not determined"}\n\n[Open in Dynatrace](${tenant.tenantEndpoint}/ui/problems/${problem["event.id"]})`;
 
                   push(
                     <JiraIssueForm

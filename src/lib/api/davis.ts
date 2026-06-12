@@ -140,21 +140,13 @@ export async function explainDql(tenant: TenantConfig, dql: string): Promise<str
 // ── Ask Davis: General Question Answering ──────────────────────────────────────
 
 /**
- * Ask Davis a question with optional context
- * @param tenant - Tenant configuration
- * @param message - Question text
- * @param context - Optional entity/environment context
- * @param conversationHistory - Optional previous messages for follow-up questions
- * @returns Promise<DavisAnswer> - Davis response with sources
+ * Ask Davis a single question.
+ * Note: conversation context (follow-ups) is intentionally NOT supported —
+ * the API call sends only the message text, so pretending to keep history
+ * in the UI would be dishonest. Add it back only when messageToken-based
+ * conversations are actually wired into the request.
  */
-export async function askDavis(
-  tenant: TenantConfig,
-  message: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  context?: DavisContext,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  conversationHistory?: ConversationMessage[],
-): Promise<DavisAnswer> {
+export async function askDavis(tenant: TenantConfig, message: string): Promise<DavisAnswer> {
   if (isMockMode()) {
     // Look for matching mock answer
     const lowerMessage = message.toLowerCase();

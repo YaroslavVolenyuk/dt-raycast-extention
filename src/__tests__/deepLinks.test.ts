@@ -36,11 +36,6 @@ describe("buildDeepLink", () => {
     expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.entity.explorer/entity/SERVICE-abc123");
   });
 
-  it("should build deep link for SLO", () => {
-    const url = buildDeepLink("slo", "slo-payment-99.9", mockTenant);
-    expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.slo.details/slo/slo-payment-99.9");
-  });
-
   it("should build deep link for log query", () => {
     const url = buildDeepLink("log-query", "log-query-1", mockTenant);
     expect(url).toBe("https://abc123.live.dynatrace.com/ui/apps/dynatrace.log.viewer/logs/log-query-1");
@@ -100,7 +95,6 @@ describe("isSupportedDeepLinkType", () => {
   it("should return true for supported types", () => {
     expect(isSupportedDeepLinkType("problem")).toBe(true);
     expect(isSupportedDeepLinkType("trace")).toBe(true);
-    expect(isSupportedDeepLinkType("slo")).toBe(true);
     expect(isSupportedDeepLinkType("workflow")).toBe(true);
   });
 
@@ -115,13 +109,12 @@ describe("getSupportedDeepLinkTypes", () => {
     const types = getSupportedDeepLinkTypes();
     expect(types).toContain("problem");
     expect(types).toContain("trace");
-    expect(types).toContain("slo");
     expect(types.length).toBeGreaterThan(0);
   });
 
   it("should include all major entity types", () => {
     const types = getSupportedDeepLinkTypes();
-    const required = ["problem", "trace", "entity", "slo", "deployment", "workflow", "synthetic"];
+    const required = ["problem", "trace", "entity", "deployment", "workflow", "synthetic"];
     required.forEach((type) => {
       expect(types).toContain(type);
     });

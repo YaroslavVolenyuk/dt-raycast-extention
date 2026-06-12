@@ -15,6 +15,22 @@ export interface RestClientOptions<T = unknown> {
   queryParams?: Record<string, string>;
   signal?: AbortSignal;
   headers?: Record<string, string>;
+  /** Client-side fetch timeout in ms. Default 30 s — same pattern as grail.ts. */
+  timeoutMs?: number;
+}
+
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/** Combines two AbortSignals into one that aborts when either fires. */
+function combineSignals(a: AbortSignal, b: AbortSignal): AbortSignal {
+  const ctrl = new AbortController();
+  if (a.aborted || b.aborted) {
+    ctrl.abort();
+    return ctrl.signal;
+  }
+  a.addEventListener("abort", () => ctrl.abort(), { once: true });
+  b.addEventListener("abort", () => ctrl.abort(), { once: true });
+  return ctrl.signal;
 }
 
 export interface RestResponse<T> {
@@ -108,13 +124,25 @@ export async function dynatraceRest<T = unknown>(
   _isRetry: boolean = false,
   _skipClassicProxy: boolean = false,
 ): Promise<RestResponse<T>> {
-  const { method = "GET", body, schema, queryParams, signal, headers: customHeaders } = options;
+  const {
+    method = "GET",
+    body,
+    schema,
+    queryParams,
+    signal: userSignal,
+    headers: customHeaders,
+    timeoutMs = DEFAULT_TIMEOUT_MS,
+  } = options;
 
   // ── Mock Mode ─────────────────────────────────────────────────────────────
   if (isMockMode()) {
     devLog(`Mock REST call: ${method} ${path}`, { queryParams });
 
-    const mockData = matchMockPath(path);
+    // Match against path+query so different commands hitting the same path with
+    // different query params (e.g. settings vs maintenance schemaIds) can
+    // register distinct mocks via RegExp patterns.
+    const mockLookupPath = queryParams ? `${path}?${new URLSearchParams(queryParams).toString()}` : path;
+    const mockData = matchMockPath(mockLookupPath) ?? matchMockPath(path);
     if (mockData !== null) {
       devLog(`Mock data found for ${path}`);
 
@@ -182,6 +210,11 @@ export async function dynatraceRest<T = unknown>(
     requestBody = typeof body === "string" ? body : JSON.stringify(body);
   }
 
+  // Client-side timeout — a hung connection must not spin forever in the UI
+  const timeoutCtrl = new AbortController();
+  const timeout = setTimeout(() => timeoutCtrl.abort(), timeoutMs);
+  const signal = userSignal ? combineSignals(userSignal, timeoutCtrl.signal) : timeoutCtrl.signal;
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -192,12 +225,17 @@ export async function dynatraceRest<T = unknown>(
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
+      if (timeoutCtrl.signal.aborted) {
+        throw new RestError(0, "Timeout", `Dynatrace is not responding (${Math.round(timeoutMs / 1000)}s timeout)`);
+      }
       throw new RestError(0, "Aborted", "Request was aborted", err as Error);
     }
     if (err instanceof TypeError) {
       throw new RestError(0, "Network Error", `Network error: ${err.message}`, err);
     }
     throw err;
+  } finally {
+    clearTimeout(timeout);
   }
 
   // Handle non-2xx responses
@@ -211,15 +249,16 @@ export async function dynatraceRest<T = unknown>(
 
     console.error(`[REST] ${method} ${path} → ${response.status}`);
 
-    // 401/403 on Davis CoPilot — subscription or scope missing, retry won't help
-    if ((response.status === 401 || response.status === 403) && path.includes("/davis/")) {
-      throw new DavisCopilotUnavailableError();
-    }
-
-    // 401 — invalidate cache and retry once
+    // 401 — invalidate cache and retry once. Must run BEFORE the Davis 403 mapping,
+    // otherwise a stale cached token on a Davis path looks like a missing subscription.
     if (response.status === 401 && !_isRetry) {
       invalidateTokenCache(tenant.id);
       return dynatraceRest(tenant, path, options, true);
+    }
+
+    // 401 (post-retry) / 403 on Davis CoPilot — subscription or scope missing, retry won't help
+    if ((response.status === 401 || response.status === 403) && path.includes("/davis/")) {
+      throw new DavisCopilotUnavailableError();
     }
 
     // Rate limiting
@@ -357,7 +396,9 @@ export async function dynatraceRestPaginated<T = unknown>(
     } else if (responseData && typeof responseData === "object") {
       const obj = responseData as Record<string, unknown>;
 
-      const recordsField = ["results", "records", "data", "items"].find((field) => Array.isArray(obj[field]));
+      const recordsField = ["results", "records", "data", "items", "slo", "monitors", "values", "problems"].find(
+        (field) => Array.isArray(obj[field]),
+      );
       if (recordsField) {
         allRecords = allRecords.concat(obj[recordsField] as unknown[]);
       } else {
@@ -367,9 +408,10 @@ export async function dynatraceRestPaginated<T = unknown>(
       const pageKey = obj[pageField] as string | number | undefined;
       if (!pageKey) break;
 
-      // Next page — send ONLY the page key (Dynatrace requires no other params alongside nextPageKey)
+      // Next page — send ONLY the page key (Dynatrace requires no other params alongside nextPageKey).
+      // Classic v2 APIs expect the parameter to be named `nextPageKey` (not `pageKey`).
       if (pageField === "nextPageKey") {
-        pageParams = { pageKey: String(pageKey) };
+        pageParams = { nextPageKey: String(pageKey) };
       } else if (pageField === "offset") {
         pageParams = { ...restOptions.queryParams, offset: String(pageKey) };
       } else {

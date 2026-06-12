@@ -10,28 +10,32 @@ import ProblemDetailView from "./problem-detail";
 import { toJson, toCsv, exportToFile } from "../../lib/utils/exportData";
 import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 
-const SEVERITY_ICONS: Record<string, Icon> = {
+const CATEGORY_ICONS: Record<string, Icon> = {
   AVAILABILITY: Icon.XMarkCircle,
   ERROR: Icon.Xmark,
-  PERFORMANCE: Icon.Gauge,
+  SLOWDOWN: Icon.Gauge,
   RESOURCE_CONTENTION: Icon.HardDrive,
   CUSTOM_ALERT: Icon.Bell,
+  MONITORING_UNAVAILABLE: Icon.EyeDisabled,
+  INFO: Icon.Info,
 };
 
-const SEVERITY_COLORS: Record<string, Color> = {
+const CATEGORY_COLORS: Record<string, Color> = {
   AVAILABILITY: Color.Red,
   ERROR: Color.Orange,
-  PERFORMANCE: Color.Yellow,
+  SLOWDOWN: Color.Yellow,
   RESOURCE_CONTENTION: Color.Blue,
   CUSTOM_ALERT: Color.Purple,
+  MONITORING_UNAVAILABLE: Color.SecondaryText,
+  INFO: Color.SecondaryText,
 };
 
-function getIcon(severity: string): Icon {
-  return SEVERITY_ICONS[severity] ?? Icon.Circle;
+function getIcon(category: string): Icon {
+  return CATEGORY_ICONS[category] ?? Icon.Circle;
 }
 
-function getColor(severity: string): Color {
-  return SEVERITY_COLORS[severity] ?? Color.SecondaryText;
+function getColor(category: string): Color {
+  return CATEGORY_COLORS[category] ?? Color.SecondaryText;
 }
 
 function formatDuration(startTime: string, endTime?: string | null): string {
@@ -113,7 +117,8 @@ export default function ProblemsCommand() {
         problems.map((p) => ({
           id: p["event.id"],
           name: p["event.name"],
-          severity: p["event.severity"],
+          category: p["event.category"],
+          severity: p["event.severity"] ?? "",
           status: p["event.status"],
           start: p["event.start"],
           entities: p.affected_entity_ids?.join("; ") || "",
@@ -153,7 +158,8 @@ export default function ProblemsCommand() {
       const rows = problems.map((p) => ({
         id: p["event.id"],
         name: p["event.name"],
-        severity: p["event.severity"],
+        category: p["event.category"],
+        severity: p["event.severity"] ?? "",
         status: p["event.status"],
         start: p["event.start"],
         entities: p.affected_entity_ids?.join("; ") || "",
@@ -171,7 +177,7 @@ export default function ProblemsCommand() {
   };
 
   const problems = data?.records ?? [];
-  // Server-side sorting is handled by buildProblemsQuery (sort event.severity asc, event.start desc)
+  // Server-side sorting is handled by buildProblemsQuery (sort event.start desc)
 
   if (tenantChecked && !tenant) {
     return (
@@ -284,15 +290,15 @@ export default function ProblemsCommand() {
         return (
           <List.Item
             key={problem["event.id"]}
-            icon={getIcon(problem["event.severity"])}
+            icon={getIcon(problem["event.category"])}
             title={namePreview}
             subtitle={entitiesPreview}
             accessories={[
               { icon: Icon.Clock, text: formatTimeAgo(problem["event.start"]), tooltip: problem["event.start"] },
               {
                 tag: {
-                  value: problem["event.severity"],
-                  color: getColor(problem["event.severity"]),
+                  value: problem["event.category"],
+                  color: getColor(problem["event.category"]),
                 },
               },
             ]}

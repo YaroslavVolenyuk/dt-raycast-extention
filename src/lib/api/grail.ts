@@ -2,7 +2,7 @@
 // Pure async function — never calls showToast, never touches React state.
 // useDynatraceQuery wraps this for view-commands; background commands call it directly.
 
-import { getAccessToken, invalidateToken, OAuthError, TenantConfig } from "../auth";
+import { getAccessToken, invalidateTokenCache, OAuthError, TenantConfig } from "../auth";
 import { grailResponseSchema } from "../types/grail";
 import { ZodError, z } from "zod";
 
@@ -107,7 +107,7 @@ export async function executeDqlQuery<T = Record<string, unknown>>(
 
   // 401: invalidate cached token and retry once
   if (response.status === 401 && !_isRetry) {
-    invalidateToken(tenant.id);
+    invalidateTokenCache(tenant.id);
     return executeDqlQuery<T>(tenant, query, { ...options, signal: userSignal }, true);
   }
 

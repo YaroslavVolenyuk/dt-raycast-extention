@@ -9,13 +9,14 @@ export type ExecutionStatus = z.infer<typeof executionStatusSchema>;
 export const triggerTypeSchema = z.enum(["SCHEDULE", "EVENT", "MANUAL"]);
 export type TriggerType = z.infer<typeof triggerTypeSchema>;
 
-// Workflow execution
+// Workflow execution (display model — mapped from the Automation API in lib/api/workflows.ts)
 export const workflowExecutionSchema = z.object({
   id: z.string(),
   workflowId: z.string(),
-  status: executionStatusSchema,
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime().nullable().optional(),
+  // Known states are mapped (SUCCESS→SUCCEEDED, ERROR→FAILED); unknown API states pass through as-is.
+  status: executionStatusSchema.or(z.string()),
+  startTime: z.string(),
+  endTime: z.string().nullable().optional(),
   durationMs: z.number().nullable().optional(),
   triggeredBy: z.string().optional(), // user or trigger type
   result: z

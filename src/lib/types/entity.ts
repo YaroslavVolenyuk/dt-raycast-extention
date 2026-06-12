@@ -2,30 +2,29 @@
 import { z } from "zod";
 import { escapeDqlString } from "../dql/escape";
 
+// smartscapeNodes returns id/name/type (no "entity." prefix)
 export const entitySchema = z.object({
-  "entity.id": z.string(),
-  "entity.name": z.string(),
-  "entity.type": z.enum(["SERVICE", "HOST", "PROCESS_GROUP", "PROCESS_GROUP_INSTANCE"]),
+  id: z.string(),
+  name: z.string(),
+  type: z.string(),
 });
 
 export type Entity = z.infer<typeof entitySchema>;
 
 export function buildEntityQuery(type: string, query: string): string {
+  // fetch dt.entity.* is not universally supported; smartscapeNodes works on all envs
   const typeMap: Record<string, string> = {
-    all: "dt.entity.service",
-    service: "dt.entity.service",
-    host: "dt.entity.host",
-    process_group: "dt.entity.process_group",
+    all: "*",
+    service: "SERVICE",
+    host: "HOST",
+    process_group: "PROCESS_GROUP",
   };
 
-  const table = typeMap[type] || "dt.entity.service";
+  const nodeType = typeMap[type] ?? "*";
 
   if (!query || query.length < 2) {
-    return `fetch ${table} | limit 20`;
+    return `smartscapeNodes "${nodeType}" | limit 20`;
   }
 
-  return `fetch ${table}
-    | filter matchesPhrase(entity.name, "${escapeDqlString(query)}")
-    | fields entity.id, entity.name, entity.type
-    | limit 20`;
+  return `smartscapeNodes "${nodeType}" | filter matchesPhrase(name, "${escapeDqlString(query)}") | limit 20`;
 }

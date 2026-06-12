@@ -1,11 +1,18 @@
 import React, { useState } from "react";
 import { Form, Action, ActionPanel, showToast, Toast, useNavigation } from "@raycast/api";
-import { MaintenanceWindowType, MaintenanceScopeType } from "../../lib/types/maintenance";
+import type { MaintenanceType, MaintenanceSuppression } from "../../lib/types/maintenance";
+import { createMaintenanceWindow } from "../../lib/api/maintenance";
 import { useTenant } from "../../hooks/useTenant";
-import { dynatraceRest } from "../../lib/api/rest";
 
 interface CreateMaintenanceFormProps {
   onCreated: () => void;
+}
+
+type ScopeKind = "ENVIRONMENT" | "MANAGEMENT_ZONE" | "ENTITY";
+
+function toLocalDateTimeString(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:00`;
 }
 
 export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFormProps) {
@@ -13,87 +20,62 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
   const { tenant } = useTenant();
   const [isLoading, setIsLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    type: MaintenanceWindowType.ONE_TIME,
-    scopeType: MaintenanceScopeType.ENVIRONMENT,
-    scopeValue: "",
-    suppressAlerting: true,
-    suppressProblems: false,
-    startDate: new Date().toISOString().split("T")[0],
-    startTime: "02:00",
-    endDate: new Date().toISOString().split("T")[0],
-    endTime: "03:00",
-  });
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [maintenanceType, setMaintenanceType] = useState<MaintenanceType>("PLANNED");
+  const [suppression, setSuppression] = useState<MaintenanceSuppression>("DETECT_PROBLEMS_DONT_ALERT");
+  const [disableSynthetic, setDisableSynthetic] = useState(false);
+  const [startDate, setStartDate] = useState<Date | null>(new Date());
+  const [endDate, setEndDate] = useState<Date | null>(new Date(Date.now() + 60 * 60 * 1000));
+  const [scopeKind, setScopeKind] = useState<ScopeKind>("ENVIRONMENT");
+  const [scopeValue, setScopeValue] = useState("");
 
   const handleSubmit = async () => {
-    if (!form.name.trim()) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Name is required",
-      });
+    if (!name.trim()) {
+      await showToast({ style: Toast.Style.Failure, title: "Name is required" });
+      return;
+    }
+    if (!startDate || !endDate) {
+      await showToast({ style: Toast.Style.Failure, title: "Start and end time are required" });
+      return;
+    }
+    if (startDate >= endDate) {
+      await showToast({ style: Toast.Style.Failure, title: "End time must be after start time" });
+      return;
+    }
+    if (scopeKind !== "ENVIRONMENT" && !scopeValue.trim()) {
+      await showToast({ style: Toast.Style.Failure, title: "Zone/Entity ID is required for the selected scope" });
+      return;
+    }
+    if (!tenant) {
+      await showToast({ style: Toast.Style.Failure, title: "No tenant configured" });
       return;
     }
 
     setIsLoading(true);
-
     try {
-      // Parse dates and times
-      const startDateTime = new Date(`${form.startDate}T${form.startTime}`);
-      const endDateTime = new Date(`${form.endDate}T${form.endTime}`);
-
-      if (startDateTime >= endDateTime) {
-        await showToast({
-          style: Toast.Style.Failure,
-          title: "End time must be after start time",
-        });
-        return;
-      }
-
-      // Create maintenance window object
-      const payload = {
-        type: "application/json",
-        value: {
-          name: form.name,
-          description: form.description,
-          type: form.type,
-          startTime: startDateTime.getTime(),
-          endTime: endDateTime.getTime(),
-          suppressAlertingEnabled: form.suppressAlerting,
-          suppressProblemsEnabled: form.suppressProblems,
-          scope:
-            form.scopeType !== MaintenanceScopeType.ENVIRONMENT
-              ? {
-                  type: form.scopeType,
-                  value: form.scopeValue,
-                }
-              : undefined,
-        },
-      };
-
-      // POST request to create maintenance window
-      if (!tenant) {
-        throw new Error("No tenant configured");
-      }
-      await dynatraceRest(tenant, "/api/v2/settings/objects", {
-        method: "POST",
-        body: JSON.stringify(payload),
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+      await createMaintenanceWindow(tenant, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+        maintenanceType,
+        suppression,
+        disableSyntheticMonitorExecution: disableSynthetic,
+        startTime: toLocalDateTimeString(startDate),
+        endTime: toLocalDateTimeString(endDate),
+        timeZone,
+        entityId: scopeKind === "ENTITY" ? scopeValue.trim() : undefined,
+        managementZone: scopeKind === "MANAGEMENT_ZONE" ? scopeValue.trim() : undefined,
       });
 
-      await showToast({
-        style: Toast.Style.Success,
-        title: "Maintenance window created",
-        message: form.name,
-      });
-
+      await showToast({ style: Toast.Style.Success, title: "Maintenance window created", message: name });
       onCreated();
       pop();
     } catch (err) {
       await showToast({
         style: Toast.Style.Failure,
         title: "Failed to create",
-        message: String(err),
+        message: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setIsLoading(false);
@@ -109,105 +91,67 @@ export default function CreateMaintenanceForm({ onCreated }: CreateMaintenanceFo
         </ActionPanel>
       }
     >
-      <Form.TextField
-        id="name"
-        title="Name"
-        placeholder="e.g., Database Upgrade"
-        value={form.name}
-        onChange={(name) => setForm({ ...form, name })}
-      />
+      <Form.TextField id="name" title="Name" placeholder="e.g., Database Upgrade" value={name} onChange={setName} />
 
       <Form.TextArea
         id="description"
         title="Description"
         placeholder="Optional details about this maintenance..."
-        value={form.description}
-        onChange={(description) => setForm({ ...form, description })}
+        value={description}
+        onChange={setDescription}
       />
 
       <Form.Dropdown
-        id="type"
+        id="maintenanceType"
         title="Type"
-        value={form.type}
-        onChange={(type) => setForm({ ...form, type: type as MaintenanceWindowType })}
+        value={maintenanceType}
+        onChange={(v) => setMaintenanceType(v as MaintenanceType)}
       >
-        <Form.Dropdown.Item value={MaintenanceWindowType.ONE_TIME} title="One Time" />
-        <Form.Dropdown.Item value={MaintenanceWindowType.PLANNED} title="Planned" />
-        <Form.Dropdown.Item value={MaintenanceWindowType.RECURRING} title="Recurring" />
+        <Form.Dropdown.Item value="PLANNED" title="Planned" />
+        <Form.Dropdown.Item value="UNPLANNED" title="Unplanned" />
       </Form.Dropdown>
-
-      <Form.Separator />
-
-      <Form.TextField
-        id="startDate"
-        title="Start Date"
-        value={form.startDate}
-        onChange={(startDate) => setForm({ ...form, startDate })}
-        placeholder="YYYY-MM-DD"
-      />
-
-      <Form.TextField
-        id="startTime"
-        title="Start Time"
-        placeholder="HH:MM"
-        value={form.startTime}
-        onChange={(startTime) => setForm({ ...form, startTime })}
-      />
-
-      <Form.TextField
-        id="endDate"
-        title="End Date"
-        value={form.endDate}
-        onChange={(endDate) => setForm({ ...form, endDate })}
-        placeholder="YYYY-MM-DD"
-      />
-
-      <Form.TextField
-        id="endTime"
-        title="End Time"
-        placeholder="HH:MM"
-        value={form.endTime}
-        onChange={(endTime) => setForm({ ...form, endTime })}
-      />
-
-      <Form.Separator />
 
       <Form.Dropdown
-        id="scopeType"
-        title="Scope"
-        value={form.scopeType}
-        onChange={(scopeType) => setForm({ ...form, scopeType: scopeType as MaintenanceScopeType })}
+        id="suppression"
+        title="Suppression"
+        info="How Davis treats problems during the window"
+        value={suppression}
+        onChange={(v) => setSuppression(v as MaintenanceSuppression)}
       >
-        <Form.Dropdown.Item value={MaintenanceScopeType.ENVIRONMENT} title="All Environment" />
-        <Form.Dropdown.Item value={MaintenanceScopeType.MANAGEMENT_ZONE} title="Management Zone" />
-        <Form.Dropdown.Item value={MaintenanceScopeType.ENTITY} title="Specific Entity" />
+        <Form.Dropdown.Item value="DETECT_PROBLEMS_AND_ALERT" title="Detect Problems and Alert" />
+        <Form.Dropdown.Item value="DETECT_PROBLEMS_DONT_ALERT" title="Detect Problems, Don't Alert" />
+        <Form.Dropdown.Item value="DONT_DETECT_PROBLEMS" title="Don't Detect Problems" />
       </Form.Dropdown>
 
-      {form.scopeType !== MaintenanceScopeType.ENVIRONMENT && (
+      <Form.Checkbox
+        id="disableSynthetic"
+        label="Disable Synthetic Monitor Execution"
+        value={disableSynthetic}
+        onChange={setDisableSynthetic}
+      />
+
+      <Form.Separator />
+
+      <Form.DatePicker id="startDate" title="Start" value={startDate} onChange={setStartDate} />
+      <Form.DatePicker id="endDate" title="End" value={endDate} onChange={setEndDate} />
+
+      <Form.Separator />
+
+      <Form.Dropdown id="scopeKind" title="Scope" value={scopeKind} onChange={(v) => setScopeKind(v as ScopeKind)}>
+        <Form.Dropdown.Item value="ENVIRONMENT" title="All Environment" />
+        <Form.Dropdown.Item value="MANAGEMENT_ZONE" title="Management Zone" />
+        <Form.Dropdown.Item value="ENTITY" title="Specific Entity" />
+      </Form.Dropdown>
+
+      {scopeKind !== "ENVIRONMENT" && (
         <Form.TextField
           id="scopeValue"
-          title="Zone/Entity ID"
-          placeholder="e.g., zone-prod-db or SERVICE-api-gateway"
-          value={form.scopeValue}
-          onChange={(scopeValue) => setForm({ ...form, scopeValue })}
+          title={scopeKind === "MANAGEMENT_ZONE" ? "Management Zone ID" : "Entity ID"}
+          placeholder={scopeKind === "MANAGEMENT_ZONE" ? "e.g., 1234567890" : "e.g., SERVICE-ABC123"}
+          value={scopeValue}
+          onChange={setScopeValue}
         />
       )}
-
-      <Form.Separator />
-
-      <Form.Checkbox
-        id="suppressAlerting"
-        label="Suppress Alerting"
-        value={form.suppressAlerting}
-        onChange={(suppressAlerting) => setForm({ ...form, suppressAlerting })}
-      />
-
-      <Form.Checkbox
-        id="suppressProblems"
-        label="Suppress Problems"
-        value={form.suppressProblems}
-        onChange={(suppressProblems) => setForm({ ...form, suppressProblems })}
-      />
     </Form>
   );
 }

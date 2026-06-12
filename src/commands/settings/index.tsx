@@ -1,11 +1,10 @@
 // B3-1: Settings / Config Management — search and browse configuration objects
 import { List, Action, ActionPanel, Icon, Color, useNavigation } from "@raycast/api";
-import { useDynatraceRest } from "../../lib/api/useRest";
-import { settingsApiResponseSchema, getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
+import { useCachedPromise } from "@raycast/utils";
+import { getSettingsTypeLabel, getSettingsTypeIcon } from "../../lib/types/settings";
 import type { SettingsObject, SettingsType } from "../../lib/types/settings";
-import { registerMock } from "../../lib/api/rest";
-import { useState, useEffect } from "react";
-import { MOCK_SETTINGS } from "../../lib/api/mock";
+import { fetchSettingsObjects } from "../../lib/api/settings";
+import { useState } from "react";
 import { useTenant } from "../../hooks/useTenant";
 import SettingDetailView from "./setting-detail";
 
@@ -13,24 +12,15 @@ export default function SettingsCommand() {
   const { tenant } = useTenant();
   const [filterSchemaId, setFilterSchemaId] = useState<string | null>(null);
 
-  useEffect(() => {
-    registerMock("/api/v2/settings/objects", { items: MOCK_SETTINGS, totalCount: MOCK_SETTINGS.length });
-  }, []);
-
-  const restOptions = {
-    schema: settingsApiResponseSchema,
-    enabled: !!tenant,
-    queryParams: { scopes: "environment" },
-  };
-
   const {
-    data: settingsResponse,
+    data: settings = [],
     isLoading,
     error,
     revalidate,
-  } = useDynatraceRest<{ items: SettingsObject[] }>(tenant ?? undefined, "/api/v2/settings/objects", restOptions);
-
-  const settings = settingsResponse?.items ?? [];
+  } = useCachedPromise(async (t) => fetchSettingsObjects(t), [tenant!], {
+    execute: !!tenant,
+    keepPreviousData: true,
+  });
 
   const { push } = useNavigation();
 
@@ -41,7 +31,16 @@ export default function SettingsCommand() {
   if (error) {
     return (
       <List>
-        <List.EmptyView icon={Icon.Binoculars} title="Error" description={error} />
+        <List.EmptyView
+          icon={Icon.Warning}
+          title="Failed to Load Settings"
+          description={error instanceof Error ? error.message : String(error)}
+          actions={
+            <ActionPanel>
+              <Action title="Retry" icon={Icon.ArrowClockwise} onAction={() => revalidate()} />
+            </ActionPanel>
+          }
+        />
       </List>
     );
   }

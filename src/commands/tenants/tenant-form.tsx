@@ -11,7 +11,11 @@ import { assertHttps, isKnownDynatraceHost } from "../../lib/utils/urlSafety";
 
 const DEFAULT_SSO = "https://sso.dynatrace.com/sso/oauth2/token";
 
-const DEFAULT_SCOPES = [
+// Least privilege: the default scope set is READ-ONLY.
+// Write scopes are opt-in via the checkbox below — commands that need them
+// (Workflow execute, Maintenance create/delete) degrade with a clear
+// missing-scope error when they are not granted.
+const READ_ONLY_SCOPES = [
   "storage:logs:read",
   "storage:problems:read",
   "storage:events:read",
@@ -19,22 +23,19 @@ const DEFAULT_SCOPES = [
   "storage:metrics:read",
   "entity:read",
   "settings:objects:read",
-  "settings:objects:write",
   "settings:schemas:read",
-  "settings:objects:admin",
   "slo:read",
   "automation:workflows:read",
-  "automation:workflows:write",
-  "automation:workflows:execute",
   "davis:analyzers:read",
   "davis:analyzers:execute",
   "davis-copilot:conversations:execute",
   "davis-copilot:nl2dql:execute",
   "davis-copilot:dql2nl:execute",
-  "davis-copilot:document-search:execute",
-  "hub:catalog:read",
-  "oauth2:clients:manage",
-].join(" ");
+];
+
+const WRITE_SCOPES = ["settings:objects:write", "automation:workflows:write", "automation:workflows:execute"];
+
+const DEFAULT_SCOPES = READ_ONLY_SCOPES.join(" ");
 
 interface Props {
   existing?: TenantConfig;
@@ -221,8 +222,8 @@ export default function TenantForm({ existing, onSave }: Props) {
         id="scopes"
         title="Scopes"
         placeholder={DEFAULT_SCOPES}
-        defaultValue={existing?.scopes.join("\n") || DEFAULT_SCOPES.split(" ").join("\n")}
-        info="One scope per line (or space-separated)"
+        defaultValue={existing?.scopes.join("\n") || READ_ONLY_SCOPES.join("\n")}
+        info={`One scope per line (or space-separated). Default is read-only. For executing Workflows and creating/deleting Maintenance Windows, additionally add: ${WRITE_SCOPES.join(", ")}`}
       />
       <Form.TextField
         id="accountUrn"

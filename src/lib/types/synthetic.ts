@@ -43,16 +43,19 @@ export const SyntheticMonitorSchema = z.object({
   monitorId: z.string(),
   name: z.string(),
   type: z.nativeEnum(MonitorType),
-  url: z.string().url().describe("Monitor URL/endpoint"),
+  url: z.string().describe("Monitor URL/endpoint — may be empty for BROWSER monitors"),
   enabled: z.boolean().default(true),
-  schedule: z.object({
-    interval: z.number().describe("Interval in minutes"),
-    timezone: z.string().optional(),
-  }),
+  // Not exposed by the v2 list endpoint — only present when a detail call provided it.
+  schedule: z
+    .object({
+      interval: z.number().describe("Interval in minutes"),
+      timezone: z.string().optional(),
+    })
+    .optional(),
   locations: z.array(z.string()).describe("List of execution locations"),
   owner: z.string().optional(),
-  createdAt: z.number(),
-  modifiedAt: z.number(),
+  createdAt: z.number().optional(),
+  modifiedAt: z.number().optional(),
   tags: z.record(z.string(), z.string()).optional(),
 });
 
@@ -63,8 +66,10 @@ export type SyntheticMonitor = z.infer<typeof SyntheticMonitorSchema>;
  */
 export const SyntheticMonitorDataSchema = z.object({
   monitor: SyntheticMonitorSchema,
-  availability: z.number().min(0).max(100).describe("Availability percentage"),
-  failureCount: z.number().describe("Number of failed executions"),
+  // Optional: the v2 list endpoint does not provide execution metrics.
+  // Never fabricate these — absent means "not fetched", and the UI must say so.
+  availability: z.number().min(0).max(100).optional().describe("Availability percentage"),
+  failureCount: z.number().optional().describe("Number of failed executions"),
   avgResponseTime: z.number().optional().describe("Average response time in ms"),
   lastExecution: MonitorExecutionSchema.optional(),
   recentExecutions: z.array(MonitorExecutionSchema).optional(),
@@ -73,13 +78,11 @@ export const SyntheticMonitorDataSchema = z.object({
 export type SyntheticMonitorData = z.infer<typeof SyntheticMonitorDataSchema>;
 
 /**
- * Calculate status color based on availability and status
+ * Last known execution status, or null when no execution data is available.
+ * Callers must treat null as "unknown" — not as OK.
  */
-export function getMonitorStatus(monitor: SyntheticMonitorData): ExecutionStatus {
-  if (!monitor.lastExecution) {
-    return ExecutionStatus.OK;
-  }
-  return monitor.lastExecution.status;
+export function getMonitorStatus(monitor: SyntheticMonitorData): ExecutionStatus | null {
+  return monitor.lastExecution?.status ?? null;
 }
 
 /**

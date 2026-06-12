@@ -10,7 +10,6 @@ export type DeepLinkType =
   | "trace"
   | "entity"
   | "log-query"
-  | "slo"
   | "deployment"
   | "workflow"
   | "synthetic"
@@ -56,10 +55,6 @@ const DEEP_LINK_CONFIG: Record<DeepLinkType, DeepLinkConfig> = {
   "log-query": {
     appId: "dynatrace.log.viewer",
     pathPattern: (id) => `/logs/${encodeEntityIdForUrl(id)}`,
-  },
-  slo: {
-    appId: "dynatrace.slo.details",
-    pathPattern: (id) => `/slo/${encodeEntityIdForUrl(id)}`,
   },
   deployment: {
     appId: "dynatrace.deployments",
@@ -108,7 +103,7 @@ const DEEP_LINK_CONFIG: Record<DeepLinkType, DeepLinkConfig> = {
 /**
  * Build a deep link to a Dynatrace UI page
  *
- * @param type - Type of entity (problem, trace, entity, log-query, slo, deployment, etc.)
+ * @param type - Type of entity (problem, trace, entity, log-query, deployment, etc.)
  * @param id - Entity ID (problem ID, trace ID, entity ID, etc.)
  * @param tenant - Tenant configuration (for tenantEndpoint)
  * @returns Full URL to open in browser
@@ -117,9 +112,6 @@ const DEEP_LINK_CONFIG: Record<DeepLinkType, DeepLinkConfig> = {
  * const url = buildDeepLink("problem", "PROBLEM-ABC123", tenant);
  * // Returns: https://abc123.live.dynatrace.com/ui/apps/dynatrace.problems/problems/PROBLEM-ABC123
  *
- * @example
- * const url = buildDeepLink("slo", "slo-payment-99.9", tenant);
- * // Returns: https://abc123.live.dynatrace.com/ui/apps/dynatrace.slo.details/slo/slo-payment-99.9
  */
 export function buildDeepLink(type: DeepLinkType, id: string, tenant: TenantConfig): string {
   // Get app ID and path pattern, or use fallback
@@ -170,7 +162,6 @@ export function examples(tenant: TenantConfig): Record<DeepLinkType, string> {
     trace: buildDeepLink("trace", "TRACE-XYZ789", tenant),
     entity: buildDeepLink("entity", "SERVICE-abc123def", tenant),
     "log-query": buildDeepLink("log-query", "log-query-1", tenant),
-    slo: buildDeepLink("slo", "slo-payment-service", tenant),
     deployment: buildDeepLink("deployment", "DEPLOYMENT-001", tenant),
     workflow: buildDeepLink("workflow", "workflow-abc123", tenant),
     synthetic: buildDeepLink("synthetic", "SYNTHETIC-monitor-1", tenant),

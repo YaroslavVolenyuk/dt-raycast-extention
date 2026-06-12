@@ -6,8 +6,9 @@ export const settingsTypeSchema = z.string().regex(/^builtin:/, { message: "sche
 
 export type SettingsType = string;
 
-// Settings scope (where the setting applies)
-export const settingsScopeSchema = z.enum(["ENVIRONMENT", "MANAGEMENT_ZONE", "ENTITY", "APPLICATION"]);
+// Settings scope (where the setting applies).
+// The API returns free-form scopes like "environment" or an entity id — keep as string.
+export const settingsScopeSchema = z.string();
 
 export type SettingsScope = z.infer<typeof settingsScopeSchema>;
 
@@ -28,12 +29,6 @@ export const settingsObjectSchema = z.object({
 });
 
 export const settingsListSchema = z.array(settingsObjectSchema);
-
-export const settingsApiResponseSchema = z.object({
-  items: z.array(settingsObjectSchema),
-  totalCount: z.number().optional(),
-  nextPageKey: z.string().optional(),
-});
 
 export type SettingsObject = z.infer<typeof settingsObjectSchema>;
 

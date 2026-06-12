@@ -132,37 +132,6 @@ describe("Davis CoPilot API", () => {
       expect(result.text).toContain("deployment");
     });
 
-    it("should support conversation history", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { isMockMode } = require("../lib/devMode");
-      isMockMode.mockReturnValue(true);
-
-      const history = [
-        { role: "user" as const, content: "what's the issue" },
-        { role: "assistant" as const, content: "There's a latency issue" },
-      ];
-
-      const result = await askDavis(mockTenant, "is it critical", undefined, history);
-
-      expect(result.text).toBeTruthy();
-    });
-
-    it("should support entity context", async () => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { isMockMode } = require("../lib/devMode");
-      isMockMode.mockReturnValue(true);
-
-      const context = {
-        entityName: "payment-service",
-        entityType: "SERVICE",
-        entityId: "SERVICE-payment-service",
-      };
-
-      const result = await askDavis(mockTenant, "how is this service performing", context);
-
-      expect(result.text).toBeTruthy();
-    });
-
     it("should return sources with relevant information", async () => {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { isMockMode } = require("../lib/devMode");

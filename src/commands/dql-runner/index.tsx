@@ -5,44 +5,41 @@ import { useState, useEffect } from "react";
 import { saveSavedQuery } from "../../lib/savedQueries";
 import { useActiveTenant } from "../../lib/hooks/useActiveTenant";
 import { StorageKeys } from "../../lib/storageKeys";
+import { parseTimeframe, parseTimeExpression } from "../../lib/utils/parseTimeframe";
 import QueryResultsView from "./query-results";
 
 interface DqlPreset {
   dql: string;
   timeframePreset?: string;
-  timeframeCustomFrom?: string;
-  timeframeCustomTo?: string;
 }
 
 interface FormValues {
   tenantId: string;
   dql: string;
   timeframePreset: string;
-  timeframeCustomFrom?: string;
-  timeframeCustomTo?: string;
+  customFrom?: string;
+  customTo?: string;
   saveAsTemplate: boolean;
   templateName?: string;
 }
 
 interface FormState {
   timeframePreset: string;
-  customFrom?: Date;
-  customTo?: Date;
+  customFrom: string;
+  customTo: string;
 }
 
 export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
   const { tenant: activeTenantObj, tenants: allTenants } = useActiveTenant();
   const [activeTenant, setActiveTenantState] = useState<string>("");
-  // Controlled DQL value — required so async preset actually populates the field
   const [dqlValue, setDqlValue] = useState<string>("");
-  const [formState, setFormState] = useState<FormState>({ timeframePreset: "1h" });
+  const [formState, setFormState] = useState<FormState>({ timeframePreset: "1h", customFrom: "-1h", customTo: "now" });
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<{
     dql: string;
     timeframe?: { start: string; end: string };
   } | null>(null);
 
-  // Sync active tenant selection when hook resolves
   useEffect(() => {
     if (activeTenantObj && !activeTenant) {
       setActiveTenantState(activeTenantObj.id);
@@ -50,7 +47,6 @@ export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
   }, [activeTenantObj, activeTenant]);
 
   useEffect(() => {
-    // Prefer preset from launchContext (B2 fix); fall back to LocalStorage for backward compat
     const contextPreset = (props.launchContext?.preset as DqlPreset | undefined) ?? null;
 
     LocalStorage.getItem(StorageKeys.dqlRunnerPreset).then(async (storedPreset) => {
@@ -70,7 +66,6 @@ export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
         setDqlValue(preset.dql || "");
         const timeframe = preset.timeframePreset || "1h";
         setFormState((prev) => ({ ...prev, timeframePreset: timeframe }));
-        // Clean up LocalStorage preset after loading
         if (storedPreset) await LocalStorage.removeItem(StorageKeys.dqlRunnerPreset);
       }
     });
@@ -80,50 +75,49 @@ export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
     setIsLoading(true);
 
     try {
-      // Use the selected tenant locally — do NOT write to tenants:active
       const tenant = allTenants.find((t) => t.id === values.tenantId);
       if (!tenant) {
         await showToast({ style: Toast.Style.Failure, title: "No Tenant Selected", message: "Please select a tenant" });
         return;
       }
 
-      // Save template if requested
-      if (values.saveAsTemplate && values.templateName?.trim()) {
-        await saveSavedQuery({
-          name: values.templateName.trim(),
-          dql: values.dql,
-          tenantId: values.tenantId || undefined,
-          timeframe: values.timeframePreset ?? "",
-          isFavorite: false,
-        });
-        await showToast({ style: Toast.Style.Success, title: "Template saved", message: values.templateName.trim() });
+      // Build timeframe
+      let timeframe: { start: string; end: string } | undefined;
+      if (values.timeframePreset === "custom") {
+        const from = parseTimeExpression(formState.customFrom);
+        const to = parseTimeExpression(formState.customTo);
+        if (!from || !to) {
+          await showToast({
+            style: Toast.Style.Failure,
+            title: "Invalid timeframe",
+            message: 'Use expressions like "-2h", "-30m", "now", or an ISO date.',
+          });
+          return;
+        }
+        timeframe = { start: from.toISOString(), end: to.toISOString() };
+      } else {
+        timeframe = parseTimeframe(values.timeframePreset);
       }
 
-      // Build timeframe from preset or custom
-      let timeframe: { start: string; end: string } | undefined;
-      if (values.timeframePreset !== "custom") {
-        const now = new Date();
-        const start = new Date();
-        switch (values.timeframePreset) {
-          case "15m":
-            start.setMinutes(start.getMinutes() - 15);
-            break;
-          case "1h":
-            start.setHours(start.getHours() - 1);
-            break;
-          case "4h":
-            start.setHours(start.getHours() - 4);
-            break;
-          case "24h":
-            start.setHours(start.getHours() - 24);
-            break;
-          case "7d":
-            start.setDate(start.getDate() - 7);
-            break;
+      // Save template if requested — run independently so save errors don't block the query
+      if (values.saveAsTemplate) {
+        const templateName =
+          values.templateName?.trim() ||
+          `Query - ${new Date().toLocaleString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+        try {
+          await saveSavedQuery({
+            name: templateName,
+            dql: values.dql,
+            tenantId: values.tenantId || undefined,
+            timeframe:
+              values.timeframePreset === "custom" ? `${timeframe!.start}|${timeframe!.end}` : values.timeframePreset,
+            isFavorite: false,
+          });
+          await showToast({ style: Toast.Style.Success, title: "Template saved", message: templateName });
+        } catch (saveErr) {
+          const msg = saveErr instanceof Error ? saveErr.message : "Unknown error";
+          await showToast({ style: Toast.Style.Failure, title: "Failed to save template", message: msg });
         }
-        timeframe = { start: start.toISOString(), end: now.toISOString() };
-      } else if (formState.customFrom && formState.customTo) {
-        timeframe = { start: formState.customFrom.toISOString(), end: formState.customTo.toISOString() };
       }
 
       setResults({ dql: values.dql, timeframe });
@@ -172,35 +166,50 @@ export default function DqlRunnerCommand(props: Partial<LaunchProps> = {}) {
 
       <Form.Separator />
 
-      <Form.Description text="Select timeframe for the query" />
       <Form.Dropdown
         id="timeframePreset"
         title="Timeframe"
         value={formState.timeframePreset}
-        onChange={(value) => setFormState({ timeframePreset: value })}
+        onChange={(value) => setFormState((prev) => ({ ...prev, timeframePreset: value }))}
         storeValue
       >
-        <Form.Dropdown.Item value="15m" title="Last 15 minutes" />
-        <Form.Dropdown.Item value="1h" title="Last hour" />
-        <Form.Dropdown.Item value="4h" title="Last 4 hours" />
-        <Form.Dropdown.Item value="24h" title="Last 24 hours" />
-        <Form.Dropdown.Item value="7d" title="Last 7 days" />
-        <Form.Dropdown.Item value="custom" title="Custom range" />
+        <Form.Dropdown.Section>
+          <Form.Dropdown.Item value="custom" title="Custom range…" />
+        </Form.Dropdown.Section>
+        <Form.Dropdown.Section title="Relative">
+          <Form.Dropdown.Item value="15m" title="Last 15 minutes" />
+          <Form.Dropdown.Item value="30m" title="Last 30 minutes" />
+          <Form.Dropdown.Item value="1h" title="Last 1 hour" />
+          <Form.Dropdown.Item value="2h" title="Last 2 hours" />
+          <Form.Dropdown.Item value="6h" title="Last 6 hours" />
+          <Form.Dropdown.Item value="12h" title="Last 12 hours" />
+          <Form.Dropdown.Item value="24h" title="Last 24 hours" />
+          <Form.Dropdown.Item value="3d" title="Last 3 days" />
+          <Form.Dropdown.Item value="7d" title="Last 7 days" />
+        </Form.Dropdown.Section>
+        <Form.Dropdown.Section title="Calendar">
+          <Form.Dropdown.Item value="today" title="Today" />
+          <Form.Dropdown.Item value="yesterday" title="Yesterday" />
+        </Form.Dropdown.Section>
       </Form.Dropdown>
 
       {formState.timeframePreset === "custom" && (
         <>
-          <Form.DatePicker
-            id="timeframeCustomFrom"
+          <Form.TextField
+            id="customFrom"
             title="From"
+            placeholder="-2h"
             value={formState.customFrom}
-            onChange={(date) => setFormState((prev) => ({ ...prev, customFrom: date ?? undefined }))}
+            onChange={(v) => setFormState((prev) => ({ ...prev, customFrom: v }))}
+            info='Relative: "-30m", "-2h", "-3d" — or an ISO date'
           />
-          <Form.DatePicker
-            id="timeframeCustomTo"
+          <Form.TextField
+            id="customTo"
             title="To"
+            placeholder="now"
             value={formState.customTo}
-            onChange={(date) => setFormState((prev) => ({ ...prev, customTo: date ?? undefined }))}
+            onChange={(v) => setFormState((prev) => ({ ...prev, customTo: v }))}
+            info='"now" or an ISO date'
           />
         </>
       )}

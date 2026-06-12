@@ -15,7 +15,6 @@ import type { MetricData } from "../types/metric";
 import type { SyntheticMonitorData } from "../types/synthetic";
 import { ExecutionStatus, MonitorType } from "../types/synthetic";
 import type { MaintenanceWindow } from "../types/maintenance";
-import { MaintenanceWindowType, MaintenanceScopeType } from "../types/maintenance";
 
 export function ago(ms: number): string {
   return new Date(Date.now() - ms).toISOString();
@@ -214,7 +213,8 @@ export const MOCK_PROBLEMS: Problem[] = [
     "event.id": "PROB-001",
     "event.name": "Payment service response time degradation",
     "event.status": "OPEN",
-    "event.severity": "PERFORMANCE",
+    "event.category": "SLOWDOWN",
+    "event.severity": "3",
     "event.start": ago(45 * m),
     "event.end": null,
     affected_entity_ids: ["SERVICE-payment-service", "HOST-abc123"],
@@ -225,7 +225,8 @@ export const MOCK_PROBLEMS: Problem[] = [
     "event.id": "PROB-002",
     "event.name": "Database connection pool exhaustion on db-primary",
     "event.status": "OPEN",
-    "event.severity": "AVAILABILITY",
+    "event.category": "AVAILABILITY",
+    "event.severity": "3",
     "event.start": ago(20 * m),
     "event.end": null,
     affected_entity_ids: ["HOST-db-primary", "SERVICE-order-service", "SERVICE-user-service"],
@@ -236,7 +237,8 @@ export const MOCK_PROBLEMS: Problem[] = [
     "event.id": "PROB-003",
     "event.name": "Order processor Lambda high error rate",
     "event.status": "OPEN",
-    "event.severity": "ERROR",
+    "event.category": "ERROR",
+    "event.severity": "3",
     "event.start": ago(30 * m),
     "event.end": null,
     affected_entity_ids: ["SERVICE-order-processor-lambda"],
@@ -247,7 +249,8 @@ export const MOCK_PROBLEMS: Problem[] = [
     "event.id": "PROB-004",
     "event.name": "Inventory service JVM memory pressure",
     "event.status": "OPEN",
-    "event.severity": "RESOURCE_CONTENTION",
+    "event.category": "RESOURCE_CONTENTION",
+    "event.severity": "3",
     "event.start": ago(1 * h + 15 * m),
     "event.end": null,
     affected_entity_ids: ["SERVICE-inventory-service", "HOST-inv02"],
@@ -258,7 +261,8 @@ export const MOCK_PROBLEMS: Problem[] = [
     "event.id": "PROB-005",
     "event.name": "Custom alert: API error rate threshold exceeded",
     "event.status": "OPEN",
-    "event.severity": "CUSTOM_ALERT",
+    "event.category": "CUSTOM_ALERT",
+    "event.severity": "3",
     "event.start": ago(10 * m),
     "event.end": null,
     affected_entity_ids: ["SERVICE-graphql-api"],
@@ -397,76 +401,20 @@ export const MOCK_SPANS: Span[] = [
 
 // Mock Entities (Services, Hosts, Process Groups)
 export const MOCK_ENTITIES: Entity[] = [
-  {
-    "entity.id": "SERVICE-payment-service",
-    "entity.name": "payment-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-order-service",
-    "entity.name": "order-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-user-service",
-    "entity.name": "user-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-api-gateway",
-    "entity.name": "api-gateway",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-auth-service",
-    "entity.name": "auth-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-cache-service",
-    "entity.name": "cache-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-billing-service",
-    "entity.name": "billing-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "SERVICE-inventory-service",
-    "entity.name": "inventory-service",
-    "entity.type": "SERVICE",
-  },
-  {
-    "entity.id": "HOST-abc123",
-    "entity.name": "prod-api-01.internal.company.com",
-    "entity.type": "HOST",
-  },
-  {
-    "entity.id": "HOST-def456",
-    "entity.name": "prod-db-primary.internal.company.com",
-    "entity.type": "HOST",
-  },
-  {
-    "entity.id": "HOST-ghi789",
-    "entity.name": "prod-cache-01.internal.company.com",
-    "entity.type": "HOST",
-  },
-  {
-    "entity.id": "PG-payment-java",
-    "entity.name": "payment-service-java-processes",
-    "entity.type": "PROCESS_GROUP",
-  },
-  {
-    "entity.id": "PG-order-nodejs",
-    "entity.name": "order-service-nodejs-processes",
-    "entity.type": "PROCESS_GROUP",
-  },
-  {
-    "entity.id": "PG-user-python",
-    "entity.name": "user-service-python-processes",
-    "entity.type": "PROCESS_GROUP",
-  },
+  { id: "SERVICE-payment-service", name: "payment-service", type: "SERVICE" },
+  { id: "SERVICE-order-service", name: "order-service", type: "SERVICE" },
+  { id: "SERVICE-user-service", name: "user-service", type: "SERVICE" },
+  { id: "SERVICE-api-gateway", name: "api-gateway", type: "SERVICE" },
+  { id: "SERVICE-auth-service", name: "auth-service", type: "SERVICE" },
+  { id: "SERVICE-cache-service", name: "cache-service", type: "SERVICE" },
+  { id: "SERVICE-billing-service", name: "billing-service", type: "SERVICE" },
+  { id: "SERVICE-inventory-service", name: "inventory-service", type: "SERVICE" },
+  { id: "HOST-abc123", name: "prod-api-01.internal.company.com", type: "HOST" },
+  { id: "HOST-def456", name: "prod-db-primary.internal.company.com", type: "HOST" },
+  { id: "HOST-ghi789", name: "prod-cache-01.internal.company.com", type: "HOST" },
+  { id: "PG-payment-java", name: "payment-service-java-processes", type: "PROCESS_GROUP" },
+  { id: "PG-order-nodejs", name: "order-service-nodejs-processes", type: "PROCESS_GROUP" },
+  { id: "PG-user-python", name: "user-service-python-processes", type: "PROCESS_GROUP" },
 ];
 
 // Mock Saved Queries
@@ -1539,81 +1487,62 @@ export const MOCK_MAINTENANCE_WINDOWS: MaintenanceWindow[] = [
   {
     id: "maint-001",
     name: "Database Upgrade - Production",
-    type: MaintenanceWindowType.ONE_TIME,
     description: "Major version upgrade for PostgreSQL cluster",
+    maintenanceType: "PLANNED",
+    scheduleType: "ONCE",
+    suppression: "DONT_DETECT_PROBLEMS",
     startTime: Date.now() - 30 * m, // Currently active (started 30 min ago)
     endTime: Date.now() + 90 * m, // Ends in 90 min
-    suppressAlertingEnabled: true,
-    suppressProblemsEnabled: true,
-    scope: {
-      type: MaintenanceScopeType.MANAGEMENT_ZONE,
-      value: "zone-prod-db",
-    },
-    createdBy: "devops-team",
-    createdAt: Date.now() - 7 * d,
-    modifiedAt: Date.now() - 30 * m,
+    timeZone: "UTC",
     enabled: true,
+    filters: [{ managementZones: ["zone-prod-db"] }],
   },
   {
     id: "maint-002",
     name: "API Gateway Rolling Restart",
-    type: MaintenanceWindowType.PLANNED,
     description: "Zero-downtime restart with blue-green deployment",
+    maintenanceType: "PLANNED",
+    scheduleType: "ONCE",
+    suppression: "DETECT_PROBLEMS_DONT_ALERT",
     startTime: Date.now() + 2 * h, // Scheduled in 2 hours
     endTime: Date.now() + 3 * h,
-    suppressAlertingEnabled: true,
-    suppressProblemsEnabled: false,
-    scope: {
-      type: MaintenanceScopeType.ENTITY,
-      value: "SERVICE-api-gateway",
-    },
-    createdBy: "sre-team",
-    createdAt: Date.now() - 2 * d,
+    timeZone: "UTC",
     enabled: true,
+    filters: [{ entityId: "SERVICE-api-gateway" }],
   },
   {
     id: "maint-003",
     name: "Elasticsearch Cluster Maintenance",
-    type: MaintenanceWindowType.RECURRING,
+    maintenanceType: "PLANNED",
+    scheduleType: "WEEKLY",
+    suppression: "DONT_DETECT_PROBLEMS",
     startTime: Date.now() + 24 * h, // Tomorrow
     endTime: Date.now() + 26 * h,
-    suppressAlertingEnabled: true,
-    suppressProblemsEnabled: true,
-    scope: {
-      type: MaintenanceScopeType.MANAGEMENT_ZONE,
-      value: "zone-logs",
-    },
-    createdBy: "infra-team",
-    createdAt: Date.now() - 14 * d,
     enabled: true,
+    filters: [{ managementZones: ["zone-logs"] }],
   },
   {
     id: "maint-004",
     name: "Network Maintenance - ISP Work",
-    type: MaintenanceWindowType.ONE_TIME,
+    maintenanceType: "UNPLANNED",
+    scheduleType: "ONCE",
+    suppression: "DETECT_PROBLEMS_DONT_ALERT",
     startTime: Date.now() - 3 * d, // Ended 3 days ago
     endTime: Date.now() - 3 * d + 4 * h,
-    suppressAlertingEnabled: true,
-    suppressProblemsEnabled: false,
-    createdBy: "network-team",
-    createdAt: Date.now() - 10 * d,
+    timeZone: "UTC",
     enabled: true,
   },
   {
     id: "maint-005",
     name: "Kubernetes Node Patching",
-    type: MaintenanceWindowType.PLANNED,
     description: "Security patches for control plane and worker nodes",
+    maintenanceType: "PLANNED",
+    scheduleType: "ONCE",
+    suppression: "DETECT_PROBLEMS_AND_ALERT",
     startTime: Date.now() + 48 * h,
     endTime: Date.now() + 50 * h,
-    suppressAlertingEnabled: false,
-    suppressProblemsEnabled: false,
-    scope: {
-      type: MaintenanceScopeType.MANAGEMENT_ZONE,
-      value: "zone-k8s",
-    },
-    createdBy: "platform-team",
-    createdAt: Date.now() - 5 * d,
+    timeZone: "UTC",
     enabled: true,
+    filters: [{ managementZones: ["zone-k8s"] }],
   },
 ];
