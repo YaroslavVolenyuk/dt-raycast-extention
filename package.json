@@ -293,12 +293,12 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@raycast/api": "^1.104.1",
-    "@raycast/utils": "^1.17.0",
+    "@raycast/api": "^1.104.20",
+    "@raycast/utils": "^2.2.7",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@raycast/eslint-config": "^2.0.4",
+    "@raycast/eslint-config": "^2.2.0",
     "@types/jest": "^30.0.0",
     "@types/node": "22.13.10",
     "@types/react": "19.0.10",
